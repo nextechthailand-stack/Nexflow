@@ -1,0 +1,40 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><link rel="stylesheet" href="_card.css">
+<style>
+.role{display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.cell{height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1px solid rgba(0,0,0,.06)}
+.rname{font-size:12.5px;font-weight:700}
+.rsub{font-size:10.5px;color:var(--t3)}
+</style></head>
+<body>
+<div class="role">
+  <div><div class="rname">Accent</div><div class="rsub">primary action</div></div>
+  <div class="cell" style="background:#3b5bdb;color:#fff">#3b5bdb</div>
+  <div class="cell" style="background:#edf2ff;color:#2c44a8">#edf2ff</div>
+  <div class="cell" style="background:#fff;color:#2c44a8;border-color:var(--bd)">#2c44a8</div>
+</div>
+<div class="role">
+  <div><div class="rname">Success</div><div class="rsub">money · stock-in</div></div>
+  <div class="cell" style="background:#0d9272;color:#fff">#0d9272</div>
+  <div class="cell" style="background:#e6f6f2;color:#075c48">#e6f6f2</div>
+  <div class="cell" style="background:#fff;color:#075c48;border-color:var(--bd)">#075c48</div>
+</div>
+<div class="role">
+  <div><div class="rname">Warning</div><div class="rsub">low stock · discount</div></div>
+  <div class="cell" style="background:#c47b00;color:#fff">#c47b00</div>
+  <div class="cell" style="background:#fff4e0;color:#7a4d00">#fff4e0</div>
+  <div class="cell" style="background:#fff;color:#7a4d00;border-color:var(--bd)">#7a4d00</div>
+</div>
+<div class="role">
+  <div><div class="rname">Danger</div><div class="rsub">void · out-of-stock</div></div>
+  <div class="cell" style="background:#d03030;color:#fff">#d03030</div>
+  <div class="cell" style="background:#fff0f0;color:#8c1a1a">#fff0f0</div>
+  <div class="cell" style="background:#fff;color:#8c1a1a;border-color:var(--bd)">#8c1a1a</div>
+</div>
+<div class="role" style="margin:0">
+  <div><div class="rname">Special</div><div class="rsub">online sales</div></div>
+  <div class="cell" style="background:#6741d9;color:#fff">#6741d9</div>
+  <div class="cell" style="background:#f3effe;color:#4a2fa8">#f3effe</div>
+  <div class="cell" style="background:#fff;color:#4a2fa8;border-color:var(--bd)">#4a2fa8</div>
+</div>
+<div class="row" style="margin-top:10px"><div class="rsub">solid</div><div class="rsub" style="margin-left:96px">tint background</div><div class="rsub" style="margin-left:120px">dark text</div></div>
+</body></html>

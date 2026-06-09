@@ -1,0 +1,15 @@
+{
+  "name": "stockpro-api",
+  "version": "1.0.0",
+  "description": "StockPro REST API — PostgreSQL backend",
+  "main": "api_server.js",
+  "scripts": {
+    "start": "node api_server.js",
+    "dev": "node api_server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "pg": "^8.12.0",
+    "cors": "^2.8.5"
+  }
+}
