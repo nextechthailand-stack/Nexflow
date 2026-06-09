@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "StockPro UI Kit",
+      "runtimeExecutable": "C:\\Program Files\\Git\\usr\\bin\\perl.exe",
+      "runtimeArgs": ["C:\\Users\\EMC\\Desktop\\NEXflow\\serve.pl"],
+      "port": 3000
+    }
+  ]
+}

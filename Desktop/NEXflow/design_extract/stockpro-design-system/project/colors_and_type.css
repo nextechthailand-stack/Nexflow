@@ -1,0 +1,127 @@
+/* ═══════════════════════════════════════════════════════════════
+   StockPro — Colors & Type Foundations
+   Source of truth: nextechthailand-stack/Stockpro (stockpro-v50new1.html)
+   A Thai seafood inventory / stock-management web app.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── FONT ───────────────────────────────────────────────────────
+   The product ships a Thai-optimized SYSTEM font stack (no web
+   requests): Sarabun → Leelawadee UI → Tahoma → Segoe UI.
+   We load Sarabun from Google Fonts so the design renders identically
+   on machines without it installed. SUBSTITUTION NOTE: this is the
+   same family, sourced from Google Fonts rather than the OS.
+   ─────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* ── Type families ── */
+  --font-sans: 'Sarabun', 'Leelawadee UI', 'Tahoma', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Courier New', ui-monospace, monospace; /* barcodes, codes, tax IDs */
+
+  /* ── Type scale (px) ──
+     Base body is 15px. Thai script needs a touch more size/leading
+     than Latin, so the scale stays compact and dense.            */
+  --fs-display: 24px;   /* stat values, big numbers — weight 700, tight tracking */
+  --fs-h1:      18px;   /* report company name / page heroes      */
+  --fs-h2:      16px;   /* toolbar + modal + card-group titles     */
+  --fs-h3:      14px;   /* card headers (.ct-t)                     */
+  --fs-body:    15px;   /* default body                            */
+  --fs-sm:      13.5px; /* buttons, table cells, secondary body    */
+  --fs-xs:      12px;   /* labels, captions                        */
+  --fs-2xs:     11px;   /* meta, table sub-text                    */
+  --fs-micro:   10.5px; /* section eyebrows, uppercase tags        */
+
+  --lh-tight: 1.1;
+  --lh-snug:  1.4;
+  --lh-body:  1.6;
+  --lh-loose: 1.9;      /* invoice / address blocks                */
+
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+  --fw-bold:    700;
+  --fw-black:   800;
+
+  --tracking-tight: -0.5px; /* large display numbers */
+  --tracking-wide:  0.09em; /* uppercase eyebrows    */
+  --tracking-mono:  0.07em; /* barcode digits        */
+
+  /* ─── COLOR — neutrals / surfaces ─────────────────────────────
+     Warm "paper" greys, not pure greyscale. The whole app sits on
+     a warm off-white (#f0efe9) with white cards.                 */
+  --bg:  #f0efe9;  /* app canvas — warm paper            */
+  --sur: #ffffff;  /* card / panel surface               */
+  --s2:  #f7f6f2;  /* subtle fill, hover, table stripe   */
+  --s3:  #eeecea;  /* deeper fill                        */
+  --bd:  rgba(0,0,0,.08);  /* hairline border            */
+  --b2:  rgba(0,0,0,.14);  /* stronger border / inputs   */
+
+  /* ─── COLOR — text ─── */
+  --tx: #18171a;   /* primary ink (near-black, warm)     */
+  --t2: #6a6870;   /* secondary text                     */
+  --t3: #a09fa8;   /* tertiary / placeholder / meta      */
+
+  /* ─── COLOR — dark sidebar ─── */
+  --nav-bg:    #1a1826;          /* sidebar + thermal/invoice header */
+  --nav-fg:    rgba(255,255,255,.6);
+  --nav-fg-on: #ffffff;
+  --nav-line:  rgba(255,255,255,.07);
+
+  /* ─── COLOR — brand gradient ──────────────────────────────────
+     The signature mark: a blue→violet gradient used on the logo,
+     active nav item icon, avatars, and primary CTA washes.       */
+  --grad-brand: linear-gradient(135deg, #5b7cff, #8b5cf6);
+  --grad-login: linear-gradient(135deg, #1e1b4b 0%, #3b2f8a 50%, #1e3a5f 100%);
+  --brand-blue:   #5b7cff;
+  --brand-violet: #8b5cf6;
+
+  /* ─── COLOR — semantic palette ────────────────────────────────
+     Each role = a strong tone + a tinted background + a dark text
+     tone, used together for badges, pills, notices.              */
+  /* Accent / primary action (indigo-blue) */
+  --ac:  #3b5bdb;  --abg: #edf2ff;  --at: #2c44a8;
+  /* Success / stock-in / money (green) */
+  --gn:  #0d9272;  --gbg: #e6f6f2;  --gt: #075c48;
+  /* Warning / low-stock / discount (amber) */
+  --am:  #c47b00;  --ambg:#fff4e0;  --amt:#7a4d00;
+  /* Danger / void / out-of-stock (red) */
+  --rd:  #d03030;  --rbg: #fff0f0;  --rt: #8c1a1a;
+  /* Special / online sales (violet) */
+  --pu:  #6741d9;  --pbg: #f3effe;  --pt: #4a2fa8;
+
+  /* ─── RADII ─── */
+  --r:  12px;  /* cards, modals, scan zones */
+  --rs: 8px;   /* buttons, inputs, badges-bg */
+  --r4: 4px;   /* tiny chips, demo buttons   */
+  --r-pill: 100px;
+
+  /* ─── SHADOWS ─── */
+  --sh:  0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04); /* resting card */
+  --sh2: 0 4px 20px rgba(0,0,0,.1);                            /* toast / modal / float */
+  --sh-modal: 0 12px 60px rgba(0,0,0,.18);
+  --sh-brand: 0 4px 16px rgba(59,91,219,.35);                 /* primary CTA glow */
+
+  /* ─── SPACING (4px base grid) ─── */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 14px;
+  --sp-5: 16px; --sp-6: 20px; --sp-7: 24px; --sp-8: 26px;
+
+  /* ─── MOTION ───
+     Fast, functional. 0.13s for control feedback, 0.18–0.25s for
+     overlays/toasts. Eases are default ease / ease-out, no bounce. */
+  --dur-fast: .13s;
+  --dur:      .18s;
+  --dur-slow: .25s;
+}
+
+/* ─── SEMANTIC TYPE HELPERS ─────────────────────────────────────
+   Optional ready-made roles mirroring how the app styles text.   */
+.t-display { font-size: var(--fs-display); font-weight: var(--fw-bold); line-height: var(--lh-tight); letter-spacing: var(--tracking-tight); }
+.t-h1 { font-size: var(--fs-h1); font-weight: var(--fw-black); }
+.t-h2 { font-size: var(--fs-h2); font-weight: var(--fw-bold); }
+.t-h3 { font-size: var(--fs-h3); font-weight: var(--fw-bold); }
+.t-body { font-size: var(--fs-body); font-weight: var(--fw-regular); line-height: var(--lh-body); color: var(--tx); }
+.t-sm { font-size: var(--fs-sm); }
+.t-label { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--t2); }
+.t-eyebrow { font-size: var(--fs-micro); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: var(--tracking-wide); color: var(--t3); }
+.t-mono { font-family: var(--font-mono); letter-spacing: var(--tracking-mono); }
+.t-money { font-weight: var(--fw-bold); color: var(--gn); }
