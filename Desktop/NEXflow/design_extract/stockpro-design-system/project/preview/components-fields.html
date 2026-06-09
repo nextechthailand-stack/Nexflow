@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><link rel="stylesheet" href="_card.css">
+<style>
+.fl{display:block;font-size:12.5px;font-weight:600;color:var(--t2);margin-bottom:5px}
+.req{color:var(--rd)}
+.fc{width:100%;padding:9px 12px;border:1px solid var(--b2);border-radius:8px;font-size:14px;color:var(--tx);background:var(--sur);outline:none}
+.fc.focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(59,91,219,.12)}
+.fc:disabled{background:var(--s2);color:var(--t3)}
+</style></head>
+<body>
+<div class="grid" style="grid-template-columns:1fr 1fr;gap:14px">
+  <div><label class="fl">ชื่อสินค้า <span class="req">*</span></label><input class="fc" value="ปลาแซลมอนนอร์เวย์"></div>
+  <div><label class="fl">รหัสสินค้า 5 หลัก <span class="req">*</span></label><input class="fc focus mono" value="00001" style="font-family:var(--font-mono);letter-spacing:.05em"></div>
+  <div><label class="fl">ราคาขาย/KG</label><input class="fc" value="380.00"></div>
+  <div><label class="fl">ราคาทุน/KG <span style="color:var(--t3);font-weight:400;font-size:11.5px">(ไม่บังคับ)</span></label><input class="fc" disabled value="280.00"></div>
+</div>
+<div class="cap" style="margin-top:14px">Label 12.5/600 grey · required red <b style="color:var(--rd)">*</b> · focus = accent border + 3px ring (shown on code field) · disabled greys out.</div>
+</body></html>
