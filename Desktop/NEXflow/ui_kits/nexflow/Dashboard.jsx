@@ -1,4 +1,4 @@
-/* StockPro UI Kit — Dashboard (period tabs + tweak-aware) */
+/* NEXflow UI Kit — Dashboard (period tabs + tweak-aware) */
 
 const DASH_CSS = `
   @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
@@ -73,14 +73,21 @@ const DASH_CSS = `
   }
   .channel-row:last-child { border:none; }
   .channel-row:hover { background:var(--s2);margin:0 -16px;padding:8px 16px;border-radius:8px; }
+  .rev-tooltip {
+    position:absolute; pointer-events:none; z-index:20;
+    background:rgba(10,10,20,.88); backdrop-filter:blur(14px);
+    color:#fff; border-radius:10px; padding:8px 13px;
+    white-space:nowrap; box-shadow:0 4px 22px rgba(0,0,0,.3);
+    border:1px solid rgba(255,255,255,.12); transform:translateX(-50%);
+  }
 `;
 
 const PERIODS = [
-  { id:'7d',  label:'7 วัน' },
-  { id:'1m',  label:'1 เดือน' },
-  { id:'3m',  label:'3 เดือน' },
-  { id:'6m',  label:'6 เดือน' },
-  { id:'1y',  label:'1 ปี' },
+  { id:'7d',  label:'period_7d' },
+  { id:'1m',  label:'period_1m' },
+  { id:'3m',  label:'period_3m' },
+  { id:'6m',  label:'period_6m' },
+  { id:'1y',  label:'period_1y' },
 ];
 
 function useCountUp(target, duration, started) {
@@ -148,13 +155,13 @@ function KpiCard({ label, rawValue, displayFn, sub, gradient, solidColor, icon, 
 
 /* ── Dashboard ── */
 function Dashboard({ setPage }) {
-  /* รันสดทุกครั้ง — คำนวณยอดขาย/กราฟ/อันดับสินค้าจาก SP_STATE.invoices จริง
-     เริ่มนับจากยอดขาย "วันนี้" เป็นต้นไป ไม่ใช้ข้อมูลจำลองย้อนหลังอีกต่อไป */
-  if (window.SP_API && typeof window.SP_API.rebuildDashboard === 'function') {
-    window.SP_API.rebuildDashboard();
-  }
+  const [lang, t] = useLang();
   const [dataVer, setDataVer] = React.useState(window.SP_DASH_VERSION || 0);
   React.useEffect(() => {
+    /* build ครั้งแรกเมื่อ mount เท่านั้น */
+    if (window.SP_API && typeof window.SP_API.rebuildDashboard === 'function') {
+      window.SP_API.rebuildDashboard();
+    }
     const onUpdate = () => setDataVer(v => v + 1);
     window.addEventListener('sp:data-updated', onUpdate);
     return () => window.removeEventListener('sp:data-updated', onUpdate);
@@ -162,8 +169,11 @@ function Dashboard({ setPage }) {
 
   const D = window.SP_DATA;
   const S = D.sales;
+  const SS = D.stockStats || {};
   const [mounted, setMounted] = React.useState(false);
   const [period, setPeriod] = React.useState('7d');
+  const [hovBar, setHovBar] = React.useState(null);
+  const recentPag = usePagination(D.recentIssues, 25);
   React.useEffect(() => { const t = setTimeout(() => setMounted(true), 80); return () => clearTimeout(t); }, []);
 
   /* Inject styles once */
@@ -193,16 +203,18 @@ function Dashboard({ setPage }) {
   const showTopLabels = pd.values.length <= 12;
   /* For 30-bar (1m), show every 5th x-label */
   const xLabel = (i) => {
-    if (pd.values.length <= 12) return pd.labels[i];
-    return (i % 5 === 0 || i === pd.values.length - 1) ? pd.labels[i] : '';
+    const n = pd.values.length;
+    if (n <= 14) return pd.labels[i];
+    if (n <= 31) return (i % 5 === 0 || i === n - 1) ? pd.labels[i] : '';
+    return (i % 4 === 0 || i === n - 1) ? pd.labels[i] : '';
   };
 
   /* Donut */
   const R = 46, CIRC = 2 * Math.PI * R;
   let acc = 0;
   const TONE_COLOR = { ac:'#3b5bdb', pu:'#6741d9', gn:'#0d9272', am:'#c47b00' };
-  /* High-contrast palette for channel breakdown — distinct hues so each slice/legend stands out */
-  const CHANNEL_PALETTE = ['#3b5bdb', '#f08c00', '#e64980', '#12b886', '#7048e8'];
+  /* Monochromatic indigo palette for channel breakdown */
+  const CHANNEL_PALETTE = ['#3b5bdb', '#5876e8', '#7592ee', '#92adf4', '#afc8fa'];
   const donutSegs = D.salesByChannel.map((c, i) => {
     const frac = hasChannelData ? (c.value / channelDivisor) : 0;
     const segLen = frac * CIRC;
@@ -214,9 +226,43 @@ function Dashboard({ setPage }) {
     <div>
       {/* KPI row */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
-        <KpiCard label="ยอดขายวันนี้"   rawValue={S.today}  displayFn={v=>'฿'+v.toLocaleString('en-US')} sub={`▲ ${S.todayDelta}% จากเมื่อวาน`}      gradient="linear-gradient(135deg,#0d9272,#10b894)" solidColor="#0d9272" icon="coin"       delay={.05} started={mounted} />
-        <KpiCard label="ยอดขายเดือนนี้" rawValue={S.month}  displayFn={v=>'฿'+v.toLocaleString('en-US')} sub={`${monthPct}% ของเป้า ${k(S.monthTarget)}`} gradient="linear-gradient(135deg,#3b5bdb,#5b7cff)" solidColor="#3b5bdb" icon="bar-chart"  delay={.12} started={mounted} />
-        <KpiCard label="บิลวันนี้"       rawValue={S.bills}  displayFn={v=>v+' บิล'}                       sub={`เฉลี่ย ${k(S.avgPerBill)} / บิล`}          gradient="linear-gradient(135deg,#c47b00,#e09b20)" solidColor="#c47b00" icon="file-text"  delay={.19} started={mounted} />
+        <KpiCard label={t('kpi_today_sales')}   rawValue={S.today}  displayFn={v=>'฿'+v.toLocaleString('en-US')} sub={t('kpi_today_sales_sub',{pct:S.todayDelta})}      gradient="linear-gradient(135deg,#0d9272,#10b894)" solidColor="#0d9272" icon="coin"       delay={.05} started={mounted} />
+        <KpiCard label={t('kpi_month_sales')} rawValue={S.month}  displayFn={v=>'฿'+v.toLocaleString('en-US')} sub={t('kpi_month_sales_sub',{pct:monthPct,target:k(S.monthTarget)})} gradient="linear-gradient(135deg,#3b5bdb,#5b7cff)" solidColor="#3b5bdb" icon="bar-chart"  delay={.12} started={mounted} />
+        <KpiCard label={t('kpi_bills_today')}       rawValue={S.bills}  displayFn={v=>v+' '+t('kpi_bills_unit')}                       sub={t('kpi_bills_sub',{avg:k(S.avgPerBill)})}          gradient="linear-gradient(135deg,#c47b00,#e09b20)" solidColor="#c47b00" icon="file-text"  delay={.19} started={mounted} />
+      </div>
+
+      {/* ── Stock Management Stats Row ─────────────────────── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16, opacity:mounted?1:0, transition:'opacity .5s ease .22s' }}>
+        <div className="dash-card" style={{ padding:'14px 18px' }}>
+          <div style={{ fontSize:11, color:'var(--t2)', fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:5 }}>
+            <Icon name="warehouse" size={13} style={{ color:'var(--ac)' }}/> {t('kpi_grn_month')}
+          </div>
+          <div style={{ fontSize:20, fontWeight:800, color:'var(--ac)' }}>{SS.grnCount||0} <span style={{ fontSize:12, fontWeight:600 }}>{t('kpi_grn_unit')}</span></div>
+          <div style={{ fontSize:11, color:'var(--t3)', marginTop:3 }}>{(SS.grnWeight||0).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})} KG · {k(SS.grnValue||0)}</div>
+        </div>
+        <div className="dash-card" style={{ padding:'14px 18px' }}>
+          <div style={{ fontSize:11, color:'var(--t2)', fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:5 }}>
+            <Icon name="package" size={13} style={{ color:'var(--gn)' }}/> {t('kpi_stock_value')}
+          </div>
+          <div style={{ fontSize:20, fontWeight:800, color:'var(--gn)' }}>{k(stockValue)}</div>
+          <div style={{ fontSize:11, color:'var(--t3)', marginTop:3 }}>{t('kpi_stock_value_sub',{n:D.products.length})}</div>
+        </div>
+        <div className="dash-card" style={{ padding:'14px 18px' }}>
+          <div style={{ fontSize:11, color:'var(--t2)', fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:5 }}>
+            <Icon name="settings" size={13} style={{ color:'var(--am)' }}/> {t('kpi_adj_month')}
+          </div>
+          <div style={{ fontSize:20, fontWeight:800, color:'var(--am)' }}>{SS.adjCount||0} <span style={{ fontSize:12, fontWeight:600 }}>{t('kpi_adj_unit')}</span></div>
+          <div style={{ fontSize:11, color:'var(--t3)', marginTop:3 }}>ADJ documents</div>
+        </div>
+        <div className="dash-card" style={{ padding:'14px 18px' }}>
+          <div style={{ fontSize:11, color:'var(--t2)', fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:5 }}>
+            <Icon name="x-circle" size={13} style={{ color: (outOfStock.length>0)?'var(--rd)':'var(--am)' }}/> {t('kpi_stock_status')}
+          </div>
+          <div style={{ fontSize:20, fontWeight:800, color: (outOfStock.length+lowStock.length)>0?'var(--rd)':'var(--gn)' }}>
+            {outOfStock.length>0 ? t('kpi_stock_status_out',{n:outOfStock.length}) : lowStock.length>0 ? t('kpi_stock_status_low',{n:lowStock.length}) : t('kpi_stock_status_ok')}
+          </div>
+          <div style={{ fontSize:11, color:'var(--t3)', marginTop:3 }}>{t('kpi_items_to_order',{n:criticals.length})}</div>
+        </div>
       </div>
 
       {/* ── Stock Alert Banner ─────────────────────────────── */}
@@ -227,13 +273,13 @@ function Dashboard({ setPage }) {
               <span style={{ fontSize:16 }}>{outOfStock.length > 0 ? '🔴' : '🟡'}</span>
               <span style={{ fontWeight:700, fontSize:13, color: outOfStock.length > 0 ? 'var(--rd)' : 'var(--am)' }}>
                 {outOfStock.length > 0
-                  ? `แจ้งเตือน: สินค้าหมดสต็อก ${outOfStock.length} รายการ, ใกล้หมด ${lowStock.length} รายการ`
-                  : `แจ้งเตือน: สินค้าใกล้หมดสต็อก ${lowStock.length} รายการ`}
+                  ? t('alert_out_low',{out:outOfStock.length, low:lowStock.length})
+                  : t('alert_low_only',{low:lowStock.length})}
               </span>
             </div>
             <button onClick={() => setPage('stock-in')}
               style={{ fontSize:12, fontWeight:700, color:'#fff', background: outOfStock.length > 0 ? 'var(--rd)' : 'var(--am)', border:'none', borderRadius:7, padding:'5px 12px', cursor:'pointer', fontFamily:'inherit' }}>
-              + รับสินค้าเข้า
+              {t('btn_receive_stock')}
             </button>
           </div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, padding:'10px 16px' }}>
@@ -243,14 +289,14 @@ function Dashboard({ setPage }) {
                 <div>
                   <div style={{ fontSize:12, fontWeight:700, color:'var(--tx)' }}>{p.name}</div>
                   <div style={{ fontSize:11, color: p.stock <= 0 ? 'var(--rd)' : 'var(--am)', fontWeight:600, fontFamily:'var(--font-mono)' }}>
-                    {p.stock <= 0 ? 'หมดสต็อก' : `${Number(p.stock).toFixed(1)} / ${p.min} KG`}
+                    {p.stock <= 0 ? t('alert_out') : `${Number(p.stock).toFixed(1)} / ${p.min} KG`}
                   </div>
                 </div>
               </div>
             ))}
             {criticals.length > 6 && (
               <div style={{ display:'flex', alignItems:'center', fontSize:12, color:'var(--t2)', fontWeight:600 }}>
-                +{criticals.length - 6} รายการ
+                {t('alert_more',{n:criticals.length - 6})}
               </div>
             )}
           </div>
@@ -264,20 +310,31 @@ function Dashboard({ setPage }) {
         <div className="dash-card" style={{ opacity:mounted?1:0, transform:mounted?'scale(1)':'scale(.96)', transitionDelay:'.22s' }}>
           <div className="dash-card-h">
             <div>
-              <div className="dash-card-t">ยอดขาย</div>
-              <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>รวม {(totalRev/1000).toFixed(0)}k ฿ · {pd.unit}</div>
+              <div className="dash-card-t">{t('revenue_title')}</div>
+              <div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{t('revenue_sub',{total:(totalRev/1000).toFixed(0), unit:pd.unit})}</div>
             </div>
             {/* Period tabs */}
             <div style={{ display:'flex', gap:3 }}>
               {PERIODS.map(p => (
-                <button key={p.id} className={'period-tab' + (period===p.id?' active':'')} onClick={() => { setPeriod(p.id); }}>
-                  {p.label}
+                <button key={p.id} className={'period-tab' + (period===p.id?' active':'')} onClick={() => { setPeriod(p.id); setHovBar(null); }}>
+                  {t(p.label)}
                 </button>
               ))}
             </div>
           </div>
-          <div style={{ padding:'20px 20px 14px' }}>
-            <div style={{ position:'relative', height:160 }}>
+          <div style={{ padding:'16px 20px 14px' }}>
+            <div style={{ position:'relative', height:184 }}>
+              {/* Hover tooltip */}
+              {hovBar !== null && (
+                <div className="rev-tooltip" style={{
+                  top: 4,
+                  left: `calc(38px + ${((hovBar + 0.5) / pd.values.length).toFixed(4)} * (100% - 38px))`,
+                }}>
+                  <div style={{ fontSize:9.5, color:'rgba(255,255,255,.6)', marginBottom:2 }}>{pd.labels[hovBar]}</div>
+                  <div style={{ fontSize:13 }}>฿{pd.values[hovBar].toLocaleString('en-US')}</div>
+                </div>
+              )}
+              {/* Y-axis gridlines */}
               {[100,75,50,25,0].map(p => (
                 <div key={p} style={{ position:'absolute', left:0, right:0, top:`${100-p}%`, borderTop:'1px dashed rgba(0,0,0,.06)', display:'flex', alignItems:'center' }}>
                   <span style={{ fontSize:9.5, color:'var(--t3)', marginTop:-7, marginLeft:2, minWidth:34 }}>
@@ -285,43 +342,51 @@ function Dashboard({ setPage }) {
                   </span>
                 </div>
               ))}
+              {/* Bar columns */}
               <div style={{ position:'absolute', inset:'0 0 0 38px', display:'flex', alignItems:'flex-end', gap: pd.values.length > 20 ? 2 : 6 }}>
-                {pd.values.map((v, i) => (
-                  <div key={period+i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:0 }}>
-                    {showTopLabels && mounted && (
-                      <div className={'bar-value' + (i===pd.values.length-1 ? ' top' : '')}
-                        style={{ marginBottom:5, animationDelay:`${(0.5+i*.05).toFixed(2)}s` }}>
-                        ฿{v >= 1000 ? (v/1000).toFixed(v % 1000 === 0 ? 0 : 1)+'k' : v.toLocaleString('en-US')}
-                      </div>
-                    )}
-                    <div className={'bar-seg' + (i===pd.values.length-1 ? ' top-bar' : '')} style={{
-                      width:'100%',
-                      height: mounted ? `${Math.round((v/maxRev)*100)}%` : '2px',
-                      transitionDelay: `${(0.08 + i * Math.min(0.06, 2/pd.values.length)).toFixed(2)}s`,
-                      background: i === pd.values.length-1
-                        ? 'linear-gradient(180deg,#0d9272,#10b894)'
-                        : 'linear-gradient(180deg,var(--ac),#5b7cff)',
-                      boxShadow: i===pd.values.length-1 ? '0 4px 14px rgba(13,146,114,.3)' : 'none',
-                    }} title={`${pd.labels[i]}: ฿${v.toLocaleString('en-US')}`}></div>
-                  </div>
-                ))}
+                {pd.values.map((v, i) => {
+                  const pct = maxRev > 0 ? Math.round((v / maxRev) * 100) : 0;
+                  const isLast = i === pd.values.length - 1;
+                  const isHov  = hovBar === i;
+                  return (
+                    <div key={period+i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:0 }}
+                      onMouseEnter={() => setHovBar(i)}
+                      onMouseLeave={() => setHovBar(null)}
+                    >
+                      <div className={'bar-seg' + (isLast ? ' top-bar' : '')} style={{
+                        width:'100%',
+                        height: mounted ? (v > 0 ? `${Math.max(5, pct)}%` : '0%') : '2px',
+                        transitionDelay: `${(0.08 + i * Math.min(0.06, 2/pd.values.length)).toFixed(2)}s`,
+                        background: isLast
+                          ? 'linear-gradient(180deg,#0d9272,#10b894)'
+                          : isHov
+                            ? 'linear-gradient(180deg,#7b9cff,#2b4fd4)'
+                            : 'linear-gradient(180deg,var(--ac),#5b7cff)',
+                        boxShadow: isHov
+                          ? '0 4px 18px rgba(59,91,219,.45)'
+                          : isLast ? '0 4px 14px rgba(13,146,114,.3)' : 'none',
+                      }}></div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+            {/* X-axis labels */}
             <div style={{ display:'flex', gap: pd.values.length > 20 ? 0 : 6, paddingLeft:38, marginTop:8 }}>
               {pd.values.map((_, i) => (
-                <div key={i} style={{ flex:1, textAlign:'center', fontSize:9.5, color:'var(--t3)', fontWeight:600, minWidth:0, overflow:'hidden', whiteSpace:'nowrap' }}>{xLabel(i)}</div>
+                <div key={i} style={{ flex:1, textAlign:'center', fontSize:9.5, color: hovBar===i ? 'var(--ac)' : 'var(--t3)', fontWeight: hovBar===i ? 700 : 600, minWidth:0, overflow:'hidden', whiteSpace:'nowrap', transition:'color .12s' }}>{xLabel(i)}</div>
               ))}
             </div>
           </div>
           <div style={{ padding:'8px 20px 14px', borderTop:'1px solid var(--bd)', display:'flex', justifyContent:'space-between', fontSize:11.5 }}>
-            <span style={{ display:'flex', alignItems:'center', gap:6, color:'var(--gn)', fontWeight:600 }}><span className="live-dot"></span>อัปเดตสด</span>
-            <span style={{ color:'var(--t3)' }}>สูงสุด ฿{maxRev.toLocaleString('en-US')} / {pd.unit}</span>
+            <span style={{ display:'flex', alignItems:'center', gap:6, color:'var(--gn)', fontWeight:600 }}><span className="live-dot"></span>{t('live_update')}</span>
+            <span style={{ color:'var(--t3)' }}>{t('revenue_max',{max:maxRev.toLocaleString('en-US'), unit:pd.unit})}</span>
           </div>
         </div>
 
         {/* Donut: sales by channel */}
         <div className="dash-card" style={{ opacity:mounted?1:0, transform:mounted?'scale(1)':'scale(.96)', transitionDelay:'.30s' }}>
-          <div className="dash-card-h"><div className="dash-card-t">ยอดขายตามช่องทาง</div></div>
+          <div className="dash-card-h"><div className="dash-card-t">{t('channel_title')}</div></div>
           <div style={{ padding:'16px' }}>
             <div style={{ position:'relative', width:140, height:140, margin:'0 auto 16px' }}>
               <svg width="140" height="140" viewBox="0 0 120 120" className="donut-ring">
@@ -337,7 +402,7 @@ function Dashboard({ setPage }) {
                 </g>
               </svg>
               <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
-                <div style={{ fontSize:10, color:'var(--t3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em' }}>รวม</div>
+                <div style={{ fontSize:10, color:'var(--t3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em' }}>{t('channel_total')}</div>
                 <div style={{ fontSize:16, fontWeight:800, letterSpacing:'-.5px', marginTop:1 }}>{(channelTotal/1000).toFixed(0)}k</div>
               </div>
             </div>
@@ -358,7 +423,7 @@ function Dashboard({ setPage }) {
             })}
             {!hasChannelData && (
               <div style={{ textAlign:'center', padding:'10px 4px 2px', fontSize:11.5, color:'var(--t3)' }}>
-                ยังไม่มีข้อมูลยอดขาย — ตัวเลขจะเริ่มแสดงเมื่อมีการขายเกิดขึ้น
+                {t('channel_empty')}
               </div>
             )}
           </div>
@@ -368,21 +433,21 @@ function Dashboard({ setPage }) {
       {/* Top sellers + Stock health */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
         <div className="dash-card" style={{ opacity:mounted?1:0, transform:mounted?'scale(1)':'scale(.96)', transitionDelay:'.36s' }}>
-          <div className="dash-card-h"><div className="dash-card-t">สินค้าขายดีเดือนนี้</div><span style={{ fontSize:11, color:'var(--t3)' }}>เรียงตามยอดขาย ฿</span></div>
+          <div className="dash-card-h"><div className="dash-card-t">{t('top_sellers_title')}</div><span style={{ fontSize:11, color:'var(--t3)' }}>{t('top_sellers_sub')}</span></div>
           <div style={{ padding:'14px 20px' }}>
             {D.topSellers.length === 0 && (
               <div style={{ textAlign:'center', padding:'22px 4px', fontSize:12.5, color:'var(--t3)' }}>
-                ยังไม่มีสินค้าขายดี — ข้อมูลจะปรากฏเมื่อมีรายการขายเกิดขึ้น
+                {t('top_sellers_empty')}
               </div>
             )}
             {D.topSellers.slice().sort((a,b)=>b.revenue-a.revenue).map((s, i) => {
               const topRev = Math.max(...D.topSellers.map(x=>x.revenue), 1);
-              const colors = ['var(--gn)','var(--ac)','var(--pu)','var(--am)'];
+              const colors = ['var(--gn)','var(--ac)','rgba(59,91,219,.6)','rgba(59,91,219,.35)'];
               return (
                 <div key={i} style={{ marginBottom:14 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <span style={{ width:22, height:22, borderRadius:7, background:i===0?'linear-gradient(135deg,#f6c90e,#e4a200)':'var(--s2)', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:i===0?'#fff':'var(--t2)', flexShrink:0 }}>{i+1}</span>
+                      <span style={{ width:22, height:22, borderRadius:7, background:i===0?'var(--grad-brand)':'var(--s2)', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:i===0?'#fff':'var(--t2)', flexShrink:0 }}>{i+1}</span>
                       <span style={{ fontSize:13, fontWeight:600 }}>{s.name}</span>
                     </div>
                     <div style={{ textAlign:'right' }}>
@@ -401,22 +466,22 @@ function Dashboard({ setPage }) {
 
         <div className="dash-card" style={{ opacity:mounted?1:0, transform:mounted?'scale(1)':'scale(.96)', transitionDelay:'.42s' }}>
           <div className="dash-card-h">
-            <div className="dash-card-t">สุขภาพสต็อก · Top 4</div>
-            <button onClick={() => setPage('stock-manage')} style={{ fontSize:12, fontWeight:600, color:'var(--ac)', background:'var(--abg)', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>ดูทั้งหมด →</button>
+            <div className="dash-card-t">{t('stock_health_title')}</div>
+            <button onClick={() => setPage('stock-manage')} style={{ fontSize:12, fontWeight:600, color:'var(--ac)', background:'var(--abg)', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>{t('btn_view_all')}</button>
           </div>
           <div style={{ padding:'14px 16px' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14 }}>
-              <div style={{ background:'linear-gradient(135deg,var(--gbg),#e0f5ee)', borderRadius:10, padding:'10px 12px' }}>
-                <div style={{ fontSize:10.5, fontWeight:700, color:'var(--gt)', textTransform:'uppercase', letterSpacing:'.05em' }}>มูลค่าสต็อก</div>
+              <div style={{ background:'var(--gbg)', borderRadius:10, padding:'10px 12px' }}>
+                <div style={{ fontSize:10.5, fontWeight:700, color:'var(--gt)', textTransform:'uppercase', letterSpacing:'.05em' }}>{t('stock_health_value')}</div>
                 <div style={{ fontSize:15, fontWeight:800, color:'var(--gt)', marginTop:3, letterSpacing:'-.4px' }}>{(stockValue/1000).toFixed(0)}k ฿</div>
               </div>
-              <div style={{ background:'linear-gradient(135deg,var(--ambg),#fff8e0)', borderRadius:10, padding:'10px 12px' }}>
-                <div style={{ fontSize:10.5, fontWeight:700, color:'var(--amt)', textTransform:'uppercase', letterSpacing:'.05em' }}>ใกล้หมด</div>
-                <div style={{ fontSize:15, fontWeight:800, color:'var(--amt)', marginTop:3 }}>{lowStock.length} รายการ</div>
+              <div style={{ background:'var(--ambg)', borderRadius:10, padding:'10px 12px' }}>
+                <div style={{ fontSize:10.5, fontWeight:700, color:'var(--amt)', textTransform:'uppercase', letterSpacing:'.05em' }}>{t('stock_health_low')}</div>
+                <div style={{ fontSize:15, fontWeight:800, color:'var(--amt)', marginTop:3 }}>{lowStock.length} {t('stock_health_items')}</div>
               </div>
-              <div style={{ background: outOfStock.length > 0 ? 'linear-gradient(135deg,var(--rbg),#ffe0e0)' : 'var(--s2)', borderRadius:10, padding:'10px 12px' }}>
-                <div style={{ fontSize:10.5, fontWeight:700, color: outOfStock.length > 0 ? 'var(--rd)' : 'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>หมดสต็อก</div>
-                <div style={{ fontSize:15, fontWeight:800, color: outOfStock.length > 0 ? 'var(--rd)' : 'var(--t3)', marginTop:3 }}>{outOfStock.length} รายการ</div>
+              <div style={{ background: outOfStock.length > 0 ? 'var(--rbg)' : 'var(--s2)', borderRadius:10, padding:'10px 12px' }}>
+                <div style={{ fontSize:10.5, fontWeight:700, color: outOfStock.length > 0 ? 'var(--rd)' : 'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>{t('stock_health_out')}</div>
+                <div style={{ fontSize:15, fontWeight:800, color: outOfStock.length > 0 ? 'var(--rd)' : 'var(--t3)', marginTop:3 }}>{outOfStock.length} {t('stock_health_items')}</div>
               </div>
             </div>
             {stockHealth.map((p, i) => {
@@ -445,21 +510,21 @@ function Dashboard({ setPage }) {
       {/* Recent sales */}
       <div className="dash-card" style={{ marginBottom:2, opacity:mounted?1:0, transform:mounted?'scale(1)':'scale(.96)', transitionDelay:'.48s' }}>
         <div className="dash-card-h">
-          <div><div className="dash-card-t">รายการขายล่าสุด</div><div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{D.recentIssues.length} รายการ</div></div>
-          <button onClick={() => setPage('stock-out')} style={{ fontSize:12.5, fontWeight:700, color:'#fff', background:'var(--ac)', border:'none', borderRadius:8, padding:'7px 14px', cursor:'pointer', boxShadow:'0 3px 10px rgba(59,91,219,.3)', transition:'all .15s' }}>+ ขายใหม่</button>
+          <div><div className="dash-card-t">{t('recent_sales_title')}</div><div style={{ fontSize:11, color:'var(--t3)', marginTop:2 }}>{t('recent_sales_count',{n:D.recentIssues.length})}</div></div>
+          <button onClick={() => setPage('stock-out')} style={{ fontSize:12.5, fontWeight:700, color:'#fff', background:'var(--ac)', border:'none', borderRadius:8, padding:'7px 14px', cursor:'pointer', boxShadow:'0 3px 10px rgba(59,91,219,.3)', transition:'all .15s' }}>{t('btn_new_sale')}</button>
         </div>
-        <div style={{ overflowX:'auto' }}>
+        <div className="tw tw-fit" style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
-              <tr style={{ background:'var(--s2)' }}>
-                {['เลขที่','วันที่','ช่องทาง','รหัส','สินค้า','น้ำหนัก','มูลค่า','ใบกำกับ'].map(h => (
-                  <th key={h} style={{ padding:'9px 14px', textAlign:'left', fontSize:11.5, fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)', whiteSpace:'nowrap' }}>{h}</th>
+              <tr style={{ background:'var(--thd)' }}>
+                {[t('th_no'),t('th_date'),t('th_channel'),t('th_code'),t('th_product'),t('th_weight'),t('th_value'),t('th_invoice')].map(h => (
+                  <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:13, fontWeight:700, color:'var(--thd-fg)', borderBottom:'1px solid var(--bd)', whiteSpace:'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {D.recentIssues.map(r => (
-                <tr key={r.id} className="tbl-row" style={{ borderBottom:'1px solid var(--bd)' }}>
+              {recentPag.slice.map((r, i) => (
+                <tr key={(r.id ?? '') + '-' + (r.inv ?? '') + '-' + i} className="tbl-row" style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={{ padding:'11px 14px', fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{r.id}</td>
                   <td style={{ padding:'11px 14px', fontSize:12.5, color:'var(--t2)' }}>{r.date}</td>
                   <td style={{ padding:'11px 14px' }}><Badge kind={r.type} /></td>
@@ -473,6 +538,7 @@ function Dashboard({ setPage }) {
             </tbody>
           </table>
         </div>
+        <Paginator page={recentPag.page} totalPages={recentPag.totalPages} setPage={recentPag.setPage} total={recentPag.total} pageSize={recentPag.pageSize} setPageSize={recentPag.setPageSize} noun="รายการ" />
       </div>
     </div>
   );
