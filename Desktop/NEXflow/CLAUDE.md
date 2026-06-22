@@ -152,13 +152,15 @@ Density: `compact` | `regular` | `relaxed`
 
 ## Git Workflow
 
-**หลังทำ task เสร็จทุกครั้งให้ commit ทันที** — ไม่ต้องรอให้ผู้ใช้สั่ง
+**หลังทำ task เสร็จทุกครั้งให้ commit และ push ทันที** — ไม่ต้องรอให้ผู้ใช้สั่ง
 
 ```bash
 git add <ไฟล์ที่แก้>
 git commit -m "feat/fix: สรุปสิ่งที่ทำ"
+git push origin dev
 ```
 
+- **Branch หลักที่ใช้งาน: `dev`** — commit และ push ทุกงานขึ้น `dev` เสมอ
 - ใช้ prefix `feat:` สำหรับ feature ใหม่, `fix:` สำหรับแก้ bug, `style:` สำหรับแก้ UI/สี
 - Commit message เป็นภาษาไทยหรืออังกฤษก็ได้ ขอให้สื่อความหมาย
 - Add เฉพาะไฟล์ที่แก้ในงานนั้น — ห้าม `git add .` หรือ `git add -A`
