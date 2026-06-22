@@ -205,12 +205,14 @@ function Dashboard({ setPage }) {
   let acc = 0;
   const TONE_COLOR = { ac:'#3b5bdb', pu:'#6741d9', gn:'#0d9272', am:'#c47b00' };
   /* Monochromatic indigo palette for channel breakdown */
-  const CHANNEL_PALETTE = ['#3b5bdb', '#5876e8', '#7592ee', '#92adf4', '#afc8fa'];
+  /* สีแต่ละ channel — ต้องต่างสกุลกันชัด (blue / violet / teal / amber / red) */
+  const CHANNEL_COLOR_MAP = { wholesale:'#3b5bdb', online:'#7c3aed', other:'#0d9272' };
+  const CHANNEL_PALETTE = ['#3b5bdb', '#7c3aed', '#0d9272', '#c47b00', '#d03030'];
   const donutSegs = D.salesByChannel.map((c, i) => {
     const frac = hasChannelData ? (c.value / channelDivisor) : 0;
     const segLen = frac * CIRC;
     const offset = -(acc); acc += segLen;
-    return { ...c, segLen, offset, color: CHANNEL_PALETTE[i % CHANNEL_PALETTE.length] };
+    return { ...c, segLen, offset, color: CHANNEL_COLOR_MAP[c.id] || CHANNEL_PALETTE[i % CHANNEL_PALETTE.length] };
   });
 
   return (
@@ -399,7 +401,7 @@ function Dashboard({ setPage }) {
               </div>
             </div>
             {D.salesByChannel.map((c, i) => {
-              const cColor = CHANNEL_PALETTE[i % CHANNEL_PALETTE.length];
+              const cColor = CHANNEL_COLOR_MAP[c.id] || CHANNEL_PALETTE[i % CHANNEL_PALETTE.length];
               return (
               <div key={c.id} className="channel-row">
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
