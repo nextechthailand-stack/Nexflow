@@ -100,17 +100,20 @@ function useCountUp(target, duration, started) {
 /* KPI Card — three styles via window.SP_TWEAKS.kpiStyle */
 function KpiCard({ label, rawValue, displayFn, sub, gradient, solidColor, icon, delay, started }) {
   const v = useCountUp(rawValue, 1300, started);
-  const style = (window.SP_TWEAKS || {}).kpiStyle || 'gradient';
+  const style = (window.SP_TWEAKS || {}).kpiStyle || 'minimal';
 
   if (style === 'minimal') {
     return (
-      <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderTop:`3px solid ${solidColor}`, borderRadius:'var(--r-lg)', padding:'18px 20px', opacity:started?1:0, transform:started?'translateY(0)':'translateY(20px)', transition:`opacity .5s ease ${delay}s, transform .5s ease ${delay}s` }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-          <span style={{ width:28, height:28, borderRadius:8, background:`${solidColor}18`, display:'flex', alignItems:'center', justifyContent:'center', color:solidColor }}><Icon name={icon} size={14} /></span>
-          <span style={{ fontSize:12, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em' }}>{label}</span>
+      <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderTop:`4px solid ${solidColor}`, borderRadius:'var(--r-lg)', padding:'20px 22px 18px', boxShadow:'0 1px 4px rgba(0,0,0,.05)', opacity:started?1:0, transform:started?'translateY(0)':'translateY(20px)', transition:`opacity .5s ease ${delay}s, transform .5s ease ${delay}s` }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+          <span style={{ fontSize:12, fontWeight:700, color:'var(--t2)', letterSpacing:'.04em' }}>{label}</span>
+          <span style={{ width:30, height:30, borderRadius:8, background:`${solidColor}15`, display:'flex', alignItems:'center', justifyContent:'center', color:solidColor }}><Icon name={icon} size={14} /></span>
         </div>
-        <div style={{ fontSize:28, fontWeight:800, color:solidColor, letterSpacing:'-.6px', lineHeight:1 }}>{displayFn(v)}</div>
-        <div style={{ marginTop:8, fontSize:12, color:'var(--t3)' }}>{sub}</div>
+        <div style={{ fontSize:30, fontWeight:800, color:'var(--tx)', letterSpacing:'-.8px', lineHeight:1 }}>{displayFn(v)}</div>
+        <div style={{ marginTop:9, fontSize:12, color:'var(--t3)', display:'flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:6, height:6, borderRadius:'50%', background:solidColor, display:'inline-block', flexShrink:0 }}/>
+          {sub}
+        </div>
       </div>
     );
   }
