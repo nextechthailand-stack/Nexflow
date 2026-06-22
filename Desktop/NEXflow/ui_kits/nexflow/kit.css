@@ -19,7 +19,7 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-
 .login-label{display:block;font-size:12.5px;font-weight:600;color:var(--t2);margin-bottom:5px}
 .login-input{width:100%;padding:11px 14px;border:1.5px solid var(--bd);border-radius:var(--rs);font-size:15px;color:var(--tx);transition:border .15s;outline:none;margin-bottom:16px}
 .login-input:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(59,91,219,.15)}
-.login-btn{width:100%;padding:13px;border-radius:var(--rs);background:var(--grad-brand);color:#fff;font-size:15px;font-weight:700;box-shadow:var(--sh-brand);transition:all .15s;margin-top:4px}
+.login-btn{width:100%;padding:13px;border-radius:var(--rs);background:var(--grad-brand);color:#fff;font-size:15px;font-weight:700;box-shadow:var(--sh-brand);transition:transform .15s,box-shadow .15s;margin-top:4px}
 .login-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(59,91,219,.45)}
 .remember-row{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--t2)}
 
@@ -33,7 +33,7 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-
 .sb-ver{font-size:10.5px;color:var(--nav-muted);margin-top:1px}
 .sb-nav{flex:1;padding:8px 10px;overflow-y:auto}
 .sb-sec{font-size:10px;font-weight:800;color:var(--nav-muted);letter-spacing:.09em;text-transform:uppercase;padding:12px 8px 5px}
-.ni{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:var(--rs);font-size:13.5px;font-weight:600;color:var(--nav-fg);cursor:pointer;margin-bottom:2px;transition:all .15s;user-select:none;width:100%;text-align:left}
+.ni{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:var(--rs);font-size:13.5px;font-weight:600;color:var(--nav-fg);cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;user-select:none;width:100%;text-align:left}
 .ni:hover{background:var(--nav-hover);color:var(--nav-fg-on)}
 .ni.on{background:var(--nav-active);color:var(--nav-active-fg);font-weight:700}
 .ni.on .ni-ic{background:var(--grad-brand);color:#fff;box-shadow:0 3px 10px rgba(91,124,255,.4)}
@@ -138,7 +138,7 @@ tbody tr:hover td{background:var(--s2)}
 .si-bc-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:17px;font-weight:700;pointer-events:none}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--gn);display:inline-block;animation:pulse 1.4s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-.demo-btn{padding:5px 10px;border-radius:var(--r4);background:#fff;border:1px solid var(--bd);font-size:11.5px;cursor:pointer;transition:all .12s;line-height:1.4;text-align:left}
+.demo-btn{padding:5px 10px;border-radius:var(--r4);background:#fff;border:1px solid var(--bd);font-size:11.5px;cursor:pointer;transition:border-color .12s,color .12s;line-height:1.4;text-align:left}
 .demo-btn:hover{border-color:var(--ac);color:var(--ac)}
 .item-row{display:grid;gap:8px;align-items:center;padding:10px 12px;background:var(--sur);border:1px solid var(--bd);border-radius:var(--rs);margin-bottom:6px}
 .item-row.isnew{animation:hl .6s ease forwards}

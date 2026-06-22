@@ -16,7 +16,7 @@ const DASH_CSS = `
   .bar-value.top { background:linear-gradient(135deg,#0d9272,#10b894); color:#fff; border-color:transparent; }
   .bar-seg {
     transform-origin:bottom center; border-radius:6px 6px 0 0;
-    transition:height .9s cubic-bezier(.25,1,.5,1); cursor:pointer;
+    transition:transform .9s cubic-bezier(.25,1,.5,1); cursor:pointer;
   }
   .bar-seg:hover { filter:brightness(1.12) saturate(1.05); }
   .dash-kpi {
@@ -48,7 +48,7 @@ const DASH_CSS = `
   .live-dot { width:7px;height:7px;border-radius:50%;background:var(--gn);position:relative;flex-shrink:0; }
   .live-dot::after { content:'';position:absolute;inset:-2px;border-radius:50%;background:var(--gn);animation:pulseRing 1.8s ease-out infinite; }
   .stock-bar { height:5px;border-radius:100px;overflow:hidden;background:var(--s2);margin-top:6px; }
-  .stock-bar-fill { height:100%;border-radius:100px;transition:width 1s cubic-bezier(.22,1,.36,1); }
+  .stock-bar-fill { height:100%;border-radius:100px;transform-origin:left center;transition:transform 1s cubic-bezier(.22,1,.36,1); }
   .seg-arc { transition:stroke-dasharray 1.2s cubic-bezier(.22,1,.36,1); }
   .channel-row {
     display:flex;align-items:center;justify-content:space-between;
@@ -66,6 +66,8 @@ const DASH_CSS = `
   @media (prefers-reduced-motion: reduce) {
     .dash-kpi, .dash-card, .bar-seg, .stock-bar-fill, .seg-arc,
     .bar-value, .live-dot::after { animation: none !important; transition: none !important; }
+    .bar-seg { transform: scaleY(1) !important; }
+    .stock-bar-fill { transform: scaleX(1) !important; }
   }
 `;
 
@@ -341,7 +343,8 @@ function Dashboard({ setPage }) {
                     >
                       <div className={'bar-seg' + (isLast ? ' top-bar' : '')} style={{
                         width:'100%',
-                        height: mounted ? (v > 0 ? `${Math.max(5, pct)}%` : '0%') : '2px',
+                        height: v > 0 ? `${Math.max(5, pct)}%` : '0%',
+                        transform: mounted ? 'scaleY(1)' : 'scaleY(0)',
                         transitionDelay: `${(0.08 + i * Math.min(0.06, 2/pd.values.length)).toFixed(2)}s`,
                         background: isLast
                           ? 'linear-gradient(180deg,#0d9272,#10b894)'
@@ -442,7 +445,7 @@ function Dashboard({ setPage }) {
                     </div>
                   </div>
                   <div className="stock-bar">
-                    <div className="stock-bar-fill" style={{ width:mounted?`${(s.revenue/topRev)*100}%`:'0%', background:colors[i], transitionDelay:`${(0.5+i*0.1).toFixed(1)}s` }}></div>
+                    <div className="stock-bar-fill" style={{ width:'100%', transform:mounted?`scaleX(${(s.revenue/topRev).toFixed(4)})`:'scaleX(0)', background:colors[i], transitionDelay:`${(0.5+i*0.1).toFixed(1)}s` }}></div>
                   </div>
                 </div>
               );
@@ -484,7 +487,7 @@ function Dashboard({ setPage }) {
                     <StockPill stock={p.stock} min={p.min} />
                   </div>
                   <div className="stock-bar">
-                    <div className="stock-bar-fill" style={{ width:mounted?pct+'%':'0%', background:color, transitionDelay:`${(0.6+i*0.1).toFixed(1)}s` }}></div>
+                    <div className="stock-bar-fill" style={{ width:'100%', transform:mounted?`scaleX(${(pct/100).toFixed(4)})`:'scaleX(0)', background:color, transitionDelay:`${(0.6+i*0.1).toFixed(1)}s` }}></div>
                   </div>
                 </div>
               );

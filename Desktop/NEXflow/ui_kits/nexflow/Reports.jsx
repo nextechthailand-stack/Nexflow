@@ -1,18 +1,65 @@
-/* StockPro UI Kit — Reports (6 tabs: รายการสินค้า, ภาษีซื้อ-ขาย, Daily Sale, Payment, % Discount, รายลูกค้า) */
+/* NEXflow UI Kit — Reports (6 tabs: รายการสินค้า, ภาษีซื้อ-ขาย, Daily Sale, Payment, % Discount, รายลูกค้า) */
 
 const RPT_TABS = [
-  { id:'product',  label:'รายการสินค้า' },
-  { id:'tax',      label:'ภาษีซื้อ-ขาย' },
-  { id:'daily',    label:'Daily Sale' },
-  { id:'payment',  label:'Payment' },
-  { id:'discount', label:'% Discount' },
-  { id:'customer', label:'รายลูกค้า' },
+  { id:'product',  label:'rpt_tab_product' },
+  { id:'tax',      label:'rpt_tab_tax' },
+  { id:'daily',    label:'rpt_tab_daily' },
+  { id:'payment',  label:'rpt_tab_payment' },
+  { id:'discount', label:'rpt_tab_discount' },
+  { id:'customer', label:'rpt_tab_customer' },
 ];
 const PAY_LABELS = { cash:'เงินสด', transfer:'โอนเงิน', credit:'เครดิต' };
 const PAY_ICONS  = { cash:'🟩', transfer:'🏦', credit:'💳' };
 const PAY_COLORS = { cash:'#3b5bdb', transfer:'#0d9272', credit:'#c47b00' };
 
+/* Donut chart — slices:[{pct,color,label}], size=px */
+function PieChart({ slices = [], size = 180 }) {
+  const R = size / 2, r = R * 0.58, cx = R, cy = R;
+  const circumference = 2 * Math.PI * r;
+  const GAP = slices.length > 1 ? 2.5 : 0; // gap between slices in px
+
+  let offset = 0;
+  const arcs = slices.map((s, i) => {
+    const dash = Math.max(0, s.pct * circumference - GAP);
+    const arc = { ...s, dash, gap: circumference - dash, offset };
+    offset += s.pct * circumference;
+    return arc;
+  });
+
+  const total = slices.reduce((a, s) => a + (s.amount || 0), 0);
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+      <div style={{ position:'relative', width:size, height:size }}>
+        <svg width={size} height={size} style={{ transform:'rotate(-90deg)' }}>
+          {/* track */}
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--s3,#eee)" strokeWidth={R*0.22} />
+          {arcs.map((a, i) => (
+            <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+              stroke={a.color} strokeWidth={R*0.22}
+              strokeDasharray={`${a.dash} ${a.gap}`}
+              strokeDashoffset={-a.offset}
+              strokeLinecap="butt"
+              style={{ transition:'stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease' }}
+            />
+          ))}
+        </svg>
+        {/* center label */}
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
+          <div style={{ fontSize: size * 0.11, fontWeight:800, color:'var(--tx)', letterSpacing:'-.5px', lineHeight:1.1 }}>
+            {slices.length === 1 ? '100%' : `${slices.length}`}
+          </div>
+          <div style={{ fontSize: size * 0.075, color:'var(--t3)', fontWeight:500 }}>
+            {slices.length === 1 ? slices[0].label : 'ช่องทาง'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Reports() {
+  const [, t] = useLang();
   /* Re-render เมื่อ reloadInvoices() อัปเดตข้อมูล */
   const [dataVer, setDataVer] = React.useState(window.SP_DASH_VERSION || 0);
   React.useEffect(() => {
@@ -24,12 +71,13 @@ function Reports() {
   const D = window.SP_DATA;
   const [tab, setTab]           = React.useState('product');
   const [prodSub, setProdSub]   = React.useState('flat'); /* flat | byproduct */
-  const [dateFrom, setDateFrom] = React.useState('');
-  const [dateTo, setDateTo]     = React.useState('');
-  const [search, setSearch]     = React.useState('');
-  const [custModal, setCustModal] = React.useState(null);
+  const [dateFrom, setDateFrom] = React.useState(() => window.toLocalISODate());
+  const [dateTo, setDateTo]     = React.useState(() => window.toLocalISODate());
+  const [search, setSearch]         = React.useState('');
+  const [discSearch, setDiscSearch] = React.useState('');
+  const [custModal, setCustModal]   = React.useState(null);
 
-  React.useEffect(() => { setSearch(''); }, [tab]);
+  React.useEffect(() => { setSearch(''); setDiscSearch(''); }, [tab]);
 
   /* ── filter ── */
   const allRows = D.reportRows;
@@ -66,38 +114,52 @@ function Reports() {
   /* ── by-date ── */
   const byDate = {};
   rows.forEach(r => {
-    if (!byDate[r.dateISO]) byDate[r.dateISO] = { date:r.date, cnt:0, gross:0, disc:0, net:0, vat:0, total:0, cash:0, transfer:0, credit:0, wholesale:0, online:0, sample:0, expired:0, other:0 };
+    if (!byDate[r.dateISO]) byDate[r.dateISO] = { date:r.date, dateISO:r.dateISO, cnt:0, _bills:new Set(), gross:0, disc:0, net:0, vat:0, total:0, cash:0, transfer:0, credit:0, wholesale:0, online:0, sample:0, expired:0, other:0 };
     const d = byDate[r.dateISO];
-    d.cnt++; d.gross+=r.grossSale; d.disc+=r.discount; d.net+=r.netSale; d.vat+=r.vat; d.total+=r.total;
+    d._bills.add(r.inv);
+    d.gross+=r.grossSale; d.disc+=r.discount; d.net+=r.netSale; d.vat+=r.vat; d.total+=r.total;
     if (r.pay) d[r.pay] = (d[r.pay]||0) + r.total;
     if (r.channel) d[r.channel] = (d[r.channel]||0) + r.total;
   });
-  const dateRows = Object.values(byDate).sort((a,b) => b.dateISO?.localeCompare(a.dateISO||'')||0);
+  const dateRows = Object.values(byDate)
+    .map(d => ({ ...d, cnt: d._bills.size }))
+    .sort((a,b) => (b.dateISO||'').localeCompare(a.dateISO||''));
 
   /* ── by-payment ── */
   const byPay = {};
   rows.forEach(r => {
     const k = r.pay||'cash';
-    if (!byPay[k]) byPay[k] = { pay:k, cnt:0, w:0, net:0, vat:0, total:0 };
-    byPay[k].cnt++; byPay[k].w+=r.w; byPay[k].net+=r.netSale; byPay[k].vat+=r.vat; byPay[k].total+=r.total;
+    if (!byPay[k]) byPay[k] = { pay:k, cnt:0, _bills:new Set(), w:0, net:0, vat:0, total:0 };
+    byPay[k]._bills.add(r.inv); byPay[k].w+=r.w; byPay[k].net+=r.netSale; byPay[k].vat+=r.vat; byPay[k].total+=r.total;
   });
-  const payRows = Object.values(byPay);
+  const payRows = Object.values(byPay).map(p => ({ ...p, cnt: p._bills.size }));
   const payTotal = payRows.reduce((s,p)=>s+p.total,0);
 
   /* ── by-customer ── */
   const byCust = {};
   rows.forEach(r => {
     const cust = D.customers.find(c=>c.id===r.custId) || { id:0, code:'—', name:'ไม่ระบุ', type:'other', tax:'', tel:'', addr:'' };
-    if (!byCust[cust.id]) byCust[cust.id] = { ...cust, cnt:0, w:0, disc:0, total:0, txns:[] };
-    byCust[cust.id].cnt++; byCust[cust.id].w+=r.w; byCust[cust.id].disc+=r.discount; byCust[cust.id].total+=r.total;
+    if (!byCust[cust.id]) byCust[cust.id] = { ...cust, cnt:0, _bills:new Set(), w:0, disc:0, total:0, txns:[] };
+    byCust[cust.id]._bills.add(r.inv); byCust[cust.id].w+=r.w; byCust[cust.id].disc+=r.discount; byCust[cust.id].total+=r.total;
     byCust[cust.id].txns.push(r);
   });
-  const custRows = Object.values(byCust).sort((a,b)=>b.total-a.total);
+  const custRows = Object.values(byCust).map(c => ({ ...c, cnt: c._bills.size })).sort((a,b)=>b.total-a.total);
 
   /* ── discount rows ── */
   const discRows = rows.filter(r=>r.discount>0);
+  const discFiltered = discSearch.trim()
+    ? discRows.filter(r => r.inv?.toLowerCase().includes(discSearch.toLowerCase()))
+    : discRows;
   const allDiscBills = allRows.filter(r=>r.discount>0 && (!dateFrom||r.dateISO>=dateFrom) && (!dateTo||r.dateISO<=dateTo));
   const avgDiscPct = totGross > 0 ? (totDisc/totGross*100) : 0;
+
+  /* ── Pagination (per table) ── */
+  const flatPag    = usePagination(rows, 20);
+  const byProdPag  = usePagination(productRows, 20);
+  const payRowsSorted = [...rows].sort((a,b)=>a.pay?.localeCompare(b.pay||''));
+  const payBillPag = usePagination(payRowsSorted, 20);
+  const discPag    = usePagination(discFiltered, 20);
+  const custPag    = usePagination(custRows, 20);
 
   /* ── Pie chart helper ── */
   function PieChart({ slices, size=160, cx=80, cy=80, r=65 }) {
@@ -126,9 +188,9 @@ function Reports() {
   const FilterBar = ({ showSearch=true, onExport, onPdf }) => (
     <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginBottom:16, padding:'10px 14px', background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--r)', boxShadow:'var(--sh)' }}>
       <span style={{ fontSize:12, fontWeight:700, color:'var(--t2)', whiteSpace:'nowrap' }}>ช่วงวันที่:</span>
-      <input type="date" className="fc" style={{ width:140 }} value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
+      <DateField style={{ width:145 }} value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
       <span style={{ fontSize:12, color:'var(--t3)' }}>ถึง</span>
-      <input type="date" className="fc" style={{ width:140 }} value={dateTo} onChange={e=>setDateTo(e.target.value)} />
+      <DateField style={{ width:145 }} value={dateTo} onChange={e=>setDateTo(e.target.value)} />
       {(dateFrom||dateTo) && <button className="btn bg2 bsm" onClick={()=>{setDateFrom('');setDateTo('');}}>ล้าง</button>}
       {showSearch && (
         <div style={{ position:'relative', marginLeft:'auto' }}>
@@ -159,7 +221,7 @@ function Reports() {
   return (
     <div>
       <div className="tabs">
-        {RPT_TABS.map(t => <div key={t.id} className={'tab'+(tab===t.id?' on':'')} onClick={()=>setTab(t.id)}>{t.label}</div>)}
+        {RPT_TABS.map(rpt => <div key={rpt.id} className={'tab'+(tab===rpt.id?' on':'')} onClick={()=>setTab(rpt.id)}>{t(rpt.label)}</div>)}
       </div>
 
       {/* ── TAB 1: รายการสินค้า ── */}
@@ -176,13 +238,13 @@ function Reports() {
           </div>
 
           <FilterBar
-            onExport={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,r.w.toFixed(3),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total]))}
-            onPdf={()=>window.exportPDF('รายงานรายการสินค้า',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก KG','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,r.w.toFixed(3),r.total]),`${rows.length} รายการ | รวม ${totW.toFixed(3)} KG | ยอดรวม ${$(totTotal)}`)}
+            onExport={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,r.w.toFixed(2),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total]))}
+            onPdf={()=>window.exportPDF('รายงานรายการสินค้า',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก KG','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,r.w.toFixed(2),r.total]),`${rows.length} รายการ | รวม ${totW.toFixed(2)} KG | ยอดรวม ${$(totTotal)}`)}
           />
           {prodSub==='flat' && (
           <Card title={`รายการสินค้าทั้งหมด · ${rows.length} รายการ`} actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,r.w.toFixed(3),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total]))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้าทั้งหมด',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก KG','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,r.w.toFixed(3),r.total]))}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,r.w.toFixed(2),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total]))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้าทั้งหมด',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก KG','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,r.w.toFixed(2),r.total]))}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
@@ -193,7 +255,7 @@ function Reports() {
               </tr></thead>
               <tbody>
                 {rows.length===0 ? <tr><td colSpan="12" style={{ padding:'32px', textAlign:'center', color:'var(--t3)' }}>ไม่พบรายการ</td></tr>
-                : rows.map((r,i) => (
+                : flatPag.slice.map((r,i) => (
                   <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span style={{ fontSize:12.5, color:'var(--t2)' }}>{r.date}</span></td>
                     <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{r.inv}</span></td>
@@ -201,7 +263,7 @@ function Reports() {
                     <td style={TD}><span style={{ fontWeight:600 }}>{r.prod}</span></td>
                     <td style={TD}><Badge kind={r.channel}/></td>
                     <td style={TD}><span style={{ fontSize:12.5 }}>{PAY_LABELS[r.pay]||r.pay}</span></td>
-                    <td style={TDR}>{r.w.toFixed(3)}</td>
+                    <td style={TDR}>{r.w.toFixed(2)}</td>
                     <td style={TDR}>{$(r.grossSale)}</td>
                     <td style={{ ...TDR, color:'var(--am)' }}>{r.discount>0?'-'+$(r.discount):'—'}</td>
                     <td style={{ ...TDR, fontWeight:700 }}>{$(r.netSale)}</td>
@@ -212,7 +274,7 @@ function Reports() {
               </tbody>
               <tfoot><tr>
                 <td colSpan="6" style={TF}>รวม {rows.length} รายการ · {billCount} บิล</td>
-                <td style={TFR}>{totW.toFixed(3)}</td>
+                <td style={TFR}>{totW.toFixed(2)}</td>
                 <td style={TFR}>{$(totGross)}</td>
                 <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
                 <td style={TFR}>{$(totNet)}</td>
@@ -220,13 +282,14 @@ function Reports() {
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
               </tr></tfoot>
             </table></div>
+            <Paginator page={flatPag.page} totalPages={flatPag.totalPages} setPage={flatPag.setPage} total={flatPag.total} pageSize={flatPag.pageSize} setPageSize={flatPag.setPageSize} noun="รายการ" />
           </Card>
           )}
 
           {prodSub==='byproduct' && (
           <Card title={`สรุปยอดขายแยกตามสินค้า · ${productRows.length} รายการสินค้า`} actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products_byproduct.csv',['รหัส','สินค้า','จำนวนรายการ','น้ำหนักรวม KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],productRows.map(p=>[p.code,p.prod,p.cnt,p.w.toFixed(3),p.gross,p.disc,p.net,p.vat.toFixed(2),p.total]))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดขายแยกตามสินค้า',['รหัส','สินค้า','จำนวนรายการ','น้ำหนักรวม KG','ยอดรวม'],productRows.map(p=>[p.code,p.prod,p.cnt,p.w.toFixed(3),p.total]),`${productRows.length} รายการสินค้า | รวม ${totW.toFixed(3)} KG | ยอดรวม ${$(totTotal)}`)}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products_byproduct.csv',['รหัส','สินค้า','จำนวนรายการ','น้ำหนักรวม KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],productRows.map(p=>[p.code,p.prod,p.cnt,p.w.toFixed(2),p.gross,p.disc,p.net,p.vat.toFixed(2),p.total]))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดขายแยกตามสินค้า',['รหัส','สินค้า','จำนวนรายการ','น้ำหนักรวม KG','ยอดรวม'],productRows.map(p=>[p.code,p.prod,p.cnt,p.w.toFixed(2),p.total]),`${productRows.length} รายการสินค้า | รวม ${totW.toFixed(2)} KG | ยอดรวม ${$(totTotal)}`)}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
@@ -236,12 +299,12 @@ function Reports() {
               </tr></thead>
               <tbody>
                 {productRows.length===0 ? <tr><td colSpan="9" style={{ padding:'32px', textAlign:'center', color:'var(--t3)' }}>ไม่พบรายการ</td></tr>
-                : productRows.map((p,i) => (
+                : byProdPag.slice.map((p,i) => (
                   <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span className="mono">{p.code}</span></td>
                     <td style={TD}><span style={{ fontWeight:600 }}>{p.prod}</span></td>
                     <td style={TDR}>{p.cnt}</td>
-                    <td style={TDR}>{p.w.toFixed(3)}</td>
+                    <td style={TDR}>{p.w.toFixed(2)}</td>
                     <td style={TDR}>{$(p.gross)}</td>
                     <td style={{ ...TDR, color:'var(--am)' }}>{p.disc>0?'-'+$(p.disc):'—'}</td>
                     <td style={{ ...TDR, fontWeight:700 }}>{$(p.net)}</td>
@@ -253,7 +316,7 @@ function Reports() {
               <tfoot><tr>
                 <td colSpan="2" style={TF}>รวม {productRows.length} รายการสินค้า</td>
                 <td style={TFR}>{rows.length}</td>
-                <td style={TFR}>{totW.toFixed(3)}</td>
+                <td style={TFR}>{totW.toFixed(2)}</td>
                 <td style={TFR}>{$(totGross)}</td>
                 <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
                 <td style={TFR}>{$(totNet)}</td>
@@ -261,6 +324,7 @@ function Reports() {
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
               </tr></tfoot>
             </table></div>
+            <Paginator page={byProdPag.page} totalPages={byProdPag.totalPages} setPage={byProdPag.setPage} total={byProdPag.total} pageSize={byProdPag.pageSize} setPageSize={byProdPag.setPageSize} noun="รายการสินค้า" />
           </Card>
           )}
         </div>
@@ -306,7 +370,7 @@ function Reports() {
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{rng(tivs)}</td>
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{rng(invs)}</td>
                       <td style={{ ...TD, textAlign:'center', fontWeight:700 }}>{dayRows.length} บิล</td>
-                      <td style={TDR}>{kgDay.toFixed(3)}</td>
+                      <td style={TDR}>{kgDay.toFixed(2)}</td>
                       <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(d.total)}</td>
                     </tr>
                   );
@@ -319,7 +383,7 @@ function Reports() {
                   &nbsp;&nbsp; INV ต่อไป: <span style={{ fontFamily:'var(--font-mono)', color:'var(--ac)' }}>…-{String(window.SP_STATE.invCounterA4).padStart(4,'0')}</span>
                 </td>
                 <td style={{ ...TF, textAlign:'center' }}>{rows.length} บิล</td>
-                <td style={TFR}>{totW.toFixed(3)}</td>
+                <td style={TFR}>{totW.toFixed(2)}</td>
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
               </tr></tfoot>
             </table></div>
@@ -485,8 +549,8 @@ function Reports() {
       {tab==='payment' && (
         <div>
           <FilterBar showSearch={false}
-            onExport={()=>window.exportCSV('report_payment.csv',['ช่องทาง','จำนวนบิล','น้ำหนัก KG','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,p.w.toFixed(3),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']))}
-            onPdf={()=>window.exportPDF('รายงาน Payment',['ช่องทาง','จำนวนบิล','น้ำหนัก KG','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,p.w.toFixed(3),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']),`รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
+            onExport={()=>window.exportCSV('report_payment.csv',['ช่องทาง','จำนวนบิล','น้ำหนัก KG','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,p.w.toFixed(2),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']))}
+            onPdf={()=>window.exportPDF('รายงาน Payment',['ช่องทาง','จำนวนบิล','น้ำหนัก KG','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,p.w.toFixed(2),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']),`รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
           />
           <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
             <Card title="รายงานแยกตามประเภทชำระเงิน">
@@ -508,7 +572,7 @@ function Reports() {
                         </div>
                       </td>
                       <td style={{ ...TD, textAlign:'center' }}>{p.cnt}</td>
-                      <td style={TDR}>{p.w.toFixed(3)}</td>
+                      <td style={TDR}>{p.w.toFixed(2)}</td>
                       <td style={TDR}>{$(p.net)}</td>
                       <td style={{ ...TDR, color:'var(--pu)' }}>{$(p.vat)}</td>
                       <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(p.total)}</td>
@@ -519,7 +583,7 @@ function Reports() {
                 <tfoot><tr>
                   <td style={TF}>รวม</td>
                   <td style={{ ...TF, textAlign:'center' }}>{billCount}</td>
-                  <td style={TFR}>{totW.toFixed(3)}</td>
+                  <td style={TFR}>{totW.toFixed(2)}</td>
                   <td style={TFR}>{$(totNet)}</td>
                   <td style={{ ...TFR, color:'var(--pu)' }}>{$(totVat)}</td>
                   <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
@@ -528,22 +592,102 @@ function Reports() {
               </table></div>
             </Card>
             <Card title="สัดส่วนการชำระเงิน">
-              <div style={{ padding:'16px 14px' }}>
-                {payTotal > 0 && (
-                  <PieChart size={160} slices={payRows.map(p=>({ pct:p.total/payTotal, color:PAY_COLORS[p.pay]||'#999', label:PAY_LABELS[p.pay]||p.pay }))} />
-                )}
-                <div style={{ marginTop:16 }}>
-                  {payRows.map(p=>(
-                    <div key={p.pay} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'1px solid var(--bd)' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <span style={{ width:10, height:10, borderRadius:3, background:PAY_COLORS[p.pay]||'#999', flexShrink:0 }}></span>
-                        <span style={{ fontSize:13, fontWeight:600 }}>{PAY_LABELS[p.pay]||p.pay}</span>
-                      </div>
-                      <span style={{ fontSize:12, fontWeight:700, color:'var(--t2)' }}>{payTotal>0?(p.total/payTotal*100).toFixed(2)+'%':'—'}</span>
+              {payTotal > 0 ? (() => {
+                const sorted = [...payRows].sort((a,b)=>b.total-a.total);
+                /* donut via SVG */
+                const SZ = 180, CX = 90, CY = 90, R = 72, RI = 44;
+                let angle = -Math.PI / 2;
+                const slices = sorted.map(p => {
+                  const pct = p.total / payTotal;
+                  const sweep = pct * 2 * Math.PI;
+                  const x1 = CX + R*Math.cos(angle),  y1 = CY + R*Math.sin(angle);
+                  const xi1= CX + RI*Math.cos(angle), yi1= CY + RI*Math.sin(angle);
+                  angle += sweep;
+                  const x2 = CX + R*Math.cos(angle),  y2 = CY + R*Math.sin(angle);
+                  const xi2= CX + RI*Math.cos(angle), yi2= CY + RI*Math.sin(angle);
+                  const large = sweep > Math.PI ? 1 : 0;
+                  const midA = angle - sweep/2;
+                  const lx = CX + (R+12)*Math.cos(midA), ly = CY + (R+12)*Math.sin(midA);
+                  return { p, pct, large, x1,y1,x2,y2,xi1,yi1,xi2,yi2, lx, ly,
+                    d: `M${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${xi2},${yi2} A${RI},${RI} 0 ${large},0 ${xi1},${yi1} Z`,
+                    color: PAY_COLORS[p.pay]||'#999' };
+                });
+                const dominant = sorted[0];
+                return (
+                  <div style={{ padding:'14px 16px' }}>
+                    {/* Donut */}
+                    <div style={{ position:'relative', width:SZ, height:SZ, margin:'0 auto 18px' }}>
+                      <svg width={SZ} height={SZ} viewBox={`0 0 ${SZ} ${SZ}`} style={{ display:'block' }}>
+                        <defs>
+                          {slices.map((s,i)=>(
+                            <radialGradient key={i} id={`pg${i}`} cx="50%" cy="50%" r="50%">
+                              <stop offset="0%" stopColor={s.color} stopOpacity=".95" />
+                              <stop offset="100%" stopColor={s.color} stopOpacity=".75" />
+                            </radialGradient>
+                          ))}
+                        </defs>
+                        {slices.map((s,i)=>(
+                          <path key={i} d={s.d} fill={`url(#pg${i})`}
+                            stroke="var(--bg)" strokeWidth="2" />
+                        ))}
+                        {/* % labels outside for large slices */}
+                        {slices.filter(s=>s.pct>=0.08).map((s,i)=>{
+                          const midA2 = Math.atan2(s.y2-CY, s.x2-CX) - (s.pct*Math.PI);
+                          const px = CX + (R-18)*Math.cos(midA2), py = CY + (R-18)*Math.sin(midA2);
+                          return (
+                            <text key={i} x={px} y={py} textAnchor="middle" dominantBaseline="middle"
+                              fill="#fff" fontSize="11" fontWeight="800">{(s.pct*100).toFixed(1)}%</text>
+                          );
+                        })}
+                        {/* center */}
+                        <text x={CX} y={CY-7} textAnchor="middle" fill="var(--tx)" fontSize="10" fontWeight="600" opacity=".6">ยอดรวม</text>
+                        <text x={CX} y={CY+9} textAnchor="middle" fill="var(--tx)" fontSize="13" fontWeight="800">
+                          {payTotal>=1000000
+                            ? (payTotal/1000000).toFixed(1)+'M'
+                            : payTotal>=1000
+                              ? (payTotal/1000).toFixed(1)+'K'
+                              : Math.round(payTotal)}
+                        </text>
+                        <text x={CX} y={CY+22} textAnchor="middle" fill="var(--t3)" fontSize="9">฿</text>
+                      </svg>
                     </div>
-                  ))}
-                </div>
-              </div>
+                    {/* Legend */}
+                    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                      {sorted.map(p=>{
+                        const pct = payTotal>0 ? p.total/payTotal : 0;
+                        const color = PAY_COLORS[p.pay]||'#999';
+                        return (
+                          <div key={p.pay}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                              <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                                <span style={{ width:10, height:10, borderRadius:3, background:color, flexShrink:0, boxShadow:`0 1px 4px ${color}55` }}></span>
+                                <span style={{ fontSize:13, fontWeight:700 }}>{PAY_LABELS[p.pay]||p.pay}</span>
+                                <span style={{ fontSize:11.5, color:'var(--t3)', fontWeight:400 }}>{p.cnt} บิล</span>
+                              </div>
+                              <div style={{ textAlign:'right' }}>
+                                <span style={{ fontSize:13, fontWeight:800, color:'var(--tx)' }}>{$(p.total)}</span>
+                                <span style={{ fontSize:11, color:'var(--t3)', marginLeft:5 }}>{(pct*100).toFixed(1)}%</span>
+                              </div>
+                            </div>
+                            <div style={{ height:6, borderRadius:100, background:'var(--s2)', overflow:'hidden' }}>
+                              <div style={{ height:'100%', width:'100%', background:color, borderRadius:100, transform:`scaleX(${pct.toFixed(4)})`, transformOrigin:'left', transition:'transform .5s ease', boxShadow:`0 1px 4px ${color}66` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* dominant badge */}
+                    <div style={{ marginTop:14, padding:'8px 12px', borderRadius:'var(--rs)', background:'var(--s2)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ fontSize:12, color:'var(--t2)' }}>ช่องทางหลัก</span>
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <span style={{ width:8, height:8, borderRadius:2, background:PAY_COLORS[dominant.pay]||'#999', flexShrink:0 }}></span>
+                        <span style={{ fontSize:13, fontWeight:800 }}>{PAY_LABELS[dominant.pay]||dominant.pay}</span>
+                        <span style={{ fontSize:12, color:'var(--gn)', fontWeight:700 }}>{(dominant.total/payTotal*100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })() : <div style={{ padding:'40px 0', textAlign:'center', color:'var(--t3)' }}>ไม่มีข้อมูล</div>}
             </Card>
           </div>
           <Card title="รายการบิลแยกตามช่องทางชำระเงิน">
@@ -554,7 +698,7 @@ function Reports() {
                 <th style={THR}>Discount</th><th style={THR}>VAT</th><th style={THR}>ยอดรวม</th>
               </tr></thead>
               <tbody>
-                {rows.sort((a,b)=>a.pay?.localeCompare(b.pay||'')).map((r,i)=>{
+                {payBillPag.slice.map((r,i)=>{
                   const cust = D.customers.find(c=>c.id===r.custId);
                   return (
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
@@ -576,6 +720,7 @@ function Reports() {
                 })}
               </tbody>
             </table></div>
+            <Paginator page={payBillPag.page} totalPages={payBillPag.totalPages} setPage={payBillPag.setPage} total={payBillPag.total} pageSize={payBillPag.pageSize} setPageSize={payBillPag.setPageSize} noun="รายการ" />
           </Card>
         </div>
       )}
@@ -584,9 +729,16 @@ function Reports() {
       {tab==='discount' && (
         <div>
           <FilterBar showSearch={false}
-            onExport={()=>window.exportCSV('report_discount.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','Gross Sale','ส่วนลด','ส่วนลด %','Net Sale','VAT','ยอดรวม'],discRows.map(r=>[r.date,r.inv,r.code,r.prod,r.grossSale,r.discount,r.grossSale>0?((r.discount/r.grossSale)*100).toFixed(2)+'%':'',r.netSale,r.vat.toFixed(2),r.total]))}
-            onPdf={()=>window.exportPDF('รายงาน % Discount',['วันที่','เลขที่บิล','สินค้า','Gross Sale','ส่วนลด','ส่วนลด %','Net Sale'],discRows.map(r=>[r.date,r.inv,r.prod,r.grossSale,r.discount,r.grossSale>0?((r.discount/r.grossSale)*100).toFixed(2)+'%':'',r.netSale]),`${discRows.length} รายการ | ส่วนลดรวม ${$(totDisc)} | อัตราเฉลี่ย ${avgDiscPct.toFixed(2)}%`)}
+            onExport={()=>window.exportCSV('report_discount.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','Gross Sale','ส่วนลด','ส่วนลด %','Net Sale','VAT','ยอดรวม'],discFiltered.map(r=>[r.date,r.inv,r.code,r.prod,r.grossSale,r.discount,r.grossSale>0?((r.discount/r.grossSale)*100).toFixed(2)+'%':'',r.netSale,r.vat.toFixed(2),r.total]))}
+            onPdf={()=>window.exportPDF('รายงาน % Discount',['วันที่','เลขที่บิล','สินค้า','Gross Sale','ส่วนลด','ส่วนลด %','Net Sale'],discFiltered.map(r=>[r.date,r.inv,r.prod,r.grossSale,r.discount,r.grossSale>0?((r.discount/r.grossSale)*100).toFixed(2)+'%':'',r.netSale]),`${discFiltered.length} รายการ | ส่วนลดรวม ${$(totDisc)} | อัตราเฉลี่ย ${avgDiscPct.toFixed(2)}%`)}
           />
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, padding:'10px 14px', background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--r)' }}>
+            <Icon name="search" size={13} style={{ color:'var(--t3)', flexShrink:0 }} />
+            <input className="fc" placeholder="ค้นหาเลขที่บิล เช่น ABB2606…" style={{ flex:1, maxWidth:280 }}
+              value={discSearch} onChange={e=>setDiscSearch(e.target.value)} />
+            {discSearch && <button className="btn bg2 bsm" onClick={()=>setDiscSearch('')}>ล้าง</button>}
+            {discSearch && <span style={{ fontSize:12.5, color:'var(--t2)' }}>พบ <b>{discFiltered.length}</b> รายการ</span>}
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12, marginBottom:20 }}>
             <KPI label="มีดิสเค้าท์" value={`${discRows.length} / ${billCount} บิล`} color="var(--am)" />
             <KPI label="ส่วนลดรวม" value={$(totDisc)} color="var(--am)" />
@@ -605,13 +757,23 @@ function Reports() {
               <tbody>
                 {dateRows.map((d,i)=>{
                   const dr = rows.filter(r=>r.date===d.date && r.discount>0);
-                  const invNos = [...new Set(dr.map(r=>r.inv))];
+                  const invNos = [...new Set(dr.map(r=>r.inv))].sort();
                   const dPct = d.gross>0?(d.disc/d.gross*100):0;
+                  const first = invNos[0], last = invNos[invNos.length-1];
+                  const rangeLabel = invNos.length === 0
+                    ? <span style={{ color:'var(--t3)', fontSize:12 }}>—</span>
+                    : invNos.length === 1
+                      ? <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)', fontWeight:700 }}>{first}</span>
+                      : <div>
+                          <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)', fontWeight:700 }}>{first}</span>
+                          <span style={{ color:'var(--t3)', margin:'0 4px', fontSize:11 }}>—</span>
+                          <span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)', fontWeight:700 }}>{last}</span>
+                        </div>;
                   return (
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                       <td style={{ ...TD, fontWeight:600 }}>{d.date}</td>
-                      <td style={TD}>{invNos.map(n=><span key={n} style={{ fontFamily:'var(--font-mono)', fontSize:11.5, color:'var(--ac)', display:'block' }}>{n}</span>)}</td>
-                      <td style={{ ...TD, textAlign:'center' }}>{dr.length} บิล</td>
+                      <td style={TD}>{rangeLabel}</td>
+                      <td style={{ ...TD, textAlign:'center' }}>{dr.length > 0 ? <span style={{ fontWeight:700 }}>{dr.length}</span> : <span style={{ color:'var(--t3)' }}>0</span>} บิล</td>
                       <td style={TDR}>{$(d.gross)}</td>
                       <td style={{ ...TDR, color:'var(--am)', fontWeight:700 }}>{d.disc>0?'-'+$(d.disc):'—'}</td>
                       <td style={{ ...TDR, color:'var(--am)' }}>{d.disc>0?dPct.toFixed(2)+'%':'—'}</td>
@@ -638,8 +800,8 @@ function Reports() {
                 <th style={THR}>Net Sale</th><th style={THR}>VAT</th><th style={THR}>ยอดรวม</th>
               </tr></thead>
               <tbody>
-                {discRows.length===0 ? <tr><td colSpan="10" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการที่มีส่วนลดในช่วงนี้</td></tr>
-                : discRows.map((r,i)=>{
+                {discFiltered.length===0 ? <tr><td colSpan="10" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>{discSearch ? `ไม่พบเลขที่บิล "${discSearch}"` : 'ไม่มีรายการที่มีส่วนลดในช่วงนี้'}</td></tr>
+                : discPag.slice.map((r,i)=>{
                   const pct = r.grossSale>0?(r.discount/r.grossSale*100):0;
                   return (
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
@@ -667,6 +829,7 @@ function Reports() {
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(discRows.reduce((s,r)=>s+r.total,0))}</td>
               </tr></tfoot>}
             </table></div>
+            <Paginator page={discPag.page} totalPages={discPag.totalPages} setPage={discPag.setPage} total={discPag.total} pageSize={discPag.pageSize} setPageSize={discPag.setPageSize} noun="รายการ" />
           </Card>
         </div>
       )}
@@ -675,8 +838,8 @@ function Reports() {
       {tab==='customer' && (
         <div>
           <FilterBar
-            onExport={()=>window.exportCSV('report_customers.csv',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.w.toFixed(3),c.disc,$(c.total)]))}
-            onPdf={()=>window.exportPDF('รายงานยอดขายรายลูกค้า',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.w.toFixed(3),c.disc,$(c.total)]),`${custRows.length} ราย | รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
+            onExport={()=>window.exportCSV('report_customers.csv',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.w.toFixed(2),c.disc,$(c.total)]))}
+            onPdf={()=>window.exportPDF('รายงานยอดขายรายลูกค้า',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.w.toFixed(2),c.disc,$(c.total)]),`${custRows.length} ราย | รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
           />
           <Card title="ยอดขายรายลูกค้า">
             <div className="tw"><table>
@@ -687,13 +850,13 @@ function Reports() {
               </tr></thead>
               <tbody>
                 {custRows.length===0 ? <tr><td colSpan="8" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>ไม่พบข้อมูล</td></tr>
-                : custRows.map((c,i)=>(
+                : custPag.slice.map((c,i)=>(
                   <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span className="mono" style={{ color:'var(--t2)' }}>{c.code}</span></td>
                     <td style={{ ...TD, fontWeight:600 }}>{c.name}</td>
                     <td style={TD}><Badge kind={c.type}/></td>
                     <td style={{ ...TD, textAlign:'center' }}>{c.cnt} บิล</td>
-                    <td style={TDR}>{c.w.toFixed(3)} KG</td>
+                    <td style={TDR}>{c.w.toFixed(2)} KG</td>
                     <td style={{ ...TDR, color:'var(--am)' }}>{c.disc>0?'-'+$(c.disc):'—'}</td>
                     <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(c.total)}</td>
                     <td style={TD}>
@@ -707,12 +870,13 @@ function Reports() {
               {custRows.length>0 && <tfoot><tr>
                 <td colSpan="3" style={TF}>รวม {custRows.length} ราย</td>
                 <td style={{ ...TF, textAlign:'center' }}>{billCount} บิล</td>
-                <td style={TFR}>{totW.toFixed(3)} KG</td>
+                <td style={TFR}>{totW.toFixed(2)} KG</td>
                 <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
                 <td style={TF}></td>
               </tr></tfoot>}
             </table></div>
+            <Paginator page={custPag.page} totalPages={custPag.totalPages} setPage={custPag.setPage} total={custPag.total} pageSize={custPag.pageSize} setPageSize={custPag.setPageSize} noun="ราย" />
           </Card>
         </div>
       )}
@@ -753,7 +917,7 @@ function Reports() {
                       <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{r.inv}</span></td>
                       <td style={TD}><span style={{ fontSize:12.5, color:'var(--t2)' }}>{r.date}</span></td>
                       <td style={{ ...TD, fontWeight:600, fontSize:12.5 }}>{r.prod}</td>
-                      <td style={TDR}>{r.w.toFixed(3)} KG</td>
+                      <td style={TDR}>{r.w.toFixed(2)} KG</td>
                       <td style={{ ...TDR, color:'var(--am)' }}>{r.discount>0?$(r.discount):'—'}</td>
                       <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(r.total)}</td>
                       <td style={TD}><Badge kind={r.channel}/></td>
@@ -762,7 +926,7 @@ function Reports() {
                 </tbody>
                 <tfoot><tr>
                   <td colSpan="3" style={TF}>รวม {custModal.txns?.length||0} รายการ</td>
-                  <td style={TFR}>{(custModal.txns||[]).reduce((s,r)=>s+r.w,0).toFixed(3)} KG</td>
+                  <td style={TFR}>{(custModal.txns||[]).reduce((s,r)=>s+r.w,0).toFixed(2)} KG</td>
                   <td style={{ ...TFR, color:'var(--am)' }}>{custModal.disc>0?$(custModal.disc):'—'}</td>
                   <td style={{ ...TFR, color:'var(--gn)' }}>{$(custModal.total)}</td>
                   <td style={TF}></td>

@@ -1820,7 +1820,7 @@ function StockManage({ toast }) {
                 ) : (
                   /* ── Search mode (redesigned): autocomplete ค้นหาสินค้า + รายละเอียดเดิม/ใหม่/ผลต่าง ── */
                   <div>
-                    <div style={{ position:'relative', marginBottom: (adjSearchOpen && !adjPickedProd && filteredAdjProducts.length > 0) ? 246 : 12, transition:'margin-bottom .15s ease' }}>
+                    <div style={{ position:'relative', marginBottom: (adjSearchOpen && !adjPickedProd && filteredAdjProducts.length > 0) ? 246 : 12 }}>
                       <label className="fl" style={{ display:'block', marginBottom:6 }}>ค้นหาสินค้า <span className="req">*</span></label>
                       <div style={{ position:'relative' }}>
                         <Icon name="search" size={14} style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--t3)' }} />
