@@ -1,21 +1,23 @@
-/* StockPro UI Kit — Extras: InvoiceList, StockManage (with grouped movement), Users, Settings, Products, Customers */
+/* NEXflow UI Kit — Extras: InvoiceList, StockManage (with grouped movement), Users, Settings, Products, Customers */
 
 /* ── Shared pagination utilities (used by all list-heavy components) ── */
-function usePagination(items, pageSize) {
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
+function usePagination(items, initialPageSize) {
   const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(initialPageSize || 20);
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(page, totalPages);
-  // reset to page 1 whenever dataset changes
-  const prevLen = React.useRef(total);
-  if (prevLen.current !== total) { prevLen.current = total; }
-  React.useEffect(() => { setPage(1); }, [total]);
+  // reset to page 1 whenever dataset or page size changes
+  React.useEffect(() => { setPage(1); }, [total, pageSize]);
   const slice = items.slice((safePage - 1) * pageSize, safePage * pageSize);
-  return { slice, page: safePage, totalPages, setPage, total };
+  return { slice, page: safePage, totalPages, setPage, total, pageSize, setPageSize };
 }
 
-function Paginator({ page, totalPages, setPage, total, pageSize, noun = 'รายการ' }) {
-  if (totalPages <= 1) return null;
+function Paginator({ page, totalPages, setPage, total, pageSize, setPageSize, noun = 'รายการ', pageSizeOptions = PAGE_SIZE_OPTIONS }) {
+  const [, t] = useLang();
+  if (total === 0) return null;
   const from = (page - 1) * pageSize + 1;
   const to   = Math.min(page * pageSize, total);
   const bs = (active, disabled) => ({
@@ -30,22 +32,32 @@ function Paginator({ page, totalPages, setPage, total, pageSize, noun = 'รา�
   if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
   else {
     pages = [1];
-    if (page > 3) pages.push('…');
+    if (page > 3) pages.push('⬦');
     for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
-    if (page < totalPages - 2) pages.push('…');
+    if (page < totalPages - 2) pages.push('⬦');
     pages.push(totalPages);
   }
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 16px', background:'var(--s2)', borderTop:'1px solid var(--bd)', flexWrap:'wrap', gap:8 }}>
-      <span style={{ fontSize:12, color:'var(--t2)' }}>{from}–{to} <span style={{ color:'var(--t3)' }}>จาก</span> {total} {noun}</span>
-      <div style={{ display:'flex', gap:3, alignItems:'center' }}>
-        <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1} style={bs(false, page===1)}>‹</button>
-        {pages.map((p, i) => typeof p === 'number'
-          ? <button key={i} onClick={() => setPage(p)} style={bs(p===page, false)}>{p}</button>
-          : <span key={i} style={{ padding:'0 3px', color:'var(--t3)', fontSize:11 }}>…</span>
+      <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+        <span style={{ fontSize:12, color:'var(--t2)' }}>{from}–{to} <span style={{ color:'var(--t3)' }}>จาก</span> {total} {noun}</span>
+        {setPageSize && (
+          <select value={pageSize} onChange={e=>setPageSize(Number(e.target.value))}
+            style={{ fontSize:12, padding:'3px 8px', borderRadius:'var(--r4)', border:'1px solid var(--b2)', background:'var(--sur)', color:'var(--tx)', fontFamily:'inherit', cursor:'pointer' }}>
+            {pageSizeOptions.map(n => <option key={n} value={n}>{n} / {t('page_per_page')||'หน้า'}</option>)}
+          </select>
         )}
-        <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} style={bs(false, page===totalPages)}>›</button>
       </div>
+      {totalPages > 1 && (
+        <div style={{ display:'flex', gap:3, alignItems:'center' }}>
+          <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page===1} style={bs(false, page===1)}>⬹</button>
+          {pages.map((p, i) => typeof p === 'number'
+            ? <button key={i} onClick={() => setPage(p)} style={bs(p===page, false)}>{p}</button>
+            : <span key={i} style={{ padding:'0 3px', color:'var(--t3)', fontSize:11 }}>⬦</span>
+          )}
+          <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages} style={bs(false, page===totalPages)}>⬺</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -54,7 +66,8 @@ function Paginator({ page, totalPages, setPage, total, pageSize, noun = 'รา�
 function InvoiceList({ toast }) {
   const [tab, setTab] = React.useState('list');
   const [search, setSearch] = React.useState('');
-  const [dateF, setDateF] = React.useState('');
+  const [dateFrom, setDateFrom] = React.useState(() => window.toLocalISODate());
+  const [dateTo,   setDateTo]   = React.useState(() => window.toLocalISODate());
   const [selInv, setSelInv] = React.useState(null);
   const [voidNo, setVoidNo] = React.useState('');
   const [voidPreview, setVoidPreview] = React.useState(null);
@@ -71,11 +84,9 @@ function InvoiceList({ toast }) {
   /* ── pagination state for each tab ── */
   const INV_PAGE_SIZE = 25;
   const [tivPage,   setTivPage]   = React.useState(1);
-  const [cnPage,    setCnPage]    = React.useState(1);
-  const [dnPage,    setDnPage]    = React.useState(1);
   const [voidPage,  setVoidPage]  = React.useState(1);
   const [auditPage, setAuditPage] = React.useState(1);
-  React.useEffect(() => { setTivPage(1); }, [search, dateF]);
+  React.useEffect(() => { setTivPage(1); }, [search, dateFrom, dateTo]);
   React.useEffect(() => { setAuditPage(1); }, [tab]);
 
   const refresh = () => setInvs([...window.SP_STATE.invoices]);
@@ -95,54 +106,65 @@ function InvoiceList({ toast }) {
   }, [tab]);
 
   const filtered = invs.filter(iv =>
-    (!dateF || iv.date === dateF) &&
+    (!dateFrom || iv.date >= dateFrom) &&
+    (!dateTo   || iv.date <= dateTo) &&
     (!search || iv.no.includes(search) || (iv.custName||'').includes(search))
   );
   const active = invs.filter(iv => !iv.voided);
 
   const doVoid = async () => {
     const iv = voidModal; if (!iv) return;
-    const isINV       = iv.type === 'A4';
-    const restoreStk  = true;            // ทุกประเภท — คืนสต็อกเมื่อยกเลิก
-    const voidedAt    = window.fmtDate() + ' ' + new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-    const st          = window.SP_STATE;
+    if (!voidReason) { toast('err', 'กรุณาเลือกเหตุผลการยกเลิก'); return; }
+    const voidedAt = window.fmtDate() + ' ' + new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+    const st       = window.SP_STATE;
+    const currentUser = window.SP_DATA?.user?.name || 'Admin';
+    const isReplace  = voidReason === 'ออกใบทดแทน';
+    const markVoided = (id, withStock = !isReplace) => st.invoices = st.invoices.map(x =>
+      x.id===id ? { ...x, voided:true, status:'voided', voidedAt, voidedBy:currentUser, voidReason, stockRestored:withStock } : x
+    );
+
+    /* หา linked invoice (TIV ↔ INV) */
+    const linkedTivNo = iv.type==='A4' ? iv.thermalNo : null;
+    const linkedInvNo = iv.type!=='A4' ? iv.fullInvNo : null;
+    const linkedTiv   = linkedTivNo ? st.invoices.find(x=>x.no===linkedTivNo&&!x.voided) : null;
+    const linkedInv   = linkedInvNo ? st.invoices.find(x=>x.no===linkedInvNo&&!x.voided) : null;
 
     /* ── บันทึกลง DB ── */
     if (window.SP_API) {
       try {
+        /* void หลัก (restore_stock เฉพาะ TIV ยกเว้นกรณีออกใบทดแทน) */
         await window.SP_API.voidInvoice(iv.id, {
-          voided_by:     'Admin Kanya',
+          voided_by:     currentUser,
           void_reason:   voidReason,
-          restore_stock: restoreStk,
+          restore_stock: iv.type !== 'A4' && !isReplace,
         });
         await window.SP_API.logAudit('CANCEL_INVOICE', iv.no, null, voidReason);
+        markVoided(iv.id);
 
-        /* ถ้าเป็น INV → เคลียร์ full_inv_no บน TIV ที่อ้างอิง */
-        if (isINV && iv.thermalNo) {
-          const tiv = st.invoices.find(x => x.no === iv.thermalNo);
-          if (tiv) {
-            await window.SP_API.updateInvoiceFullInvNo(tiv.id, null).catch(() => {});
-            tiv.fullInvNo = null;
-          }
+        /* void linked ถ้ามี */
+        if (linkedTiv) {
+          await window.SP_API.voidInvoice(linkedTiv.id, { voided_by:currentUser, void_reason:voidReason, restore_stock:!isReplace });
+          markVoided(linkedTiv.id);
+        }
+        if (linkedInv) {
+          await window.SP_API.voidInvoice(linkedInv.id, { voided_by:currentUser, void_reason:voidReason, restore_stock:false });
+          markVoided(linkedInv.id, false);
         }
 
-        /* อัป SP_STATE ให้ UI เห็นทันที */
-        st.invoices = st.invoices.map(x =>
-          x.id===iv.id ? { ...x, voided:true, status:'voided',
-            voidedAt, voidedBy:'Admin Kanya', voidReason,
-            stockRestored: restoreStk } : x
-        );
-
-        /* รีโหลด audit log */
         const logs = await window.SP_API.reloadAudit();
-        st.auditLog = logs;
-        setAuditLog(logs);
-
-        /* คืนสต็อก (ทุกประเภท) */
+        st.auditLog = logs; setAuditLog(logs);
         await window.SP_API.reloadProducts();
 
         refresh(); setVoidModal(null); setVoidNo(''); setVoidPreview(null); setVoidReason('');
-        toast('ok', `ยกเลิก ${iv.no} บันทึกลง DB แล้ว — คืนสต็อกเรียบร้อย`);
+        const linked = linkedTiv||linkedInv;
+        toast('ok', isReplace
+          ? `ยกเลิก ${iv.no}${linked?' + '+linked.no:''} (ออกใบทดแทน) — บันทึกลง DB แล้ว`
+          : `ยกเลิก ${iv.no}${linked?' + '+linked.no:''} บันทึกลง DB แล้ว — คืนสต็อกเรียบร้อย`);
+        /* แสดงใบยกเลิกอัตโนมัติ (TIV ที่ไม่มี INV) */
+        if (iv.type !== 'A4' && !linkedInv) {
+          const voidedTiv = st.invoices.find(x => x.id === iv.id) || { ...iv, voided:true, voidedAt, voidedBy:currentUser, voidReason };
+          setTivModal(voidedTiv);
+        }
         return;
       } catch (err) {
         toast('err', `ยกเลิกไม่สำเร็จ: ${err.message}`);
@@ -151,29 +173,45 @@ function InvoiceList({ toast }) {
     }
 
     /* fallback mock */
-    st.invoices = st.invoices.map(x =>
-      x.id===iv.id ? {...x, voided:true, status:'voided',
-        voidedAt, voidedBy:'Admin Kanya', voidReason,
-        stockRestored: restoreStk} : x
-    );
-    if (isINV && iv.thermalNo) {
-      const tiv = st.invoices.find(x => x.no === iv.thermalNo);
-      if (tiv) tiv.fullInvNo = null;
-    }
-    /* คืนสต็อกใน SP_DATA.products (mock mode) */
-    if (restoreStk && iv.items?.length) {
-      iv.items.forEach(it => {
+    markVoided(iv.id);
+    if (linkedTiv) markVoided(linkedTiv.id);
+    if (linkedInv) markVoided(linkedInv.id);
+    /* คืนสต็อก TIV ใน SP_DATA.products (mock) */
+    const stockDoc = iv.type!=='A4' ? iv : linkedTiv;
+    if (stockDoc?.items?.length) {
+      stockDoc.items.forEach(it => {
         const prod = window.SP_DATA.products.find(p => p.code === it.code);
-        if (prod) prod.stock = (Number(prod.stock) || 0) + Number(it.weight || 0);
+        if (prod) prod.stock = (Number(prod.stock)||0) + Number(it.weight||0);
       });
     }
     if (window.logAudit) window.logAudit('CANCEL_INVOICE', iv.no, null, voidReason);
     setAuditLog([...st.auditLog]);
     refresh(); setVoidModal(null); setVoidNo(''); setVoidPreview(null); setVoidReason('');
-    toast('ok', `ยกเลิกใบกำกับ ${iv.no} เรียบร้อย — คืนสต็อกแล้ว`);
+    const linked2 = linkedTiv||linkedInv;
+    toast('ok', isReplace
+      ? `ยกเลิก ${iv.no}${linked2?' + '+linked2.no:''} (ออกใบทดแทน) — ไม่คืนสต็อก`
+      : `ยกเลิกใบกำกับ ${iv.no}${linked2?' + '+linked2.no:''} เรียบร้อย — คืนสต็อกแล้ว`);
+    /* แสดงใบยกเลิกอัตโนมัติ (TIV ที่ไม่มี INV) */
+    if (iv.type !== 'A4' && !linkedInv) {
+      const voidedTiv = st.invoices.find(x => x.id === iv.id) || { ...iv, voided:true, voidedAt, voidedBy:currentUser, voidReason };
+      setTivModal(voidedTiv);
+    }
   };
 
   const $ = window.fmtMoney;
+  const fmtVoidDate = v => {
+    if (!v) return '—';
+    if (String(v).includes('T') || String(v).includes('Z')) {
+      const d = new Date(v);
+      const dd = String(d.getDate()).padStart(2,'0');
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const yy = d.getFullYear()+543;
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mi = String(d.getMinutes()).padStart(2,'0');
+      return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+    }
+    return v;
+  };
   const TH  = { padding:'9px 14px', textAlign:'left',  fontSize:11.5, fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)', background:'var(--s2)', whiteSpace:'nowrap' };
   const THR = { ...TH, textAlign:'right' };
   const TD  = { padding:'11px 14px', borderBottom:'1px solid var(--bd)', verticalAlign:'middle' };
@@ -181,167 +219,195 @@ function InvoiceList({ toast }) {
 
   const A4Content = ({ iv }) => {
     if (!iv) return <div className="nc nc-b">เลือกใบกำกับด้านบน</div>;
-    const cust = window.SP_DATA.customers.find(c => c.id === iv.custId);
-    const preVat = iv.netSale - iv.vat7;
-    const payLabel = { cash:'เงินสด', transfer:'เงินโอน', credit:'เครดิต' }[iv.pay] || '—';
-    const TH = { padding:'9px 10px', background:'#ececec', color:'#18171a', fontWeight:700, fontSize:11.5, textAlign:'left', verticalAlign:'bottom', lineHeight:1.3, borderBottom:'2px solid #cfcdc7' };
+    const cust    = window.SP_DATA.customers.find(c => c.id === iv.custId);
+    const isPrinted = (iv.printCount || 0) > 0;
+    const copyLabel = iv.voided ? 'ยกเลิก' : isPrinted ? 'สำเนา' : 'ต้นฉบับ';
+    const _branch = iv.custBranch || cust?.branch || 'head';
+    const branchLabel = (!_branch || _branch === 'head') ? 'สำนักงานใหญ่' : _branch;
+    const grossSale = Number(iv.grossSale || iv.netSale || iv.total || 0);
+    const discount  = Number(iv.discount || 0);
+    const afterDisc = grossSale - discount;
+    const vatAmt    = Number(iv.vat7 || 0);
+    const vatBase   = Number(iv.vatBase || (afterDisc - vatAmt) || 0);
+    const total     = Number(iv.total || afterDisc);
+
+    /* accent colors */
+    const ACC = '#1a4fa0';
+    const ACC_LIGHT = '#e8eef8';
+
+    /* styles */
+    const B = { border:'1px solid #ccc' };
+    const TH = { padding:'8px 10px', background:ACC, color:'#fff', fontWeight:700, fontSize:11.5, borderBottom:'1px solid rgba(0,0,0,.15)', borderRight:'1px solid rgba(255,255,255,.2)', verticalAlign:'middle' };
+    const TD = { padding:'8px 10px', fontSize:12.5, borderBottom:'1px solid #e8e8e8', borderRight:'1px solid #e8e8e8', verticalAlign:'top' };
+    const SumRow = ({ label, sublabel, value }) => (
+      <tr>
+        <td style={{ padding:'5px 12px', fontSize:12, color:'#333', borderBottom:'1px solid #eee' }}>{label}{sublabel&&<span style={{ fontSize:10, color:'#888', display:'block' }}>{sublabel}</span>}</td>
+        <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', minWidth:110, borderBottom:'1px solid #eee' }}>{value}</td>
+      </tr>
+    );
+
+    const merged = window.mergeInvItems
+      ? window.mergeInvItems(iv.items || [], discount)
+      : (iv.items||[]).map(it=>({ ...it, indivWeight:Number(it.weight||0), scanCount:1, lineDisc:0 }));
+
     return (
-      <div style={{ width:'100%', maxWidth:640, background:'#fff', padding:'20px 24px', margin:'0 auto', boxShadow:'0 4px 24px rgba(0,0,0,.1)', position:'relative', fontFamily:'var(--font-sans)', color:'#18171a', boxSizing:'border-box' }}>
-        {/* ต้นฉบับ / สำเนา pill */}
-        {(() => {
-          const isPrinted = (iv.printCount || 0) > 0;
-          const stamp = iv.voided ? 'ยกเลิก' : isPrinted ? 'สำเนา' : 'ต้นฉบับ';
-          const bg    = iv.voided ? 'var(--rbg)' : isPrinted ? 'var(--ambg)' : 'var(--gbg)';
-          const brd   = iv.voided ? 'var(--rd)'  : isPrinted ? 'var(--am)'   : 'var(--gn)';
-          const col   = iv.voided ? 'var(--rt)'  : isPrinted ? 'var(--amt)'  : 'var(--gt)';
-          return (
-            <div style={{ textAlign:'center', marginBottom:18 }}>
-              <span style={{ display:'inline-block', padding:'5px 22px', background:bg, border:`1.5px solid ${brd}`, borderRadius:100, fontSize:14, fontWeight:700, color:col }}>{stamp}</span>
-            </div>
-          );
-        })()}
+      <div style={{ width:'100%', maxWidth:794, background:'#fff', margin:'0 auto', boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)', color:'#111', boxSizing:'border-box', fontSize:12.5, overflow:'hidden' }}>
 
-        {/* Correction reference bar — shown when this INV replaces an older one */}
-        {iv.replaces && (
-          <div style={{ background:'var(--abg)', border:'1px solid var(--ac)', borderRadius:6, padding:'7px 12px', marginBottom:14, fontSize:12 }}>
-            <b style={{ color:'var(--ac)' }}>ใบกำกับภาษีฉบับนี้ออกแทนฉบับเดิมเลขที่ <span style={{ fontFamily:'var(--font-mono)' }}>{iv.replaces}</span></b>
-            {iv.refInvDate && <span style={{ color:'#666' }}> วันที่ {iv.refInvDate}</span>}
-          </div>
-        )}
-
-        {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
-          <div style={{ maxWidth:'62%' }}>
-            <div style={{ fontSize:18, fontWeight:800, color:'var(--ac)', marginBottom:4 }}>{co.name}</div>
-            <div style={{ fontSize:11.5, color:'#444', lineHeight:1.7 }}>
-              <div>{co.addr}</div>
-              <div>โทร: {co.tel} | อีเมล: {co.email}</div>
-              <div>เลขประจำตัวผู้เสียภาษี: <b>{co.tax}</b></div>
+        {/* ══ HEADER ══ */}
+        <div style={{ background:'#fff', padding:'18px 24px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          {/* Company */}
+          <div style={{ display:'flex', gap:12, alignItems:'flex-start', flex:1 }}>
+            {co.logoUrl && <img src={co.logoUrl} alt="logo" style={{ width:56, height:56, objectFit:'contain', borderRadius:6, flexShrink:0 }} />}
+            <div>
+              <div style={{ fontSize:17, fontWeight:800, lineHeight:1.3, color:'#111' }}>{co.name}</div>
+              {co.nameEn && <div style={{ fontSize:12, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
+              <div style={{ fontSize:11, color:'#555', lineHeight:1.8, marginTop:3 }}>
+                {co.addr && <div>{co.addr}</div>}
+                <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
+                <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b> &nbsp;สำนักงานใหญ่</div>
+              </div>
             </div>
           </div>
-          <div style={{ textAlign:'right' }}>
-            <div style={{ fontSize:22, fontWeight:800, letterSpacing:'.5px' }}>ใบกำกับภาษี</div>
-            <div style={{ fontSize:12, color:'var(--t3)', marginBottom:10 }}>(ราคารวม VAT)</div>
-            <div style={{ fontSize:13.5, lineHeight:1.9 }}>เลขที่: <b style={{ fontFamily:'var(--font-mono)' }}>{iv.no}</b></div>
-            <div style={{ fontSize:13.5 }}>วันที่: <b>{iv.dateDisplay}</b></div>
+          {/* Document type — text only, no border box */}
+          <div style={{ textAlign:'right', minWidth:200, flexShrink:0 }}>
+            <div style={{ display:'inline-block', padding:'5px 18px', background: iv.voided ? '#fee' : ACC_LIGHT, color: iv.voided ? '#c0392b' : ACC, borderRadius:4, fontSize:15, fontWeight:800, marginBottom:8, letterSpacing:.5 }}>{copyLabel}</div>
+            <div style={{ fontSize:22, fontWeight:800, color:ACC, lineHeight:1.4 }}>ใบกำกับภาษี/ ใบเสร็จรับเงิน</div>
+            <div style={{ fontSize:13, fontWeight:600, color:'#555', marginTop:3 }}>Tax Invoice / Receipt</div>
           </div>
         </div>
 
-        <div style={{ borderTop:'3px solid #18171a', marginBottom:20 }}></div>
+        {/* ══ BODY ══ */}
+        <div style={{ padding:'16px 24px 20px' }}>
 
-        {/* Seller / Buyer boxes */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18, marginBottom:24 }}>
-          {[['ผู้ขาย', co.name, co.addr, co.tax],
-            ['ผู้ซื้อ', cust?.name||iv.custName, cust?.addr||'', iv.custTax||cust?.tax||'']].map(([label,name,addr,tax],idx)=>(
-            <div key={idx} style={{ border:'1px solid #e2e0da', borderRadius:10, padding:'14px 16px' }}>
-              <div style={{ fontSize:12.5, fontWeight:700, color:'var(--t2)', marginBottom:8 }}>{label}</div>
-              <div style={{ fontSize:14, fontWeight:700, marginBottom:5 }}>{name}</div>
-              <div style={{ fontSize:12, color:'#555', lineHeight:1.8 }}>{addr||'—'}</div>
-              <div style={{ fontSize:12, color:'#555', marginTop:3 }}>เลขภาษี: {tax||'—'}</div>
+        {/* ══ CUSTOMER + DOC INFO ══ */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0, marginBottom:14, ...B, borderRadius:6, overflow:'hidden' }}>
+          {/* Customer */}
+          <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
+            <div style={{ fontSize:11, color:'#777', marginBottom:6 }}>ลูกค้า / Customer</div>
+            <div style={{ fontSize:13.5, fontWeight:700, marginBottom:4 }}>{cust?.name || iv.custName || '—'}</div>
+            {(cust?.addr || iv.custAddr) && <div style={{ fontSize:11.5, color:'#444', lineHeight:1.7, marginBottom:3 }}>{cust?.addr || iv.custAddr}</div>}
+            <div style={{ fontSize:11.5, color:'#444', marginBottom:2 }}>
+              <span style={{ color:'#888' }}>เลขประจำตัวผู้เสียภาษี </span>
+              <b style={{ fontFamily:'var(--font-mono)' }}>{iv.custTax || cust?.tax || '—'}</b>
+              <span style={{ marginLeft:8, color:'#666' }}>{branchLabel}</span>
             </div>
-          ))}
+            {cust?.phone && <div style={{ fontSize:11.5, color:'#444' }}>โทร. {cust.phone}</div>}
+          </div>
+          {/* Doc info */}
+          <div style={{ padding:'10px 14px', minWidth:210, background:ACC_LIGHT }}>
+            {(() => {
+              const PAY_LBL = { cash:'เงินสด', transfer:'เงินโอน', credit:'เครดิต' };
+              const payLabel = iv.pay ? PAY_LBL[iv.pay] || iv.pay : null;
+              return [
+                ['เลขที่ / No.', <b style={{ fontFamily:'var(--font-mono)', fontSize:13, color:ACC }}>{iv.no}</b>],
+                ['วันที่ / Date', <b>{iv.dateDisplay}</b>],
+                ['อ้างอิง', iv.thermalNo ? <span style={{ fontFamily:'var(--font-mono)', fontSize:11.5, color:'#555' }}>{iv.thermalNo}</span> : null],
+                ['ออกแทนใบ', iv.replaces ? <span style={{ fontFamily:'var(--font-mono)', fontSize:11.5, color:'#c0392b' }}>{iv.replaces}</span> : null],
+                ['ชำระเงิน', payLabel ? <span style={{ fontWeight:600 }}>{payLabel}</span> : null],
+              ].filter(r => r[1]).map(([l,v],i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', gap:12, padding:'4px 0', borderBottom:'1px solid #d0d8e8', fontSize:12 }}>
+                  <span style={{ color:'#667', whiteSpace:'nowrap' }}>{l}</span>{v}
+                </div>
+              ));
+            })()}
+          </div>
         </div>
 
-        {/* Items table — merge same product+weight, same logic as TIV receipt */}
-        {(() => {
-          const merged = window.mergeInvItems
-            ? window.mergeInvItems(iv.items || [], Number(iv.discount||0))
-            : (iv.items||[]).map(it=>({ ...it, indivWeight:Number(it.weight||0), scanCount:1, lineDisc:0 }));
-          return (
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-              <thead>
-                <tr style={{ background:'#ececec' }}>
-                  <th style={{ ...TH, width:34, textAlign:'center' }}>#</th>
-                  <th style={{ ...TH, width:64 }}>รหัส</th>
-                  <th style={TH}>รายการสินค้า</th>
-                  <th style={{ ...TH, width:74, textAlign:'center' }}>ภาษี</th>
-                  <th style={{ ...TH, width:52, textAlign:'center' }}>จำนวน</th>
-                  <th style={{ ...TH, width:68, textAlign:'right' }}>KG/แพ็ค</th>
-                  <th style={{ ...TH, width:88, textAlign:'right' }}>ราคา/KG<br/><span style={{ fontSize:9.5, fontWeight:400, color:'#666' }}>(incl.VAT)</span></th>
-                  <th style={{ ...TH, width:88, textAlign:'right' }}>หน่วยละ</th>
-                  <th style={{ ...TH, width:78, textAlign:'right' }}>ส่วนลด</th>
-                  <th style={{ ...TH, width:104, textAlign:'right' }}>จำนวนเงิน<br/><span style={{ fontSize:9.5, fontWeight:400, color:'#666' }}>(incl.VAT)</span></th>
+        {/* ══ ITEMS TABLE + SUMMARY — wrapped in single border box ══ */}
+        <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5 }}>
+            <thead>
+              <tr>
+                <th style={{ ...TH, width:34, textAlign:'center' }}>ลำดับ<br/><span style={{ fontSize:9.5, fontWeight:400 }}>No.</span></th>
+                <th style={{ ...TH, textAlign:'center' }}>รหัสสินค้าและรายละเอียด<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Code / Descriptions</span></th>
+                <th style={{ ...TH, width:90, textAlign:'center' }}>จำนวน<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Quantity</span></th>
+                <th style={{ ...TH, width:90, textAlign:'center' }}>หน่วยละ<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Unit Price</span></th>
+                <th style={{ ...TH, width:100, textAlign:'center', borderRight:'none' }}>จำนวนเงิน<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Amount</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {merged.map((it, i) => {
+                const w      = Number(it.indivWeight || it.weight || 0);
+                const p      = Number(it.price || it.price_per_kg || 0);
+                const unit   = window.unitOf(it.code);
+                const isUnit = unit.unitType === 'unit';
+                const qty    = isUnit ? w * (it.scanCount||1) : (it.scanCount || 1);
+                const qtyStr = `${qty}`;
+                const lineTotal = isUnit ? qty * p - Number(it.lineDisc||0) : qty * w * p - Number(it.lineDisc||0);
+                return (
+                  <tr key={i} style={{ background: i%2===0?'#fff':'#fafafa' }}>
+                    <td style={{ ...TD, textAlign:'center', color:'#888' }}>{i+1}</td>
+                    <td style={{ ...TD }}>
+                      <div style={{ fontSize:11, color:'#888', fontFamily:'var(--font-mono)', marginBottom:2 }}>{it.code}</div>
+                      <div style={{ fontWeight:600 }}>{it.name}{unit.unitType !== 'unit' && w > 0 ? ` @ ${w.toFixed(3)} kg.` : ''}</div>
+                    </td>
+                    <td style={{ ...TD, textAlign:'center', fontWeight:600 }}>{qtyStr}</td>
+                    <td style={{ ...TD, textAlign:'right' }}>{p.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                    <td style={{ ...TD, textAlign:'right', fontWeight:700, borderRight:'none' }}>{lineTotal.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                  </tr>
+                );
+              })}
+              {merged.length < 5 && Array.from({ length: 5 - merged.length }).map((_,i) => (
+                <tr key={'e'+i} style={{ background: (merged.length+i)%2===0?'#fff':'#fafafa' }}>
+                  <td style={{ ...TD, height:30 }}></td><td style={TD}></td><td style={TD}></td><td style={TD}></td><td style={{ ...TD, borderRight:'none' }}></td>
                 </tr>
-              </thead>
-              <tbody>
-                {merged.map((it,i)=>{
-                  const w = Number(it.indivWeight || it.weight || 0);
-                  const p = Number(it.price || it.price_per_kg || 0);
-                  const qty = it.scanCount || 1;
-                  const perPack = w * p;
-                  const disc = Number(it.lineDisc||0);
-                  const lineTotal = qty * perPack - disc;
-                  return (
-                    <tr key={i} style={{ borderBottom:'1px solid #ececec' }}>
-                      <td style={{ padding:'10px 8px', textAlign:'center', color:'#999' }}>{i+1}</td>
-                      <td style={{ padding:'10px 8px', fontFamily:'var(--font-mono)', fontSize:12 }}>{it.code}</td>
-                      <td style={{ padding:'10px 8px', fontWeight:600 }}>{it.name}</td>
-                      <td style={{ padding:'10px 8px', textAlign:'center' }}>
-                        <span className={'bx '+(it.tax==='vat7'?'xb':'xx')} style={{ fontSize:10.5 }}>{it.tax==='vat7'?'VAT incl.':'Non VAT'}</span>
-                      </td>
-                      <td style={{ padding:'10px 8px', textAlign:'center', fontWeight:700 }}>{qty}</td>
-                      <td style={{ padding:'10px 8px', textAlign:'right' }}>{w.toFixed(3)}</td>
-                      <td style={{ padding:'10px 8px', textAlign:'right' }}>{$(p)}</td>
-                      <td style={{ padding:'10px 8px', textAlign:'right', color:'var(--t2)' }}>{$(perPack)}</td>
-                      <td style={{ padding:'10px 8px', textAlign:'right', color:'var(--rd)' }}>{disc>0?'-'+$(disc):'—'}</td>
-                      <td style={{ padding:'10px 8px', textAlign:'right', fontWeight:700 }}>{$(lineTotal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          );
-        })()}
+              ))}
+            </tbody>
+          </table>
 
-        {/* Totals */}
-        <div style={{ marginTop:4 }}>
-          <div style={{ display:'flex', justifyContent:'flex-end', padding:'10px 10px', borderBottom:'1px solid #ececec' }}>
-            <span style={{ fontSize:13, color:'var(--t2)', marginRight:40 }}>ยอดรวม (incl. VAT)</span>
-            <span style={{ fontSize:14, fontWeight:700, minWidth:104, textAlign:'right' }}>{$(iv.netSale)}</span>
-          </div>
-          {iv.discount>0 && (
-            <div style={{ display:'flex', justifyContent:'flex-end', padding:'10px 10px', borderBottom:'1px solid #ececec' }}>
-              <span style={{ fontSize:13, color:'var(--am)', marginRight:40 }}>ส่วนลด</span>
-              <span style={{ fontSize:14, fontWeight:700, color:'var(--am)', minWidth:104, textAlign:'right' }}>-{$(iv.discount)}</span>
+          {/* ══ SUMMARY + AMOUNT WORDS ══ */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderTop:'2px solid #ccc' }}>
+            {/* Amount in words */}
+            <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', justifyContent:'flex-end', borderRight:'1px solid #ddd' }}>
+              <div style={{ fontSize:10.5, color:'#777', marginBottom:3 }}>จำนวนเงิน (ตัวอักษร)</div>
+              <div style={{ fontSize:12.5, fontWeight:600 }}>({window.bahtText ? window.bahtText(total) : ''})</div>
+              {iv.note && <div style={{ marginTop:8, fontSize:11, color:'#666' }}><b>หมายเหตุ:</b> {iv.note}</div>}
+              {iv.replaces && (
+                <div style={{ marginTop:6, fontSize:11, color:'#555' }}>ออกแทนฉบับเลขที่ <b style={{ fontFamily:'var(--font-mono)' }}>{iv.replaces}</b></div>
+              )}
             </div>
-          )}
-          <div style={{ display:'flex', justifyContent:'flex-end', padding:'10px 10px', borderBottom:'1px solid #ececec' }}>
-            <span style={{ fontSize:13, color:'var(--t2)', marginRight:40 }}>ยอดก่อน VAT</span>
-            <span style={{ fontSize:14, fontWeight:700, minWidth:104, textAlign:'right' }}>{$(preVat)}</span>
+            {/* Summary rows */}
+            <div style={{ minWidth:280 }}>
+              <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                <tbody>
+                  <SumRow label="รวมเป็นเงิน" sublabel="Gross Amount" value={grossSale.toLocaleString('en-US',{minimumFractionDigits:2})} />
+                  {discount > 0 && <SumRow label="หักส่วนลด" sublabel="Less Discount" value={`-${discount.toLocaleString('en-US',{minimumFractionDigits:2})}`} />}
+                  {discount > 0 && <SumRow label="ยอดหลังหักส่วนลด" sublabel="After Discount" value={afterDisc.toLocaleString('en-US',{minimumFractionDigits:2})} />}
+                  <SumRow label="ราคาสินค้า (ก่อน VAT)" sublabel="Taxable Amount" value={vatBase.toLocaleString('en-US',{minimumFractionDigits:2})} />
+                  <SumRow label="ภาษีมูลค่าเพิ่ม 7%" sublabel="VAT 7%" value={vatAmt.toLocaleString('en-US',{minimumFractionDigits:2})} />
+                  <tr style={{ background:ACC }}>
+                    <td style={{ padding:'8px 12px', fontSize:13, fontWeight:800, color:'#fff' }}>จำนวนเงินรวมทั้งสิ้น<span style={{ fontSize:10, fontWeight:400, display:'block', opacity:.8 }}>Total Invoice</span></td>
+                    <td style={{ padding:'8px 12px', textAlign:'right', fontSize:16, fontWeight:900, color:'#fff', minWidth:110 }}>{total.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div style={{ display:'flex', justifyContent:'flex-end', padding:'10px 10px', borderBottom:'1px solid #ececec' }}>
-            <span style={{ fontSize:13, color:'var(--pu)', marginRight:40 }}>VAT 7%</span>
-            <span style={{ fontSize:14, fontWeight:700, color:'var(--pu)', minWidth:104, textAlign:'right' }}>{$(iv.vat7)}</span>
+        </div>{/* end table+summary box */}
+
+        {/* ══ BOTTOM: ได้รับสินค้า + ชำระเงิน + SIGNATURES ══ */}
+        <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, ...B, borderRadius:6, overflow:'hidden' }}>
+          {/* Left: received + payment */}
+          <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
+            <div style={{ fontSize:12, fontWeight:600, marginBottom:8 }}>ได้รับสินค้าตามรายการถูกต้องแล้ว</div>
+            <div style={{ marginTop:48, borderTop:'1px solid #bbb', paddingTop:6, textAlign:'center', fontSize:11.5, color:'#555' }}>
+              ผู้รับสินค้า / Goods Received by
+            </div>
+            <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
           </div>
-          {/* Grand total */}
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#f5f4f0', borderRadius:8, padding:'14px 16px', marginTop:10 }}>
-            <span style={{ fontSize:13.5, fontWeight:700, color:'#333' }}>({window.bahtText(Math.round(iv.total||0))})</span>
-            <div style={{ display:'flex', alignItems:'center', gap:40 }}>
-              <span style={{ fontSize:14, fontWeight:800 }}>จำนวนเงินรวมทั้งสิ้น</span>
-              <span style={{ fontSize:18, fontWeight:800, color:'var(--gn)', minWidth:104, textAlign:'right' }}>{$(iv.total)}</span>
+          {/* Right: authorized signature */}
+          <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+            <div style={{ fontSize:12, fontWeight:600, textAlign:'center' }}>{co.name}</div>
+            <div>
+              <div style={{ textAlign:'center', marginTop:32, borderTop:'1px solid #bbb', paddingTop:6, fontSize:11.5, color:'#555' }}>
+                ผู้รับมอบอำนาจ / Authorized Signature
+              </div>
+              <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
             </div>
           </div>
         </div>
 
-        {/* Payment */}
-        <div style={{ fontSize:13, marginTop:18 }}>ช่องทางชำระเงิน: <b>{payLabel}</b></div>
-
-        {/* Note / Reference — shown for CN, DN, newINV */}
-        {iv.note && (
-          <div style={{ marginTop:18, padding:'10px 14px', background:'#fffbe6', border:'1px solid #ffe58f', borderRadius:7, fontSize:12.5, color:'#7a5a00', lineHeight:1.7 }}>
-            <b>หมายเหตุ:</b> {iv.note}
-          </div>
-        )}
-
-        {/* Signatures */}
-        <div style={{ display:'flex', justifyContent:'space-between', marginTop:64, fontSize:12.5, color:'var(--t2)' }}>
-          <div style={{ textAlign:'center', flex:1, maxWidth:240, margin:'0 auto' }}>
-            <div style={{ borderTop:'1px solid #999', margin:'0 20px 8px' }}></div>ผู้รับสินค้า / ผู้ซื้อ
-          </div>
-          <div style={{ textAlign:'center', flex:1, maxWidth:240, margin:'0 auto' }}>
-            <div style={{ borderTop:'1px solid #999', margin:'0 20px 8px' }}></div>ผู้มีอำนาจลงนาม
-          </div>
-        </div>
+        </div>{/* end body padding */}
       </div>
     );
   };
@@ -375,15 +441,6 @@ function InvoiceList({ toast }) {
         <div className={'tab'+(tab==='void'?' on':'')} style={{ color:'var(--rd)' }} onClick={()=>setTab('void')}>
           <Icon name="x-circle" size={13} style={{ marginRight:4 }}/>ยกเลิกใบเสร็จ
         </div>
-        <div className={'tab'+(tab==='cdnote'?' on':'')} onClick={()=>setTab('cdnote')}
-          style={{ color: tab==='cdnote'?'var(--am)':undefined }}>
-          ใบลดหนี้ / เพิ่มหนี้
-          {invs.filter(iv=>iv.type==='CN'||iv.type==='DN').length > 0 && (
-            <span style={{ marginLeft:5, background:'var(--am)', color:'#fff', borderRadius:100, fontSize:10, fontWeight:800, padding:'1px 6px' }}>
-              {invs.filter(iv=>iv.type==='CN'||iv.type==='DN').length}
-            </span>
-          )}
-        </div>
         <div className={'tab'+(tab==='daily'?' on':'')} onClick={()=>setTab('daily')}>สรุปการออกใบกำกับภาษี</div>
         <div className={'tab'+(tab==='audit'?' on':'')} onClick={()=>{setTab('audit');setAuditLog([...window.SP_STATE.auditLog]);}}
           style={{ color: tab==='audit'?'var(--pu)':undefined }}>
@@ -410,8 +467,8 @@ function InvoiceList({ toast }) {
             </div>
           </div>
           <Card title="สรุปยอดประจำวัน — ใบกำกับภาษี" actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoice_daily.csv',['วันที่','TIV range','INV range','จำนวนบิล','น้ำหนัก KG','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.w.toFixed(3),$(d.total)]))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดประจำวัน — ใบกำกับภาษี',['วันที่','TIV range','INV range','จำนวนบิล','น้ำหนัก KG','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.w.toFixed(3),$(d.total)]))}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoice_daily.csv',['วันที่','TIV range','INV range','จำนวนบิล','น้ำหนัก KG','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.w.toFixed(2),$(d.total)]))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดประจำวัน — ใบกำกับภาษี',['วันที่','TIV range','INV range','จำนวนบิล','น้ำหนัก KG','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.w.toFixed(2),$(d.total)]))}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
@@ -431,7 +488,7 @@ function InvoiceList({ toast }) {
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{tivRange(d.tivNos)}</td>
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{tivRange(d.invNos)}</td>
                       <td style={{ ...TD, textAlign:'center', fontWeight:700 }}>{d.cnt} บิล</td>
-                      <td style={{ ...TD, textAlign:'right', fontWeight:700 }}>{d.w.toFixed(3)}</td>
+                      <td style={{ ...TD, textAlign:'right', fontWeight:700 }}>{d.w.toFixed(2)}</td>
                       <td style={{ ...TD, textAlign:'right', fontWeight:800, color:'var(--gn)' }}>{$(d.total)}</td>
                     </tr>
                   ))
@@ -441,7 +498,7 @@ function InvoiceList({ toast }) {
                 <td style={{ padding:'9px 14px', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>รวมทั้งหมด</td>
                 <td colSpan="2" style={{ padding:'9px 14px', background:'var(--s2)', borderTop:'2px solid var(--bd)', fontSize:12, color:'var(--t3)' }}>
                   {(()=>{
-                    const d=new Date(); const yymm=String(d.getFullYear()+543).slice(-4)+String(d.getMonth()+1).padStart(2,'0');
+                    const d=new Date(); const yymm=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,'0');
                     const st=window.SP_STATE;
                     const tPfx=(st.docPrefixes?.tiv)||'TIV'; const iPfx=(st.docPrefixes?.inv)||'INV';
                     return <>
@@ -451,7 +508,7 @@ function InvoiceList({ toast }) {
                   })()}
                 </td>
                 <td style={{ padding:'9px 14px', textAlign:'center', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{invs.filter(iv=>!iv.voided).length} บิล</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{dailyGroups.reduce((s,d)=>s+d.w,0).toFixed(3)}</td>
+                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{dailyGroups.reduce((s,d)=>s+d.w,0).toFixed(2)}</td>
                 <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:800, color:'var(--gn)', background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{$(dailyGroups.reduce((s,d)=>s+d.total,0))}</td>
               </tr></tfoot>
             </table></div>
@@ -468,7 +525,8 @@ function InvoiceList({ toast }) {
             inv: tiv.fullInvNo ? invs.find(x => x.no === tiv.fullInvNo && x.type !== 'Thermal') : null,
           }))
           .filter(({tiv}) => {
-            if (dateF && tiv.date !== dateF) return false;
+            if (dateFrom && tiv.date < dateFrom) return false;
+            if (dateTo   && tiv.date > dateTo)   return false;
             if (search) {
               const s = search.toLowerCase();
               return tiv.no.toLowerCase().includes(s) ||
@@ -484,8 +542,10 @@ function InvoiceList({ toast }) {
         return (
           <Card title={`รายการใบกำกับภาษี · ${tivList.length} รายการ`} actions={
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
-              <input type="date" className="fc" style={{ width:145 }} value={dateF} onChange={e=>setDateF(e.target.value)} />
-              {dateF && <button className="btn bg2 bsm" onClick={()=>setDateF('')}>ล้าง</button>}
+              <DateField style={{ width:140 }} value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
+              <span style={{ fontSize:12, color:'var(--t3)' }}>ถึง</span>
+              <DateField style={{ width:140 }} value={dateTo} onChange={e=>setDateTo(e.target.value)} />
+              {(dateFrom||dateTo) && <button className="btn bg2 bsm" onClick={()=>{setDateFrom('');setDateTo('');}}>ล้าง</button>}
               <input type="text" className="fc" placeholder="ค้นหา TIV / INV / ลูกค้า…" style={{ width:200 }} value={search} onChange={e=>setSearch(e.target.value)} />
               <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoices.csv',
                 ['เลขที่ TIV','เลขที่ INV','วันที่','ลูกค้า','ส่วนลด','ยอดรวม','ยอดชำระ','สถานะ'],
@@ -517,16 +577,20 @@ function InvoiceList({ toast }) {
                      tiv.printCount ไม่นับ — พิมพ์ thermal ไม่เปลี่ยนสถานะ */
                   const printDone  = (inv?.printCount||0) > 0;
                   const invVoided  = inv?.voided;
-                  const invDocType = inv?.docType;
-                  const invColor   = invDocType==='CN'?'var(--am)':invDocType==='DN'?'var(--rd)':'var(--ac)';
+                  const invColor   = 'var(--ac)';
                   return (
                     <tr key={tiv.id} style={{ borderBottom:'1px solid var(--bd)', opacity:tiv.voided?.6:1 }}>
                       {/* TIV */}
                       <td style={TD}>
-                        <button onClick={()=>setA4Modal(tiv)} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--t2)',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,padding:0 }}>
+                        <button onClick={()=>setTivModal(tiv)} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--t2)',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,padding:0 }}>
                           {tiv.no}
                         </button>
                         {tiv.voided && <span className="bx xr" style={{ marginLeft:5,fontSize:10 }}>ยกเลิก</span>}
+                        {tiv.replaces && !tiv.voided && (
+                          <div style={{ fontSize:10, color:'var(--ac)', marginTop:2 }}>
+                            ออกแทน <span style={{ fontFamily:'var(--font-mono)', fontWeight:700 }}>{tiv.replaces}</span>
+                          </div>
+                        )}
                       </td>
                       {/* INV / CN / DN */}
                       <td style={TD}>
@@ -535,9 +599,6 @@ function InvoiceList({ toast }) {
                             <button onClick={()=>setA4Modal(inv)} style={{ background:'none',border:'none',cursor:'pointer',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,padding:0,color:invColor }}>
                               {inv.no}
                             </button>
-                            {invDocType && <span style={{ fontSize:10,color:invDocType==='CN'?'var(--amt)':'var(--rt)',fontWeight:700 }}>
-                              ({invDocType==='CN'?'ลดหนี้':'เพิ่มหนี้'})
-                            </span>}
                             {invVoided && <span className="bx xr" style={{ fontSize:10 }}>ยกเลิก</span>}
                           </div>
                         ) : <span style={{ color:'var(--t3)',fontSize:12 }}>—</span>}
@@ -558,16 +619,16 @@ function InvoiceList({ toast }) {
                       </td>
                       <td style={TD}>
                         <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                          {/* ใบเสร็จ = TIV abbreviated modal */}
-                          <button onClick={()=>setTivModal(tiv)} title="แสดงใบกำกับภาษีอย่างย่อ (TIV)"
-                            style={{ fontSize:11,padding:'3px 7px',border:'1px solid var(--bd)',borderRadius:4,cursor:'pointer',background:'var(--s2)',color:'var(--tx)',fontFamily:'inherit' }}>
-                            🖨 ใบเสร็จ
+                          {/* ใบเสร็จ / ดูใบยกเลิก */}
+                          <button onClick={()=>setTivModal(tiv)} title={tiv.voided?'ดูใบเสร็จที่ยกเลิกแล้ว':'แสดงใบกำกับภาษีอย่างย่อ (TIV)'}
+                            style={{ fontSize:11,padding:'3px 7px',border:`1px solid ${tiv.voided?'rgba(208,48,48,.3)':'var(--ac)'}`,borderRadius:4,cursor:'pointer',background:tiv.voided?'var(--rbg)':'var(--abg)',color:tiv.voided?'var(--rd)':'var(--ac)',fontFamily:'inherit',fontWeight:700 }}>
+                            {tiv.voided ? '📄 ใบยกเลิก' : '🖨 ดูใบเสร็จ'}
                           </button>
                           {/* ใบกำกับ = INV full A4 */}
                           {inv && !invVoided && (
                             <button onClick={()=>setA4Modal(inv)} title="พิมพ์ใบกำกับภาษีเต็มรูปแบบ (INV)"
                               style={{ fontSize:11,padding:'3px 7px',border:'1px solid var(--ac)',borderRadius:4,cursor:'pointer',background:'var(--abg)',color:'var(--ac)',fontFamily:'inherit',fontWeight:700 }}>
-                              🖨 ใบกำกับ
+                              🖨 ดู INV
                             </button>
                           )}
                           {/* + INV ออกใบกำกับเต็มรูป */}
@@ -577,26 +638,27 @@ function InvoiceList({ toast }) {
                               + INV
                             </button>
                           )}
-                          {/* ยกเลิกบิล (ถ้าไม่มี INV) */}
-                          {!tiv.voided && !inv && (
-                            <button onClick={()=>{setVoidNo(tiv.no);setVoidPreview(tiv);setTab('void');}}
-                              style={{ fontSize:11,padding:'3px 7px',border:'1px solid rgba(208,48,48,.3)',borderRadius:4,cursor:'pointer',background:'var(--rbg)',color:'var(--rd)',fontFamily:'inherit' }}>
-                              ยกเลิกบิล
-                            </button>
-                          )}
-                          {/* ยกเลิก INV — enabled หลัง print ต้นฉบับแล้วเท่านั้น */}
+                          {/* ยกเลิกทั้งหมด */}
+                          {!tiv.voided && (() => {
+                            const invPrinted = !inv || (inv.printCount||0) > 0;
+                            return invPrinted ? (
+                              <button onClick={()=>{setVoidReason('');setVoidModal(tiv);}}
+                                style={{ fontSize:11,padding:'3px 7px',border:'1px solid rgba(208,48,48,.3)',borderRadius:4,cursor:'pointer',background:'var(--rbg)',color:'var(--rd)',fontFamily:'inherit' }}>
+                                ยกเลิกทั้งหมด
+                              </button>
+                            ) : (
+                              <span title="ต้องพิมพ์ใบกำกับภาษีเต็มรูป (ต้นฉบับ) ก่อนจึงจะยกเลิกได้"
+                                style={{ fontSize:11,padding:'3px 7px',borderRadius:4,background:'var(--s2)',color:'var(--t3)',cursor:'not-allowed',userSelect:'none' }}>
+                                ยกเลิกทั้งหมด
+                              </span>
+                            );
+                          })()}
+                          {/* แก้ไข INV — enabled หลัง print ต้นฉบับแล้วเท่านั้น */}
                           {inv && !invVoided && (inv.printCount||0) > 0 && (
                             <button onClick={()=>setAmendModal(inv)}
-                              style={{ fontSize:11,padding:'3px 7px',border:'1px solid var(--rd)',borderRadius:4,cursor:'pointer',background:'var(--rbg)',color:'var(--rd)',fontFamily:'inherit',fontWeight:700 }}>
-                              ยกเลิก INV
+                              style={{ fontSize:11,padding:'3px 7px',border:'1px solid var(--am)',borderRadius:4,cursor:'pointer',background:'var(--ambg)',color:'var(--am)',fontFamily:'inherit',fontWeight:700 }}>
+                              แก้ไข INV
                             </button>
-                          )}
-                          {/* ปุ่ม disabled ก่อนพิมพ์ต้นฉบับ */}
-                          {inv && !invVoided && (inv.printCount||0) === 0 && (
-                            <span title="ต้องพิมพ์ต้นฉบับก่อนจึงจะยกเลิกได้"
-                              style={{ fontSize:11,padding:'3px 7px',borderRadius:4,background:'var(--s2)',color:'var(--t3)',cursor:'not-allowed',userSelect:'none' }}>
-                              ยกเลิก INV 🔒
-                            </span>
                           )}
                         </div>
                       </td>
@@ -611,145 +673,9 @@ function InvoiceList({ toast }) {
         );
       })()}
 
-      {/* ── ใบลดหนี้ / เพิ่มหนี้ Report Tab ── */}
-      {tab==='cdnote' && (() => {
-        const cdList = invs.filter(iv => iv.type==='CN' || iv.type==='DN')
-          .sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-        const cnList = cdList.filter(iv=>iv.type==='CN');
-        const dnList = cdList.filter(iv=>iv.type==='DN');
-        const cnTotalPgs = Math.max(1, Math.ceil(cnList.length / INV_PAGE_SIZE));
-        const cnSafePg   = Math.min(cnPage, cnTotalPgs);
-        const cnSlice    = cnList.slice((cnSafePg-1)*INV_PAGE_SIZE, cnSafePg*INV_PAGE_SIZE);
-        const dnTotalPgs = Math.max(1, Math.ceil(dnList.length / INV_PAGE_SIZE));
-        const dnSafePg   = Math.min(dnPage, dnTotalPgs);
-        const dnSlice    = dnList.slice((dnSafePg-1)*INV_PAGE_SIZE, dnSafePg*INV_PAGE_SIZE);
-        const totalCN = cnList.reduce((s,iv)=>s+(iv.adjAmount||0),0);
-        const totalDN = dnList.reduce((s,iv)=>s+(iv.adjAmount||0),0);
-        return (
-          <div>
-            {/* Summary KPIs */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-              <StatCard icon="file-text" iconTone="am" label="ใบลดหนี้ (CN)" value={cnList.length+' ฉบับ'} />
-              <StatCard icon="coin" iconTone="am" label="ยอดลด VAT รวม"
-                value={(cnList.reduce((s,iv)=>s+(iv.adjVat7||0),0)).toFixed(2)+' ฿'} valueTone="am"/>
-              <StatCard icon="file-text" iconTone="rd" label="ใบเพิ่มหนี้ (DN)" value={dnList.length+' ฉบับ'} />
-              <StatCard icon="coin" iconTone="rd" label="ยอดเพิ่ม VAT รวม"
-                value={(dnList.reduce((s,iv)=>s+(iv.adjVat7||0),0)).toFixed(2)+' ฿'} valueTone="rd"/>
-            </div>
-
-            {/* CN Table */}
-            <Card title={`ใบลดหนี้ (Credit Note) — ${cnList.length} ฉบับ`} style={{ marginBottom:14 }} actions={
-              <div style={{ display:'flex', gap:6 }}>
-                <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('credit_notes.csv',
-                  ['เลขที่ CN','อ้างอิง INV','วันที่','ลูกค้า','ยอดเดิม','ยอดปรับ','ผลต่าง','VAT ที่ปรับ','เหตุผล'],
-                  cnList.map(iv=>[iv.no,iv.refInvNo||'',iv.dateDisplay,iv.custName,$(iv.origTotal||0),$(iv.total),$(iv.adjAmount||0),$(iv.adjVat7||0),iv.adjReason||iv.note||''])
-                )}>CSV</Button>
-                <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานใบลดหนี้ (CN)',
-                  ['เลขที่ CN','อ้างอิง INV','วันที่','ลูกค้า','ยอดเดิม','ผลต่าง','VAT ที่ปรับ','เหตุผล'],
-                  cnList.map(iv=>[iv.no,iv.refInvNo||'',iv.dateDisplay,iv.custName,$(iv.origTotal||0),$(iv.adjAmount||0),$(iv.adjVat7||0),iv.adjReason||'']),
-                  `รวม ${cnList.length} ฉบับ | ยอดปรับรวม ${$(totalCN)}`
-                )}>PDF</Button>
-              </div>
-            }>
-              <div className="tw"><table>
-                <thead><tr>
-                  <th style={TH}>เลขที่ CN</th><th style={TH}>ออกแทน INV</th><th style={TH}>วันที่</th>
-                  <th style={TH}>ลูกค้า</th><th style={THR}>ยอดเดิม</th><th style={THR}>ยอดที่ถูกต้อง</th>
-                  <th style={THR}>ผลต่าง (ลดหนี้)</th><th style={THR}>VAT ที่ปรับ</th><th style={TH}>เหตุผล</th><th style={TH}>เอกสาร</th>
-                </tr></thead>
-                <tbody>
-                  {cnList.length===0?<tr><td colSpan="10" style={{padding:'28px',textAlign:'center',color:'var(--t3)'}}>ยังไม่มีใบลดหนี้</td></tr>
-                  :cnSlice.map(iv=>(
-                    <tr key={iv.id} style={{borderBottom:'1px solid var(--bd)'}}>
-                      <td style={TD}><button onClick={()=>setA4Modal(iv)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--am)',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,padding:0}}>{iv.no}</button></td>
-                      <td style={{...TD,fontFamily:'var(--font-mono)',fontSize:12,color:'var(--ac)'}}>{iv.refInvNo||'—'}</td>
-                      <td style={{...TD,fontSize:12.5,color:'var(--t2)'}}>{iv.dateDisplay}</td>
-                      <td style={{...TD,fontWeight:600}}>{iv.custName}</td>
-                      <td style={TDR}>{$(iv.origTotal||0)}</td>
-                      <td style={TDR}>{$(iv.total)}</td>
-                      <td style={{...TDR,color:'var(--am)',fontWeight:800}}>{$(iv.adjAmount||0)}</td>
-                      <td style={{...TDR,color:'var(--pu)'}}>{$(iv.adjVat7||0)}</td>
-                      <td style={{...TD,fontSize:12,color:'var(--t2)',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{iv.adjReason||iv.note||'—'}</td>
-                      <td style={TD}>
-                        <div style={{display:'flex',gap:4}}>
-                          <button onClick={()=>setA4Modal(iv)} style={{fontSize:11,padding:'3px 7px',border:'1px solid var(--am)',borderRadius:4,cursor:'pointer',background:'var(--ambg)',color:'var(--amt)',fontFamily:'inherit',fontWeight:700}}>ดูเอกสาร</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                {cnList.length>0&&<tfoot><tr>
-                  <td colSpan="4" style={{padding:'8px 12px',fontWeight:700,background:'var(--s2)',borderTop:'2px solid var(--bd)'}}>รวม {cnList.length} ฉบับ</td>
-                  <td style={{padding:'8px 12px',textAlign:'right',fontWeight:700,background:'var(--s2)',borderTop:'2px solid var(--bd)'}}></td>
-                  <td style={{padding:'8px 12px',textAlign:'right',fontWeight:700,background:'var(--s2)',borderTop:'2px solid var(--bd)'}}></td>
-                  <td style={{padding:'8px 12px',textAlign:'right',fontWeight:800,color:'var(--am)',background:'var(--s2)',borderTop:'2px solid var(--bd)'}}>{$(totalCN)}</td>
-                  <td style={{padding:'8px 12px',textAlign:'right',fontWeight:800,color:'var(--pu)',background:'var(--s2)',borderTop:'2px solid var(--bd)'}}>{$(cnList.reduce((s,iv)=>s+(iv.adjVat7||0),0))}</td>
-                  <td colSpan="2" style={{background:'var(--s2)',borderTop:'2px solid var(--bd)'}}></td>
-                </tr></tfoot>}
-              </table></div>
-              <Paginator page={cnSafePg} totalPages={cnTotalPgs} setPage={setCnPage} total={cnList.length} pageSize={INV_PAGE_SIZE} noun="ใบลดหนี้" />
-            </Card>
-
-            {/* DN Table */}
-            <Card title={`ใบเพิ่มหนี้ (Debit Note) — ${dnList.length} ฉบับ`} actions={
-              <div style={{ display:'flex', gap:6 }}>
-                <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('debit_notes.csv',
-                  ['เลขที่ DN','อ้างอิง INV','วันที่','ลูกค้า','ยอดเดิม','ยอดปรับ','ผลต่าง','VAT ที่ปรับ','เหตุผล'],
-                  dnList.map(iv=>[iv.no,iv.refInvNo||'',iv.dateDisplay,iv.custName,$(iv.origTotal||0),$(iv.total),$(iv.adjAmount||0),$(iv.adjVat7||0),iv.adjReason||iv.note||''])
-                )}>CSV</Button>
-                <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานใบเพิ่มหนี้ (DN)',
-                  ['เลขที่ DN','อ้างอิง INV','วันที่','ลูกค้า','ยอดเดิม','ผลต่าง','VAT ที่ปรับ','เหตุผล'],
-                  dnList.map(iv=>[iv.no,iv.refInvNo||'',iv.dateDisplay,iv.custName,$(iv.origTotal||0),$(iv.adjAmount||0),$(iv.adjVat7||0),iv.adjReason||'']),
-                  `รวม ${dnList.length} ฉบับ | ยอดปรับรวม ${$(totalDN)}`
-                )}>PDF</Button>
-              </div>
-            }>
-              <div className="tw"><table>
-                <thead><tr>
-                  <th style={TH}>เลขที่ DN</th><th style={TH}>ออกแทน INV</th><th style={TH}>วันที่</th>
-                  <th style={TH}>ลูกค้า</th><th style={THR}>ยอดเดิม</th><th style={THR}>ยอดที่ถูกต้อง</th>
-                  <th style={THR}>ผลต่าง (เพิ่มหนี้)</th><th style={THR}>VAT ที่ปรับ</th><th style={TH}>เหตุผล</th><th style={TH}>เอกสาร</th>
-                </tr></thead>
-                <tbody>
-                  {dnList.length===0?<tr><td colSpan="10" style={{padding:'28px',textAlign:'center',color:'var(--t3)'}}>ยังไม่มีใบเพิ่มหนี้</td></tr>
-                  :dnSlice.map(iv=>(
-                    <tr key={iv.id} style={{borderBottom:'1px solid var(--bd)'}}>
-                      <td style={TD}><button onClick={()=>setA4Modal(iv)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--rd)',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,padding:0}}>{iv.no}</button></td>
-                      <td style={{...TD,fontFamily:'var(--font-mono)',fontSize:12,color:'var(--ac)'}}>{iv.refInvNo||'—'}</td>
-                      <td style={{...TD,fontSize:12.5,color:'var(--t2)'}}>{iv.dateDisplay}</td>
-                      <td style={{...TD,fontWeight:600}}>{iv.custName}</td>
-                      <td style={TDR}>{$(iv.origTotal||0)}</td>
-                      <td style={TDR}>{$(iv.total)}</td>
-                      <td style={{...TDR,color:'var(--rd)',fontWeight:800}}>+{$(iv.adjAmount||0)}</td>
-                      <td style={{...TDR,color:'var(--pu)'}}>{$(iv.adjVat7||0)}</td>
-                      <td style={{...TD,fontSize:12,color:'var(--t2)',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{iv.adjReason||iv.note||'—'}</td>
-                      <td style={TD}>
-                        <button onClick={()=>setA4Modal(iv)} style={{fontSize:11,padding:'3px 7px',border:'1px solid var(--rd)',borderRadius:4,cursor:'pointer',background:'var(--rbg)',color:'var(--rd)',fontFamily:'inherit',fontWeight:700}}>ดูเอกสาร</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                {dnList.length>0&&<tfoot><tr>
-                  <td colSpan="4" style={{padding:'8px 12px',fontWeight:700,background:'var(--s2)',borderTop:'2px solid var(--bd)'}}>รวม {dnList.length} ฉบับ</td>
-                  <td colSpan="2" style={{background:'var(--s2)',borderTop:'2px solid var(--bd)'}}></td>
-                  <td style={{padding:'8px 12px',textAlign:'right',fontWeight:800,color:'var(--rd)',background:'var(--s2)',borderTop:'2px solid var(--bd)'}}>+{$(totalDN)}</td>
-                  <td style={{padding:'8px 12px',textAlign:'right',fontWeight:800,color:'var(--pu)',background:'var(--s2)',borderTop:'2px solid var(--bd)'}}>{$(dnList.reduce((s,iv)=>s+(iv.adjVat7||0),0))}</td>
-                  <td colSpan="2" style={{background:'var(--s2)',borderTop:'2px solid var(--bd)'}}></td>
-                </tr></tfoot>}
-              </table></div>
-              <Paginator page={dnSafePg} totalPages={dnTotalPgs} setPage={setDnPage} total={dnList.length} pageSize={INV_PAGE_SIZE} noun="ใบเพิ่มหนี้" />
-            </Card>
-          </div>
-        );
-      })()}
-
-      {/* ── A4 Invoice Modal — routes to CnDnDocument for CN/DN ── */}
-      {a4Modal && (a4Modal.type==='CN'||a4Modal.type==='DN'||a4Modal.docType==='CN'||a4Modal.docType==='DN') && (
-        <CnDnDocument doc={a4Modal} onClose={()=>setA4Modal(null)} toast={toast} />
-      )}
-      {a4Modal && a4Modal.type!=='CN' && a4Modal.type!=='DN' && a4Modal.docType!=='CN' && a4Modal.docType!=='DN' && (
+      {a4Modal && (
         <div className="ov" onClick={e=>e.target===e.currentTarget&&setA4Modal(null)}>
-          <div className="md" style={{ width:'min(720px,96vw)' }}>
+          <div className="md" style={{ width:'min(860px,96vw)' }}>
             <div className="md-h">
               <span className="md-t">
                 ใบกำกับภาษี · <span style={{ fontFamily:'var(--font-mono)' }}>{a4Modal.no}</span>
@@ -778,6 +704,18 @@ function InvoiceList({ toast }) {
             </div>
             <div className="md-f">
               <Button variant="bg2" onClick={()=>setA4Modal(null)}>ปิด</Button>
+              {!a4Modal.voided && (a4Modal.printCount||0) > 0 && (
+                <button onClick={()=>{setA4Modal(null);setVoidReason('');setVoidModal(a4Modal);}}
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:'var(--rs)', background:'var(--rbg)', color:'var(--rd)', fontSize:13, fontWeight:700, cursor:'pointer', border:'1px solid rgba(208,48,48,.3)', fontFamily:'inherit' }}>
+                  <Icon name="x-circle" size={14} style={{ color:'var(--rd)' }}/> ยกเลิกใบนี้
+                </button>
+              )}
+              {!a4Modal.voided && (a4Modal.printCount||0) === 0 && (
+                <span title="ต้องพิมพ์ต้นฉบับก่อนจึงจะยกเลิกได้"
+                  style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:'var(--rs)', background:'var(--s2)', color:'var(--t3)', fontSize:13, fontWeight:700, cursor:'not-allowed', userSelect:'none' }}>
+                  <Icon name="x-circle" size={14} style={{ color:'var(--t3)' }}/> ยกเลิกใบนี้
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -816,7 +754,13 @@ function InvoiceList({ toast }) {
                     <select className="fc" value={voidReason} onChange={e=>setVoidReason(e.target.value)}>
                       <option value="">— เลือกเหตุผล —</option>
                       <option>ลูกค้าต้องการอย่างย่อ</option><option>ข้อมูลผิดพลาด</option><option>ยกเลิกคำสั่งซื้อ</option><option>อื่นๆ</option>
+                      <option value="ออกใบทดแทน">ออกใบทดแทน (ไม่คืนสต็อก)</option>
                     </select>
+                    {voidReason === 'ออกใบทดแทน' && (
+                      <div style={{ marginTop:8, padding:'8px 12px', background:'var(--abg)', border:'1px solid rgba(59,91,219,.2)', borderRadius:'var(--rs)', fontSize:12, color:'var(--ac)', lineHeight:1.6 }}>
+                        สต็อกจะ<b>ไม่ถูกคืน</b> — กรุณาออกใบกำกับใหม่ในหน้า "ตัดสต็อก/ขาย" แล้วกรอก "ออกแทนใบ" ด้วยเลขที่ใบนี้
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -830,11 +774,11 @@ function InvoiceList({ toast }) {
             <div style={{ display:'flex', gap:6 }}>
               <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('void_history.csv',
                 ['เลขที่','TIV','ลูกค้า','วันที่บิล','ยอดรวม','ยกเลิกเมื่อ','ผู้ยกเลิก','เหตุผล','สถานะสต็อก'],
-                invs.filter(iv=>iv.voided).map(iv=>[iv.no,iv.thermalNo||'',iv.custName,iv.dateDisplay,iv.total,iv.voidedAt||'',iv.voidedBy||'',iv.voidReason||'',iv.stockRestored?'คืนสต็อกแล้ว':'ยังไม่คืน'])
+                invs.filter(iv=>iv.voided).map(iv=>[iv.no,iv.thermalNo||'',iv.custName,iv.dateDisplay,iv.total,fmtVoidDate(iv.voidedAt),iv.voidedBy||'',iv.voidReason||'',iv.stockRestored?'คืนสต็อกแล้ว':'ยังไม่คืน'])
               )}>CSV</Button>
               <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('ประวัติการยกเลิกใบเสร็จ',
                 ['เลขที่','TIV','ลูกค้า','วันที่บิล','ยอดรวม','ยกเลิกเมื่อ','ผู้ยกเลิก','เหตุผล','สถานะ'],
-                invs.filter(iv=>iv.voided).map(iv=>[iv.no,iv.thermalNo||'—',iv.custName,iv.dateDisplay,iv.total,iv.voidedAt||'—',iv.voidedBy||'—',iv.voidReason||'—',iv.stockRestored?'คืนสต็อกแล้ว':'ยังไม่คืน'])
+                invs.filter(iv=>iv.voided).map(iv=>[iv.no,iv.thermalNo||'—',iv.custName,iv.dateDisplay,iv.total,fmtVoidDate(iv.voidedAt),iv.voidedBy||'—',iv.voidReason||'—',iv.stockRestored?'คืนสต็อกแล้ว':'ยังไม่คืน'])
               )}>PDF</Button>
             </div>
           }>
@@ -848,25 +792,38 @@ function InvoiceList({ toast }) {
                   const voidSlice    = voidList.slice((voidSafePg-1)*INV_PAGE_SIZE, voidSafePg*INV_PAGE_SIZE);
                   return voidList.length===0
                     ? <tr><td colSpan="10" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>ยังไม่มีรายการที่ถูกยกเลิก</td></tr>
-                    : voidSlice.map(iv=>(
+                    : voidSlice.map(iv => {
+                    const pairedVoid = !iv.stockRestored && (
+                      (iv.thermalNo && invs.some(x => x.no===iv.thermalNo && x.voided)) ||
+                      (iv.fullInvNo && invs.some(x => x.no===iv.fullInvNo && x.voided))
+                    );
+                    return (
                   <tr key={iv.id} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--rd)', fontWeight:700 }}>{iv.no}</span></td>
                     <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5, color:'var(--t3)' }}>{iv.thermalNo||'—'}</td>
                     <td style={{ ...TD, fontWeight:600, fontSize:13 }}>{iv.custName}</td>
                     <td style={TD}><span style={{ fontSize:12.5, color:'var(--t2)' }}>{iv.dateDisplay}</span></td>
                     <td style={{ ...TD, textAlign:'right', fontWeight:700 }}>{$(iv.total)}</td>
-                    <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{iv.voidedAt||'—'}</td>
+                    <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{fmtVoidDate(iv.voidedAt)}</td>
                     <td style={{ ...TD, fontSize:13 }}>{iv.voidedBy||'—'}</td>
                     <td style={{ ...TD, fontSize:12.5, color:'var(--t2)' }}>{iv.voidReason||'—'}</td>
-                    <td style={TD}><span className={'bx '+(iv.stockRestored?'xg':'xa')}>{iv.stockRestored?'คืนสต็อกแล้ว':'ยังไม่คืน'}</span></td>
+                    <td style={TD}>{iv.stockRestored
+                      ? <span className="bx xg">คืนสต็อกแล้ว</span>
+                      : iv.voidReason === 'ออกใบทดแทน'
+                        ? <span className="bx xb">ออกใบทดแทน</span>
+                        : pairedVoid
+                          ? <span style={{ color:'var(--t3)', fontSize:13 }}>—</span>
+                          : <span className="bx xa">ยังไม่คืน</span>
+                    }</td>
                     <td style={TD}>
                       <button onClick={()=>setVoidDetail(iv)}
                         style={{ fontSize:11.5, padding:'3px 9px', border:'1px solid var(--ac)', borderRadius:5, cursor:'pointer', background:'var(--abg)', color:'var(--ac)', fontFamily:'inherit', fontWeight:700 }}>
                         รายละเอียด
                       </button>
                     </td>
-                    </tr>
-                  ));
+                  </tr>
+                  );
+                  });
                 })()}
               </tbody>
             </table></div>
@@ -964,7 +921,8 @@ function InvoiceList({ toast }) {
       })()}
 
       {/* ── TIV Abbreviated Invoice Modal ── */}
-      {tivModal && <TIVDocModal tiv={tivModal} onClose={()=>setTivModal(null)} toast={toast} />}
+      {tivModal && <TIVDocModal tiv={tivModal} onClose={()=>setTivModal(null)} toast={toast}
+        onVoid={()=>{setTivModal(null);setVoidReason('');setVoidModal(tivModal);}} />}
 
       {/* ── Amend/Cancel INV → CN/DN/Correction ── */}
       {amendModal && (
@@ -996,7 +954,7 @@ function InvoiceList({ toast }) {
                 <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF(
                   `ใบกำกับยกเลิก ${voidDetail.no}`,
                   ['#','รหัส','สินค้า','น้ำหนัก KG','ราคา/KG','รวม'],
-                  (voidDetail.items||[]).map((it,i)=>[i+1,it.code,it.name,Number(it.weight).toFixed(3),it.price,window.fmtMoney(it.weight*it.price)]),
+                  (voidDetail.items||[]).map((it,i)=>[i+1,it.code,it.name,Number(it.weight).toFixed(2),it.price,window.fmtMoney(it.weight*it.price)]),
                   `ลูกค้า: ${voidDetail.custName} · วันที่: ${voidDetail.dateDisplay}`
                 )}>PDF</Button>
                 <div className="md-x" onClick={()=>setVoidDetail(null)}>✕</div>
@@ -1009,8 +967,9 @@ function InvoiceList({ toast }) {
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 20px', fontSize:12.5 }}>
                   {[['เลขที่ INV/TIV', voidDetail.no],['TIV อ้างอิง', voidDetail.thermalNo||'—'],
                     ['ลูกค้า', voidDetail.custName],['วันที่บิล', voidDetail.dateDisplay],
-                    ['ยกเลิกเมื่อ', voidDetail.voidedAt||'—'],['ผู้ยกเลิก', voidDetail.voidedBy||'—'],
-                    ['เหตุผล', voidDetail.voidReason||'—'],['สถานะสต็อก', voidDetail.stockRestored?'✓ คืนสต็อกแล้ว':'ยังไม่คืน'],
+                    ['ยกเลิกเมื่อ', fmtVoidDate(voidDetail.voidedAt)],['ผู้ยกเลิก', voidDetail.voidedBy||'—'],
+                    ['เหตุผล', voidDetail.voidReason||'—'],
+                    ['สถานะสต็อก', voidDetail.stockRestored ? '✓ คืนสต็อกแล้ว' : voidDetail.voidReason === 'ออกใบทดแทน' ? '— ไม่คืนสต็อก (ออกใบทดแทน)' : 'ยังไม่คืน'],
                   ].map(([l,v])=>(
                     <div key={l}><span style={{ color:'var(--t2)' }}>{l}: </span><b style={{ color:l==='สถานะสต็อก'&&voidDetail.stockRestored?'var(--gn)':undefined }}>{v}</b></div>
                   ))}
@@ -1031,7 +990,7 @@ function InvoiceList({ toast }) {
                         <td style={{ padding:'7px 10px', color:'var(--t3)', fontSize:11 }}>{i+1}</td>
                         <td style={{ padding:'7px 10px', fontFamily:'var(--font-mono)', fontSize:11 }}>{it.code}</td>
                         <td style={{ padding:'7px 10px', fontWeight:600 }}>{it.name}</td>
-                        <td style={{ padding:'7px 10px', textAlign:'right' }}>{Number(it.weight).toFixed(3)}</td>
+                        <td style={{ padding:'7px 10px', textAlign:'right' }}>{window.fmtItemQty(Number(it.weight), it.code)}</td>
                         <td style={{ padding:'7px 10px', textAlign:'right', color:'var(--t2)' }}>฿{it.price}</td>
                         <td style={{ padding:'7px 10px', textAlign:'right', fontWeight:700 }}>{window.fmtMoney(it.weight*it.price)}</td>
                       </tr>
@@ -1051,6 +1010,14 @@ function InvoiceList({ toast }) {
             </div>
             <div className="md-f">
               <Button variant="bg2" onClick={()=>setVoidDetail(null)}>ปิด</Button>
+              <Button variant="bp" icon="file-text" onClick={()=>{
+                setVoidDetail(null);
+                if (voidDetail.type==='Thermal' || voidDetail.type==='TIV' || !voidDetail.type) {
+                  setTivModal(voidDetail);
+                } else {
+                  setA4Modal(voidDetail);
+                }
+              }}>ดูเอกสาร</Button>
             </div>
           </div>
         </div>
@@ -1058,21 +1025,38 @@ function InvoiceList({ toast }) {
 
       {voidModal && (
         <div className="ov">
-          <div className="md" style={{ width:400 }}>
+          <div className="md" style={{ width:420 }}>
             <div style={{ padding:'20px 22px 0', textAlign:'center' }}>
               <div style={{ width:52, height:52, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={24}/></div>
-              <div style={{ fontSize:17, fontWeight:800, color:'var(--rd)', marginBottom:4 }}>ยกเลิกใบเสร็จ</div>
+              <div style={{ fontSize:17, fontWeight:800, color:'var(--rd)', marginBottom:4 }}>ยกเลิกใบกำกับภาษี</div>
               <div style={{ fontSize:13, color:'var(--t2)', marginBottom:16 }}>ระบบจะคืนสต็อกอัตโนมัติ</div>
-              <div style={{ background:'var(--rbg)', borderRadius:'var(--rs)', padding:'14px 16px', fontSize:13, textAlign:'left', marginBottom:4 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}><span style={{ color:'var(--t2)' }}>เลขที่</span><b style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{voidModal.no}</b></div>
+              <div style={{ background:'var(--rbg)', borderRadius:'var(--rs)', padding:'14px 16px', fontSize:13, textAlign:'left', marginBottom:12 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
+                  <span style={{ color:'var(--t2)' }}>เลขที่</span>
+                  <div style={{ textAlign:'right' }}>
+                    <b style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{voidModal.no}</b>
+                    {voidModal.type!=='A4' && voidModal.fullInvNo && <div style={{ fontSize:10.5, color:'var(--t3)', marginTop:1 }}>+ INV: {voidModal.fullInvNo}</div>}
+                    {voidModal.type==='A4' && voidModal.thermalNo && <div style={{ fontSize:10.5, color:'var(--t3)', marginTop:1 }}>+ TIV: {voidModal.thermalNo}</div>}
+                  </div>
+                </div>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}><span style={{ color:'var(--t2)' }}>ลูกค้า</span><b>{voidModal.custName}</b></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:'var(--t2)' }}>ยอดรวม</span><b style={{ color:'var(--gn)' }}>{$(voidModal.total)}</b></div>
               </div>
+              <div style={{ textAlign:'left', marginBottom:4 }}>
+                <label className="fl">เหตุผลการยกเลิก <span className="req">*</span></label>
+                <select className="fc" value={voidReason} onChange={e=>setVoidReason(e.target.value)}>
+                  <option value="">-- เลือกเหตุผล --</option>
+                  <option>ลูกค้าต้องการยกเลิก</option>
+                  <option>ข้อมูลผิดพลาด</option>
+                  <option>ยกเลิกคำสั่งซื้อ</option>
+                  <option>อื่นๆ</option>
+                </select>
+              </div>
             </div>
             <div className="md-f">
-              <Button variant="bg2" onClick={()=>setVoidModal(null)}>ไม่</Button>
+              <Button variant="bg2" onClick={()=>{setVoidModal(null);setVoidReason('');}}>ยกเลิก</Button>
               <button onClick={doVoid} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>
-                <Icon name="x-circle" size={15} style={{ color:'#fff' }}/> ยืนยันยกเลิก
+                <Icon name="x-circle" size={15} style={{ color:'#fff' }}/> ยืนยันยกเลิกทั้งใบ
               </button>
             </div>
           </div>
@@ -1098,11 +1082,22 @@ const REASON_BY_TYPE = {
 function StockManage({ toast }) {
   const D = window.SP_DATA;
   const [tab, setTab]       = React.useState('balance');
-  const [mvSub, setMvSub]   = React.useState('flat'); /* inner sub of movement: flat | byproduct */
+  /* ── Balance tab ── */
+  const [balSearch,      setBalSearch]      = React.useState('');
+  const [balPage,        setBalPage]        = React.useState(1);
+  const [balCat,         setBalCat]         = React.useState('all');
+  const [balStockFilter, setBalStockFilter] = React.useState('all');
+  const BAL_PAGE_SIZE = 20;
+  /* ── GRN tab ── */
+  const [grnSearch, setGrnSearch] = React.useState('');
+  const [grnFrom,   setGrnFrom]   = React.useState(() => window.toLocalISODate());
+  const [grnTo,     setGrnTo]     = React.useState(() => window.toLocalISODate());
+  /* ── Movement tab ── */
+  const [mvSub, setMvSub]   = React.useState('flat');
   const [mvSearch, setMvSearch] = React.useState('');
   const [mvType, setMvType]   = React.useState('all');
-  const [mvFrom, setMvFrom]   = React.useState('');
-  const [mvTo, setMvTo]       = React.useState('');
+  const [mvFrom, setMvFrom]   = React.useState(() => window.toLocalISODate());
+  const [mvTo, setMvTo]       = React.useState(() => window.toLocalISODate());
   /* ── Multi-item stock adjustment ── */
   const [adjMode, setAdjMode]         = React.useState('scan');  // 'scan' | 'search'
   const [adjItems, setAdjItems]       = React.useState([]);      // [{key,code,name,before,adj}]
@@ -1116,24 +1111,32 @@ function StockManage({ toast }) {
   const [adjLogSearch, setAdjLogSearch] = React.useState('');   // ค้นหาเลขที่เอกสาร
   const [adjLogType, setAdjLogType]     = React.useState('all'); // ประเภท
   const [adjLogReason, setAdjLogReason] = React.useState('all'); // เหตุผล
-  const [adjLogFrom, setAdjLogFrom]     = React.useState('');
-  const [adjLogTo, setAdjLogTo]         = React.useState('');
+  const [adjLogFrom, setAdjLogFrom]     = React.useState(() => window.toLocalISODate());
+  const [adjLogTo, setAdjLogTo]         = React.useState(() => window.toLocalISODate());
   const [adjType, setAdjType]     = React.useState('recount');
   const [adjReason, setAdjReason] = React.useState('นับสต็อกใหม่');
   const [adjNote, setAdjNote]     = React.useState('');
-  const [adjApprover, setAdjApprover] = React.useState('Admin Kanya');
+  const [adjApprover, setAdjApprover] = React.useState(() => window.SP_DATA?.user?.name || 'Admin');
   const [adjConfirm, setAdjConfirm]   = React.useState(false);
   const [adjDoc, setAdjDoc]           = React.useState(null);
   const [adjLogsState, setAdjLogsState] = React.useState(() => window.SP_STATE.adjLogs || []);
   const adjBcRef = React.useRef(null);
   const [grns, setGrns]       = React.useState(() => window.SP_STATE.grnLogs);
   const [docModal, setDocModal] = React.useState(null);
+  const [grnViewDoc, setGrnViewDoc] = React.useState(null);
   /* Ledger version — increments when reloadLedger() is called */
   const [ledgerVer, setLedgerVer] = React.useState(() => window.SP_LEDGER_VERSION || 0);
 
-  /* Reload GRN list when switching to grn tab */
+  /* Reload GRN list from DB when switching to grn tab */
   React.useEffect(() => {
-    if (tab === 'grn') setGrns([...window.SP_STATE.grnLogs]);
+    if (tab !== 'grn') return;
+    if (window.SP_API) {
+      window.SP_API.reloadGRN()
+        .then(data => setGrns([...data]))
+        .catch(() => setGrns([...window.SP_STATE.grnLogs]));
+    } else {
+      setGrns([...window.SP_STATE.grnLogs]);
+    }
   }, [tab]);
 
   /* Reload ledger from DB when switching to movement tab */
@@ -1219,12 +1222,12 @@ function StockManage({ toast }) {
     }
     if (isGRN) {
       const grn = (window.SP_STATE.grnLogs||[]).find(g=>g.id===ref||g.grn_no===ref);
-      if (grn) { setDocModal({ type:'grn', data:grn }); return; }
+      if (grn) { setGrnViewDoc(grn); return; }
       // ไม่พบใน memory → ลอง fetch จาก API
       if (window.SP_API) {
-        window.SP_API.reloadLedger().then(() => {
+        window.SP_API.reloadGRN().then(() => {
           const g2 = (window.SP_STATE.grnLogs||[]).find(x=>x.id===ref||x.grn_no===ref);
-          if (g2) setDocModal({ type:'grn', data:g2 });
+          if (g2) setGrnViewDoc(g2);
           else toast('info', `GRN ${ref} — โหลดข้อมูลไม่ได้`);
         }).catch(()=>toast('info', `GRN ${ref}`));
       } else toast('info', `GRN ${ref}`);
@@ -1446,10 +1449,10 @@ function StockManage({ toast }) {
         <option value="out">ตัดออก</option>
       </select>
       <span style={{ fontSize:12, color:'var(--t2)', fontWeight:600 }}>วันที่:</span>
-      <input type="date" className="fc" style={{ width:140 }} value={mvFrom} onChange={e=>setMvFrom(e.target.value)} />
+      <DateField style={{ width:140 }} value={mvFrom} onChange={e=>setMvFrom(e.target.value)} />
       <span style={{ fontSize:12, color:'var(--t3)' }}>ถึง</span>
-      <input type="date" className="fc" style={{ width:140 }} value={mvTo} onChange={e=>setMvTo(e.target.value)} />
-      {(mvFrom||mvTo||mvSearch||mvType!=='all') && <button className="btn bg2 bsm" onClick={()=>{setMvFrom('');setMvTo('');setMvSearch('');setMvType('all');}}>ล้าง</button>}
+      <DateField style={{ width:140 }} value={mvTo} onChange={e=>setMvTo(e.target.value)} />
+      {(mvFrom||mvTo||mvSearch||mvType!=='all') && <button className="btn bg2 bsm" onClick={()=>{setMvFrom(window.toLocalISODate());setMvTo(window.toLocalISODate());setMvSearch('');setMvType('all');}}>รีเซ็ต</button>}
       <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('movement.csv',['วันที่','เวลา','เอกสาร','ประเภทรายการ','สินค้า','รหัส','เพิ่ม KG','ลด KG','คงเหลือ'],ledger.map(l=>[l.date,l.time||'',l.ref,l.refType||'',l.prod,l.code,l.type==='in'?l.w.toFixed(4):'',l.type!=='in'?l.w.toFixed(4):'',l.bal.toFixed(4)]))}>CSV</Button>
       <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานความเคลื่อนไหวสต็อก',['วันที่','เวลา','เอกสาร','ประเภทรายการ','สินค้า','รหัส','เพิ่ม KG','ลด KG','คงเหลือ'],ledger.map(l=>[l.date,l.time||'',l.ref,l.refType||'',l.prod,l.code,l.type==='in'?l.w.toFixed(4):'',l.type!=='in'?l.w.toFixed(4):'',l.bal.toFixed(4)]))}>PDF</Button>
     </div>
@@ -1464,12 +1467,12 @@ function StockManage({ toast }) {
       </div>
       <div className="card" style={{ padding:'16px 18px' }}>
         <div style={{ fontSize:12, color:'var(--t2)', marginBottom:6 }}>รับเข้ารวม</div>
-        <div style={{ fontSize:26, fontWeight:800, color:'var(--gn)' }}>{totalIn.toFixed(3)} <span style={{ fontSize:13 }}>KG</span></div>
+        <div style={{ fontSize:26, fontWeight:800, color:'var(--gn)' }}>{totalIn.toFixed(2)} <span style={{ fontSize:13 }}>KG</span></div>
         <div style={{ fontSize:11, color:'var(--t3)', marginTop:3 }}>incl. Void return</div>
       </div>
       <div className="card" style={{ padding:'16px 18px' }}>
         <div style={{ fontSize:12, color:'var(--t2)', marginBottom:6 }}>ตัดออกรวม</div>
-        <div style={{ fontSize:26, fontWeight:800, color:'var(--rd)' }}>{totalOut.toFixed(3)} <span style={{ fontSize:13 }}>KG</span></div>
+        <div style={{ fontSize:26, fontWeight:800, color:'var(--rd)' }}>{totalOut.toFixed(2)} <span style={{ fontSize:13 }}>KG</span></div>
       </div>
     </div>
   );
@@ -1503,41 +1506,95 @@ function StockManage({ toast }) {
       </div>
 
       {/* ── Tab: ยอดคงเหลือ ── */}
-      {tab==='balance' && (
+      {tab==='balance' && (() => {
+        const balCats = ['all', ...Array.from(new Set(D.products.map(p=>p.cat).filter(Boolean))).sort()];
+        const BAL_STOCK_OPTS = [
+          { value:'all',  label:'ทั้งหมด' },
+          { value:'ok',   label:'ปกติ (มีสต็อก)' },
+          { value:'low',  label:'ต่ำกว่าขั้นต่ำ' },
+          { value:'zero', label:'หมดสต็อก (= 0)' },
+          { value:'pos',  label:'มีสต็อก (> 0)' },
+        ];
+        const balFiltered = D.products.filter(p => {
+          if (balCat !== 'all' && p.cat !== balCat) return false;
+          if (balStockFilter === 'zero' && p.stock > 0) return false;
+          if (balStockFilter === 'pos'  && p.stock <= 0) return false;
+          if (balStockFilter === 'low'  && p.stock >= p.min) return false;
+          if (balStockFilter === 'ok'   && (p.stock <= 0 || p.stock < p.min)) return false;
+          if (balSearch) {
+            const s = balSearch.toLowerCase();
+            if (!p.code.toLowerCase().includes(s) && !p.name.toLowerCase().includes(s)) return false;
+          }
+          return true;
+        });
+        const balFilterActive = balSearch || balCat !== 'all' || balStockFilter !== 'all';
+        const balTotalPages = Math.max(1, Math.ceil(balFiltered.length / BAL_PAGE_SIZE));
+        const balSafePage   = Math.min(balPage, balTotalPages);
+        const balSlice      = balFiltered.slice((balSafePage-1)*BAL_PAGE_SIZE, balSafePage*BAL_PAGE_SIZE);
+        return (
         <div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
-            <StatCard icon="package"  iconTone="ac" label="สินค้าทั้งหมด"    value={D.products.length+' รายการ'} />
-            <StatCard icon="check"    iconTone="gn" label="มีสต็อก"           value={D.products.filter(p=>p.stock>0).length+' รายการ'} />
-            <StatCard icon="warehouse" iconTone="am" label="ใกล้หมด/หมด"     value={D.products.filter(p=>p.stock<p.min).length+' รายการ'} valueTone="am" />
-            <StatCard icon="coin"     iconTone="gn" label="มูลค่าสต็อก"       value={'฿'+Math.round(D.products.reduce((s,p)=>s+p.stock*p.cost,0)/1000)+'k'} valueTone="gn" />
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:16 }}>
+            <StatCard icon="package"   iconTone="ac" label="สินค้าทั้งหมด"  value={D.products.length+' รายการ'} />
+            <StatCard icon="check"     iconTone="gn" label="มีสต็อก"         value={D.products.filter(p=>p.stock>0).length+' รายการ'} />
+            <StatCard icon="warehouse" iconTone="am" label="ใกล้หมด/หมด"    value={D.products.filter(p=>p.stock<p.min).length+' รายการ'} valueTone="am" />
+            <StatCard icon="coin"      iconTone="gn" label="มูลค่าสต็อก"     value={'฿'+Math.round(D.products.reduce((s,p)=>s+p.stock*p.cost,0)/1000)+'k'} valueTone="gn" />
           </div>
-          <Card title="ยอดคงเหลือสต็อก" actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('stock_balance.csv',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย/KG','ราคาทุน/KG','คงเหลือ KG','ขั้นต่ำ KG','สถานะ','มูลค่าสต็อก'],D.products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(3),p.min,p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('ยอดคงเหลือสต็อก',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย/KG','ราคาทุน/KG','คงเหลือ KG','ขั้นต่ำ KG','สถานะ','มูลค่าสต็อก'],D.products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(3),p.min,p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]))}>PDF</Button>
-          </div>}>
+          {/* Filter bar */}
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--r)', padding:'10px 14px', flexWrap:'wrap' }}>
+            <div style={{ position:'relative' }}>
+              <input className="fc" placeholder="รหัส / ชื่อสินค้า…" style={{ paddingLeft:30, width:190 }} value={balSearch} onChange={e=>{ setBalSearch(e.target.value); setBalPage(1); }} />
+              <Icon name="search" size={13} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:'var(--t3)' }} />
+            </div>
+            <select className="fc" style={{ width:150 }} value={balCat} onChange={e=>{ setBalCat(e.target.value); setBalPage(1); }}>
+              {balCats.map(c=><option key={c} value={c}>{c==='all'?'ทุกหมวด':c}</option>)}
+            </select>
+            <select className="fc" style={{ width:170 }} value={balStockFilter} onChange={e=>{ setBalStockFilter(e.target.value); setBalPage(1); }}>
+              {BAL_STOCK_OPTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            {balFilterActive && (
+              <button className="btn bg2 bsm" onClick={()=>{ setBalSearch(''); setBalCat('all'); setBalStockFilter('all'); setBalPage(1); }}>ล้างตัวกรอง</button>
+            )}
+            <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
+              <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('stock_balance.csv',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย/หน่วย','ราคาทุน/หน่วย','คงเหลือ','ขั้นต่ำ','สถานะ','มูลค่าสต็อก'],balFiltered.map(p=>{const ul=p.unitLabel||'KG';return[p.code,p.name,p.cat,p.sell,p.cost,window.fmtQty(p.stock,ul),window.fmtQty(p.min,ul),p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]}))}>CSV</Button>
+              <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('ยอดคงเหลือสต็อก',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย/หน่วย','ราคาทุน/หน่วย','คงเหลือ','ขั้นต่ำ','สถานะ','มูลค่าสต็อก'],balFiltered.map(p=>{const ul=p.unitLabel||'KG';return[p.code,p.name,p.cat,p.sell,p.cost,window.fmtQty(p.stock,ul),window.fmtQty(p.min,ul),p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]}))}>PDF</Button>
+            </div>
+          </div>
+          <Card title={`ยอดคงเหลือสต็อก · ${balFiltered.length} รายการ`}>
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>รหัส</th><th style={TH}>ชื่อสินค้า</th><th style={TH}>หมวด</th>
-                <th style={THR}>ราคาขาย/KG</th><th style={THR}>ราคาทุน/KG</th>
+                <th style={THR}>ราคาขาย/หน่วย</th><th style={THR}>ราคาทุน/หน่วย</th>
                 <th style={TH}>คงเหลือ</th><th style={TH}>ขั้นต่ำ</th><th style={TH}>สถานะ</th><th style={THR}>มูลค่าสต็อก</th>
               </tr></thead>
-              <tbody>{D.products.map(p=>(
+              <tbody>{balSlice.map(p=>{ const uLabel = p.unitLabel || 'KG'; return (
                 <tr key={p.id} style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={TD}><span className="mono">{p.code}</span></td>
                   <td style={{ ...TD, fontWeight:600 }}>{p.name}</td>
                   <td style={TD}>{p.cat}</td>
-                  <td style={TDR}>{$(p.sell)}</td>
-                  <td style={{ ...TDR, color:'var(--t2)' }}>{$(p.cost)}</td>
-                  <td style={{ ...TD, fontWeight:700 }}>{window.fmtKg(p.stock)}</td>
-                  <td style={{ ...TD, color:'var(--t3)' }}>{window.fmtKg(p.min)}</td>
-                  <td style={TD}><StockPill stock={p.stock} min={p.min}/></td>
+                  <td style={TDR}>{$(p.sell)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
+                  <td style={{ ...TDR, color:'var(--t2)' }}>{$(p.cost)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
+                  <td style={{ ...TD, fontWeight:700 }}>{window.fmtQty(p.stock, uLabel)}</td>
+                  <td style={{ ...TD, color:'var(--t3)' }}>{window.fmtQty(p.min, uLabel)}</td>
+                  <td style={TD}><StockPill stock={p.stock} min={p.min} unitLabel={uLabel}/></td>
                   <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(p.stock*p.cost)}</td>
                 </tr>
-              ))}</tbody>
+              )})}
+              </tbody>
             </table></div>
+            {balTotalPages > 1 && (
+              <div style={{ display:'flex', justifyContent:'center', alignItems:'center', gap:6, marginTop:12, paddingTop:10, borderTop:'1px solid var(--bd)' }}>
+                <button className="btn bg2 bsm" onClick={()=>setBalPage(p=>Math.max(1,p-1))} disabled={balSafePage===1}>‹ ก่อนหน้า</button>
+                {Array.from({length:balTotalPages},(_,i)=>i+1).map(pg=>(
+                  <button key={pg} className={'btn bsm '+(pg===balSafePage?'bp':'bg2')} onClick={()=>setBalPage(pg)}>{pg}</button>
+                ))}
+                <button className="btn bg2 bsm" onClick={()=>setBalPage(p=>Math.min(balTotalPages,p+1))} disabled={balSafePage===balTotalPages}>ถัดไป ›</button>
+                <span style={{ fontSize:12, color:'var(--t3)', marginLeft:4 }}>{balSafePage}/{balTotalPages} หน้า</span>
+              </div>
+            )}
           </Card>
         </div>
-      )}
+        );
+      })()}
 
       {/* ── Tab: ความเคลื่อนไหว ── */}
       {tab==='movement' && (
@@ -1642,7 +1699,7 @@ function StockManage({ toast }) {
                        ทีละเอกสาร โดยใช้ผลต่างที่บันทึกไว้จริงใน DB ระหว่างเอกสารที่ติดกัน
                        (เพิ่มขึ้น/ลดลงเท่าไหร่ + คงเหลือเดิม) เพื่อไม่ให้ยอดเพี้ยนจากข้อมูลเก่า */
                     const offset = docList.length ? (currentBal - docList[0].lastBal) : 0;
-                    const docListCalc = docList.map(d => ({ ...d, dispBal: +(d.lastBal + offset).toFixed(3) }));
+                    const docListCalc = docList.map(d => ({ ...d, dispBal: +(d.lastBal + offset).toFixed(2) }));
 
                     return (
                       <React.Fragment key={pg.code}>
@@ -1660,15 +1717,15 @@ function StockManage({ toast }) {
                           </td>
                           <td style={{ padding:'10px 12px', textAlign:'right' }}>
                             <div style={{ fontSize:11, color:'var(--t3)', marginBottom:2 }}>รับเข้ารวม</div>
-                            <div style={{ fontWeight:700, color:'var(--gn)', fontSize:13 }}>{pg.totalIn.toFixed(3)}</div>
+                            <div style={{ fontWeight:700, color:'var(--gn)', fontSize:13 }}>{pg.totalIn.toFixed(2)}</div>
                           </td>
                           <td style={{ padding:'10px 12px', textAlign:'right' }}>
                             <div style={{ fontSize:11, color:'var(--t3)', marginBottom:2 }}>ตัดออกรวม</div>
-                            <div style={{ fontWeight:700, color:'var(--rd)', fontSize:13 }}>{pg.totalOut.toFixed(3)}</div>
+                            <div style={{ fontWeight:700, color:'var(--rd)', fontSize:13 }}>{pg.totalOut.toFixed(2)}</div>
                           </td>
                           <td style={{ padding:'10px 14px', textAlign:'right' }}>
                             <span style={{ padding:'5px 12px', borderRadius:100, fontSize:13, fontWeight:800, background:isLow?'var(--ambg)':'var(--gbg)', color:isLow?'var(--amt)':'var(--gt)' }}>
-                              {currentBal.toFixed(3)} KG
+                              {currentBal.toFixed(2)} KG
                             </span>
                           </td>
                         </tr>
@@ -1697,14 +1754,14 @@ function StockManage({ toast }) {
                               }
                             </td>
                             <td style={{ padding:'9px 14px', textAlign:'right', color:'var(--gn)', fontWeight:700, whiteSpace:'nowrap' }}>
-                              {doc.type==='in'||doc.type==='adj'?doc.totalW.toFixed(3):'—'}
+                              {doc.type==='in'||doc.type==='adj'?doc.totalW.toFixed(2):'—'}
                             </td>
                             <td style={{ padding:'9px 14px', textAlign:'right', color:'var(--rd)', fontWeight:700, whiteSpace:'nowrap' }}>
-                              {doc.type==='out'?doc.totalW.toFixed(3):'—'}
+                              {doc.type==='out'?doc.totalW.toFixed(2):'—'}
                             </td>
                             <td style={{ padding:'9px 16px', textAlign:'right', whiteSpace:'nowrap' }}>
                               <span style={{ fontFamily:'var(--font-mono)', fontSize:12.5, fontWeight:700, color:doc.dispBal<(prod?.min||0)?'var(--am)':'var(--tx)' }}>
-                                {doc.dispBal.toFixed(3)}
+                                {doc.dispBal.toFixed(2)}
                               </span>
                             </td>
                           </tr>
@@ -1759,16 +1816,6 @@ function StockManage({ toast }) {
                         </span>
                       </div>
                     </div>
-                    <div style={{ display:'flex', gap:7, flexWrap:'wrap', padding:'8px 12px', background:'var(--s2)', borderRadius:'var(--rs)', border:'1px solid var(--bd)' }}>
-                      <span style={{ fontSize:11.5, fontWeight:700, color:'var(--t3)' }}>ทดลองสแกน:</span>
-                      {D.demoBarcodes.slice(0,3).map(b => (
-                        <button key={b.code} onClick={() => scanAdj(b.code)}
-                          style={{ padding:'4px 9px', borderRadius:'var(--r4)', background:'#fff', border:'1px solid var(--bd)', fontSize:11.5, cursor:'pointer', textAlign:'left' }}>
-                          <div style={{ fontFamily:'var(--font-mono)', fontSize:11.5 }}>{b.code}</div>
-                          <div style={{ color:'var(--t3)', fontSize:10.5 }}>{b.label}</div>
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 ) : (
                   /* ── Search mode (redesigned): autocomplete ค้นหาสินค้า + รายละเอียดเดิม/ใหม่/ผลต่าง ── */
@@ -1803,7 +1850,7 @@ function StockManage({ toast }) {
                                   <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t3)' }}>{p.code} · {p.cat}</div>
                                 </div>
                                 <span style={{ fontSize:11.5, fontWeight:700, padding:'3px 8px', borderRadius:100, background: low?'var(--ambg)':'var(--gbg)', color: low?'var(--amt)':'var(--gt)', whiteSpace:'nowrap' }}>
-                                  คงเหลือ {p.stock.toFixed(3)} KG
+                                  คงเหลือ {window.fmtItemQty(p.stock, p.code)}
                                 </span>
                               </div>
                             );
@@ -1842,15 +1889,15 @@ function StockManage({ toast }) {
                           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginTop:4, marginBottom:14 }}>
                             <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', padding:'8px 10px', textAlign:'center' }}>
                               <div style={{ fontSize:10.5, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>ของเดิม</div>
-                              <div style={{ fontSize:15, fontWeight:800, color:'var(--t2)', marginTop:2 }}>{before.toFixed(3)}</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:'var(--t2)', marginTop:2 }}>{before.toFixed(2)}</div>
                             </div>
                             <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', padding:'8px 10px', textAlign:'center' }}>
                               <div style={{ fontSize:10.5, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>หลังปรับ</div>
-                              <div style={{ fontSize:15, fontWeight:800, color:'var(--ac)', marginTop:2 }}>{Math.max(0,after).toFixed(3)}</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:'var(--ac)', marginTop:2 }}>{Math.max(0,after).toFixed(2)}</div>
                             </div>
                             <div style={{ background:toneBg, border:`1px solid ${toneColor}33`, borderRadius:'var(--rs)', padding:'8px 10px', textAlign:'center' }}>
                               <div style={{ fontSize:10.5, fontWeight:700, color:toneColor, textTransform:'uppercase', letterSpacing:'.04em' }}>ผลต่าง</div>
-                              <div style={{ fontSize:15, fontWeight:800, color:toneColor, marginTop:2 }}>{diff>0?'+':''}{diff.toFixed(3)}</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:toneColor, marginTop:2 }}>{diff>0?'+':''}{diff.toFixed(2)}</div>
                             </div>
                           </div>
                           <Button variant="bp" onClick={addSearchItem} icon="check" style={{ width:'100%', justifyContent:'center' }}>เพิ่มรายการนี้</Button>
@@ -1899,17 +1946,17 @@ function StockManage({ toast }) {
                         const isDec  = it.adj < 0;   // negative = decrease
                         const isLow  = after < minQ;
                         const adjDisplay = it.adj >= 0
-                          ? `+${it.adj.toFixed(3)}` : it.adj.toFixed(3);
+                          ? `+${it.adj.toFixed(2)}` : it.adj.toFixed(2);
                         return (
                           <div key={it.key} style={{ display:'grid', gridTemplateColumns:'26px 1fr 80px 96px 80px 28px', gap:8, alignItems:'center', padding:'9px 12px', background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', marginBottom:6 }}>
                             <div style={{ width:24, height:24, borderRadius:5, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--t2)' }}>{i+1}</div>
                             <div>
                               <div style={{ fontSize:13, fontWeight:600 }}>{it.name}</div>
                               <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t3)', marginTop:1 }}>{it.code}
-                                {it.mode==='scan' && it.scannedTotal!=null && <span style={{ marginLeft:6, fontSize:10, background:'var(--abg)', color:'var(--ac)', padding:'1px 5px', borderRadius:4 }}>นับได้ {it.scannedTotal.toFixed(3)} KG</span>}
+                                {it.mode==='scan' && it.scannedTotal!=null && <span style={{ marginLeft:6, fontSize:10, background:'var(--abg)', color:'var(--ac)', padding:'1px 5px', borderRadius:4 }}>นับได้ {it.scannedTotal.toFixed(2)} KG</span>}
                               </div>
                             </div>
-                            <div style={{ padding:'4px 6px', background:'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>{it.before.toFixed(3)}</div>
+                            <div style={{ padding:'4px 6px', background:'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>{it.before.toFixed(2)}</div>
                             {/* Editable field: newCount (recount) or adj delta (inc/dec) */}
                             {adjType === 'recount' ? (
                               <div style={{ position:'relative' }}>
@@ -1945,10 +1992,10 @@ function StockManage({ toast }) {
                             {/* Last column: for recount = ผลต่าง colored; for +/- = สต็อกหลัง */}
                             {adjType === 'recount' ? (
                               <div style={{ padding:'4px 6px', background:isInc?'var(--gbg)':isDec?'var(--rbg)':'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:800, color:isInc?'var(--gn)':isDec?'var(--rd)':'var(--t3)', textAlign:'center', letterSpacing:'.02em' }}>
-                                {it.adj>0?'+':''}{it.adj!==0?it.adj.toFixed(3):'±0.000'}
+                                {it.adj>0?'+':''}{it.adj!==0?it.adj.toFixed(2):'±0.000'}
                               </div>
                             ) : (
-                              <div style={{ padding:'4px 6px', background:isLow?'var(--ambg)':'var(--gbg)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:isLow?'var(--amt)':'var(--gt)', textAlign:'center' }}>{after.toFixed(3)}</div>
+                              <div style={{ padding:'4px 6px', background:isLow?'var(--ambg)':'var(--gbg)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:isLow?'var(--amt)':'var(--gt)', textAlign:'center' }}>{after.toFixed(2)}</div>
                             )}
                             <div onClick={() => setAdjItems(prev => prev.filter(x => x.key !== it.key))}
                               style={{ width:24, height:24, borderRadius:5, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--t3)', cursor:'pointer', fontSize:14, transition:'all .12s' }}
@@ -2005,7 +2052,7 @@ function StockManage({ toast }) {
                 </Field>
                 <Field label="ผู้รับผิดชอบ">
                   <select className="fc" value={adjApprover} onChange={e=>setAdjApprover(e.target.value)}>
-                    <option>Admin Kanya</option><option>สมชาย ใจดี</option>
+                    <option>{window.SP_DATA?.user?.name || 'Admin'}</option><option>สมชาย ใจดี</option>
                   </select>
                 </Field>
                 <Field label="หมายเหตุ">
@@ -2057,7 +2104,7 @@ function StockManage({ toast }) {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
             <StatCard icon="file-text" iconTone="rd" label="เอกสาร ADJ ทั้งหมด" value={filteredAdjLogs.length+' ฉบับ'} />
             <StatCard icon="package"  iconTone="am" label="รายการรวม" value={filteredAdjLogs.reduce((s,d)=>s+d.totalItems,0)+' รายการ'} />
-            <StatCard icon="warehouse" iconTone="rd" label="ปรับลดรวม (KG)" value={filteredAdjLogs.reduce((s,d)=>s+d.totalAdj,0).toFixed(3)+' KG'} valueTone="rd" />
+            <StatCard icon="warehouse" iconTone="rd" label="ปรับลดรวม (KG)" value={filteredAdjLogs.reduce((s,d)=>s+d.totalAdj,0).toFixed(2)+' KG'} valueTone="rd" />
           </div>
 
           {/* ── Filter bar: เลขที่ / ช่วงวันที่ / ประเภท / เหตุผล ── */}
@@ -2075,16 +2122,16 @@ function StockManage({ toast }) {
               {adjLogReasons.filter(r=>r!=='all').map(r => <option key={r} value={r}>{r}</option>)}
             </select>
             <span style={{ fontSize:12, color:'var(--t3)' }}>ช่วงวันที่:</span>
-            <input type="date" className="fc" style={{ width:140 }} value={adjLogFrom} onChange={e=>setAdjLogFrom(e.target.value)} />
-            <span style={{ fontSize:12, color:'var(--t3)' }}>—</span>
-            <input type="date" className="fc" style={{ width:140 }} value={adjLogTo} onChange={e=>setAdjLogTo(e.target.value)} />
+            <DateField style={{ width:140 }} value={adjLogFrom} onChange={e=>setAdjLogFrom(e.target.value)} />
+            <span style={{ fontSize:12, color:'var(--t3)' }}>ถึง</span>
+            <DateField style={{ width:140 }} value={adjLogTo} onChange={e=>setAdjLogTo(e.target.value)} />
             {adjLogFilterActive && <button className="btn bg2 bsm" onClick={clearAdjLogFilters}>ล้างตัวกรอง</button>}
             <span style={{ marginLeft:'auto', fontSize:12, color:'var(--t3)' }}>พบ {filteredAdjLogs.length} จาก {adjLogsState.length} ฉบับ</span>
           </div>
 
           <Card title="ประวัติเอกสารปรับปรุงสต็อก" actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('adj_logs.csv',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ KG','หลังปรับ KG','ผลต่าง KG','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(3),a.toFixed(3),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(3),doc.approver||'']}))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานการปรับปรุงสต็อก',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ KG','หลังปรับ KG','ผลต่าง KG','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(3),a.toFixed(3),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(3),doc.approver||'']}))}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('adj_logs.csv',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ KG','หลังปรับ KG','ผลต่าง KG','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานการปรับปรุงสต็อก',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ KG','หลังปรับ KG','ผลต่าง KG','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
@@ -2136,21 +2183,47 @@ function StockManage({ toast }) {
       )}
 
       {/* ── Tab: GRN ── */}
-      {tab==='grn' && (
+      {tab==='grn' && (() => {
+        const grnFiltered = grns.filter(g => {
+          const iso = g.date || (g.dateDisplay ? g.dateDisplay.split('/').reverse().join('-') : '');
+          if (grnFrom && iso < grnFrom) return false;
+          if (grnTo   && iso > grnTo)   return false;
+          if (grnSearch) {
+            const s = grnSearch.toLowerCase();
+            const nameMatch = g.items && g.items.some(it => (it.name||'').toLowerCase().includes(s) || (it.code||'').toLowerCase().includes(s));
+            if (!g.id.toLowerCase().includes(s) && !(g.poNo||'').toLowerCase().includes(s) && !nameMatch) return false;
+          }
+          return true;
+        });
+        return (
         <div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
-            <StatCard icon="file-text" iconTone="ac" label="เอกสาร GRN" value={grns.length+' ฉบับ'} />
-            <StatCard icon="package" iconTone="gn" label="แพ็คทั้งหมด" value={grns.reduce((s,g)=>s+g.totalPacks,0)+' แพ็ค'} />
-            <StatCard icon="coin" iconTone="gn" label="มูลค่ารวม" value={$(grns.reduce((s,g)=>s+g.totalValue,0))} valueTone="gn" />
+          {/* Filter bar */}
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--r)', padding:'10px 14px', flexWrap:'wrap' }}>
+            <span style={{ fontSize:12.5, color:'var(--t2)', fontWeight:600, marginRight:2 }}>ช่วงเวลา:</span>
+            <DateField style={{ width:148 }} value={grnFrom} onChange={e=>setGrnFrom(e.target.value)} />
+            <span style={{ color:'var(--t3)', fontSize:13 }}>ถึง</span>
+            <DateField style={{ width:148 }} value={grnTo} onChange={e=>setGrnTo(e.target.value)} />
+            <div style={{ position:'relative', marginLeft:4 }}>
+              <input className="fc" placeholder="ค้นหาเลข GRN / PO / สินค้า…" style={{ paddingLeft:30, width:220 }} value={grnSearch} onChange={e=>setGrnSearch(e.target.value)} />
+              <Icon name="search" size={13} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:'var(--t3)' }} />
+            </div>
+            {(grnSearch || grnFrom !== window.toLocalISODate() || grnTo !== window.toLocalISODate()) && (
+              <button className="btn bg2 bsm" onClick={()=>{ setGrnSearch(''); setGrnFrom(window.toLocalISODate()); setGrnTo(window.toLocalISODate()); }}>ล้าง</button>
+            )}
           </div>
-          <Card title="สรุปรายเอกสาร GRN" style={{ marginBottom:14 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
+            <StatCard icon="file-text" iconTone="ac" label="เอกสาร GRN" value={grnFiltered.length+' ฉบับ'} />
+            <StatCard icon="package" iconTone="gn" label="แพ็คทั้งหมด" value={grnFiltered.reduce((s,g)=>s+g.totalPacks,0)+' แพ็ค'} />
+            <StatCard icon="coin" iconTone="gn" label="มูลค่ารวม" value={$(grnFiltered.reduce((s,g)=>s+g.totalValue,0))} valueTone="gn" />
+          </div>
+          <Card title={`สรุปรายเอกสาร GRN · ${grnFiltered.length} ฉบับ`} style={{ marginBottom:14 }}>
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>เลขที่ GRN</th><th style={TH}>วันที่รับ</th><th style={TH}>เลขที่ PO</th>
                 <th style={{ ...TH, textAlign:'center' }}>แพ็ค</th><th style={THR}>น้ำหนักรวม</th>
                 <th style={THR}>มูลค่า</th><th style={TH}>ผู้รับ</th><th style={TH}></th>
               </tr></thead>
-              <tbody>{grns.map(g=>(
+              <tbody>{grnFiltered.map(g=>(
                 <tr key={g.id} style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--tx)' }}>{g.id}</td>
                   <td style={{ ...TD, fontSize:12.5, color:'var(--t2)' }}>{g.dateDisplay}</td>
@@ -2160,7 +2233,7 @@ function StockManage({ toast }) {
                   <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(g.totalValue)}</td>
                   <td style={{ ...TD, fontSize:13 }}>{g.receiver}</td>
                   <td style={TD}>
-                    <button onClick={()=>setDocModal({type:'grn',data:g})}
+                    <button onClick={()=>setGrnViewDoc(g)}
                       style={{ fontSize:12, fontWeight:700, padding:'4px 10px', border:'1px solid var(--ac)', borderRadius:6, cursor:'pointer', background:'var(--abg)', color:'var(--ac)', fontFamily:'inherit', whiteSpace:'nowrap' }}>
                       รายละเอียด
                     </button>
@@ -2176,14 +2249,14 @@ function StockManage({ toast }) {
                 <th style={TH}>แพ็ค</th><th style={THR}>น้ำหนัก</th><th style={THR}>ราคาทุน/KG</th>
                 <th style={TH}>ภาษี</th><th style={THR}>มูลค่า</th>
               </tr></thead>
-              <tbody>{grns.flatMap(g=>g.items.map((it,i)=>({...it,grnId:g.id,date:g.dateDisplay,key:`${g.id}-${i}`}))).map(r=>(
+              <tbody>{grnFiltered.flatMap(g=>g.items.map((it,i)=>({...it,grnId:g.id,date:g.dateDisplay,key:`${g.id}-${i}`}))).map(r=>(
                 <tr key={r.key} style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)', fontWeight:700 }}>{r.grnId}</span></td>
                   <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{r.date}</td>
                   <td style={TD}><span className="mono">{r.code}</span></td>
                   <td style={{ ...TD, fontWeight:600 }}>{r.name}</td>
                   <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5, color:'var(--t3)' }}>{r.packNo}</td>
-                  <td style={{ ...TDR, fontWeight:700 }}>{Number(r.weight).toFixed(3)}</td>
+                  <td style={{ ...TDR, fontWeight:700 }}>{window.fmtKg(r.weight)}</td>
                   <td style={{ ...TDR, color:'var(--t2)' }}>{$(r.cost)}</td>
                   <td style={TD}><span className={'bx '+(r.tax==='vat7'?'xb':'xx')} style={{ fontSize:10.5 }}>{r.tax==='vat7'?'VAT 7%':'Non VAT'}</span></td>
                   <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(r.value)}</td>
@@ -2192,7 +2265,8 @@ function StockManage({ toast }) {
             </table></div>
           </Card>
         </div>
-      )}
+        );
+      })()}
 
       {/* ── Adjust confirm popup ── */}
       {adjConfirm && (
@@ -2228,42 +2302,18 @@ function StockManage({ toast }) {
       {/* ── A4 ADJ Document modal ── */}
       {adjDoc && <AdjDocument doc={adjDoc} onClose={()=>setAdjDoc(null)} toast={toast} />}
 
-      {/* Doc detail modal */}
-      {docModal && (
+      {/* ── GRN Document modal (full preview) ── */}
+      {grnViewDoc && window.GrnDoc && React.createElement(window.GrnDoc, { grn: grnViewDoc, onClose: ()=>setGrnViewDoc(null) })}
+
+      {/* Doc detail modal (inv type only) */}
+      {docModal && docModal.type==='inv' && (
         <div className="ov" onClick={e=>e.target===e.currentTarget&&setDocModal(null)}>
           <div className="md" style={{ width:600 }}>
             <div className="md-h">
-              <span className="md-t">{docModal.type==='grn'?'เอกสารรับสินค้า (GRN)':'ใบกำกับภาษี'} · {docModal.data?.id||docModal.data?.no}</span>
+              <span className="md-t">ใบกำกับภาษี · {docModal.data?.no}</span>
               <div className="md-x" onClick={()=>setDocModal(null)}>✕</div>
             </div>
             <div className="md-b">
-              {docModal.type==='grn' && docModal.data && (
-                <div style={{ fontSize:13 }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 24px', marginBottom:14 }}>
-                    {[['เลขที่ GRN', docModal.data.id],['วันที่รับ', docModal.data.dateDisplay],['เลขที่ PO', docModal.data.poNo||'—'],['ผู้รับ', docModal.data.receiver],['จำนวนแพ็ค', docModal.data.totalPacks+' แพ็ค'],['น้ำหนักรวม', window.fmtKg(docModal.data.totalWeight)]].map(([l,v])=>(
-                      <div key={l}><span style={{ color:'var(--t2)' }}>{l}: </span><b>{v}</b></div>
-                    ))}
-                  </div>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5 }}>
-                    <thead><tr style={{ background:'var(--s2)' }}><th style={TH}>รหัส</th><th style={TH}>สินค้า</th><th style={THR}>น้ำหนัก</th><th style={THR}>ราคาทุน</th><th style={THR}>มูลค่า</th></tr></thead>
-                    <tbody>{(docModal.data.items||[]).map((it,i)=>(
-                      <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
-                        <td style={TD}><span className="mono">{it.code}</span></td>
-                        <td style={{ ...TD, fontWeight:600 }}>{it.name}</td>
-                        <td style={TDR}>{Number(it.weight).toFixed(3)}</td>
-                        <td style={TDR}>{$(it.cost)}</td>
-                        <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(it.value)}</td>
-                      </tr>
-                    ))}</tbody>
-                    <tfoot><tr style={{ background:'var(--s2)', fontWeight:700 }}>
-                      <td colSpan="2" style={TH}>รวม</td>
-                      <td style={THR}>{window.fmtKg(docModal.data.totalWeight)}</td>
-                      <td></td>
-                      <td style={{ ...THR, color:'var(--gn)' }}>{$(docModal.data.totalValue)}</td>
-                    </tr></tfoot>
-                  </table>
-                </div>
-              )}
               {docModal.type==='inv' && docModal.data && (() => {
                 const iv = docModal.data;
                 const payLabel = { cash:'เงินสด', transfer:'เงินโอน', credit:'เครดิต' }[iv.pay] || '—';
@@ -2293,7 +2343,7 @@ function StockManage({ toast }) {
                           <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                             <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11 }}>{it.code}</td>
                             <td style={{ ...TD, fontWeight:600 }}>{it.name}</td>
-                            <td style={{ ...TDR }}>{Number(it.weight||0).toFixed(3)}</td>
+                            <td style={{ ...TDR }}>{Number(it.weight||0).toFixed(2)}</td>
                             <td style={{ ...TDR, color:'var(--t2)' }}>฿{it.price||it.price_per_kg||0}</td>
                             <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(Number(it.weight||0)*Number(it.price||it.price_per_kg||0))}</td>
                           </tr>
@@ -2313,14 +2363,9 @@ function StockManage({ toast }) {
             </div>
             <div className="md-f">
               <Button variant="bg2" onClick={()=>setDocModal(null)}>ปิด</Button>
-              {docModal.type==='grn' && (
-                <Button variant="bp" icon="printer" onClick={()=>window.printDoc('grn', docModal.data)}>พิมพ์ GRN</Button>
-              )}
-              {docModal.type==='inv' && (
-                <Button variant="bp" icon="printer" onClick={()=>window.printDoc(
-                  (docModal.data.type==='A4'||docModal.data.invoiceType==='INV')?'inv':'tiv', docModal.data
-                )}>พิมพ์</Button>
-              )}
+              <Button variant="bp" icon="printer" onClick={()=>window.printDoc(
+                (docModal.data.type==='A4'||docModal.data.invoiceType==='INV')?'inv':'tiv', docModal.data
+              )}>พิมพ์</Button>
             </div>
           </div>
         </div>
@@ -2332,93 +2377,227 @@ function StockManage({ toast }) {
 /* ═══ OTHER SCREENS ═══ */
 function Users({ toast }) {
   const D = window.SP_DATA;
-  const [users, setUsers] = React.useState(D.users);
-  const [showModal, setShowModal] = React.useState(false);
-  const [form, setForm] = React.useState({ name:'', user:'', role:'Staff', password:'', confirmPw:'' });
+  const [users, setUsers] = React.useState(() => D.users.filter(u => u.status !== 'inactive'));
+  const [showModal,    setShowModal]    = React.useState(false);
+  const [editModal,    setEditModal]    = React.useState(null);   // user obj to edit
+  const [deleteConfirm,setDeleteConfirm]= React.useState(null);  // user obj to delete
+  const [form, setForm] = React.useState({ name:'', user:'', email:'', role:'Staff', password:'', confirmPw:'' });
+  const [editForm, setEditForm] = React.useState({ name:'', email:'', role:'Staff', password:'', confirmPw:'' });
   const [showPw, setShowPw] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const resetForm = () => setForm({ name:'', user:'', role:'Staff', password:'', confirmPw:'' });
+
+  const refreshUsers = () => setUsers(D.users.filter(u => u.status !== 'inactive'));
+  const resetForm    = () => setForm({ name:'', user:'', email:'', role:'Staff', password:'', confirmPw:'' });
+
   const addUser = async () => {
     if (!form.name||!form.user) { toast('err','กรุณากรอกชื่อและ Username'); return; }
     if (D.users.find(u=>u.user===form.user)) { toast('err',`Username ${form.user} มีอยู่แล้ว`); return; }
-    const pw = form.password || '1234';
-    if (form.password && form.password.length < 4) { toast('err','รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
-    if (form.password && form.password !== form.confirmPw) { toast('err','รหัสผ่านยืนยันไม่ตรงกัน'); return; }
+    if (!form.password) { toast('err','กรุณากรอกรหัสผ่าน'); return; }
+    if (form.password.length < 4) { toast('err','รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
+    if (form.password !== form.confirmPw) { toast('err','รหัสผ่านยืนยันไม่ตรงกัน'); return; }
+    const pw = form.password;
 
     const finishAdd = (id, okMsg) => {
-      const u = { id, name:form.name, user:form.user, role:form.role, password:pw, status:'active', last:'—' };
-      D.users.push(u);
-      setUsers([...D.users]);
-      setShowModal(false); resetForm();
-      toast('ok', okMsg);
+      const u = { id, name:form.name, user:form.user, email:form.email, role:form.role, password:pw, status:'active', last:'—' };
+      D.users.push(u); refreshUsers(); setShowModal(false); resetForm(); toast('ok', okMsg);
     };
-
-    /* ── บันทึกลง DB (มี fallback เป็น mock data เสมอถ้า DB ใช้ไม่ได้) ── */
     if (window.SP_API && typeof window.SP_API.createUser === 'function') {
       setSaving(true);
       try {
-        const result = await window.SP_API.createUser({
-          name: form.name, username: form.user, role: form.role,
-          password: pw, active: true,
-        });
+        const result = await window.SP_API.createUser({ name:form.name, username:form.user, email:form.email||null, role:form.role, password:pw, active:true });
         finishAdd(result.id || Date.now(), `เพิ่มผู้ใช้ ${form.name} ลง DB เรียบร้อย`);
       } catch (err) {
-        console.warn('[Users] createUser ไม่สำเร็จ (บันทึกในเครื่องแทน):', err.message);
-        finishAdd(Date.now(), `เพิ่มผู้ใช้ ${form.name} เรียบร้อย (บันทึกในเครื่อง — ยังไม่เชื่อมต่อ DB)`);
-      } finally {
-        setSaving(false);
-      }
+        finishAdd(Date.now(), `เพิ่มผู้ใช้ ${form.name} เรียบร้อย (บันทึกในเครื่อง)`);
+      } finally { setSaving(false); }
       return;
     }
-
-    /* ── fallback: mock data ── */
     finishAdd(Date.now(), `เพิ่มผู้ใช้ ${form.name} เรียบร้อย`);
   };
-  const $ = window.fmtMoney;
+
+  const openEdit = (u) => {
+    setEditForm({ name:u.name, email:u.email||'', role:u.role, password:'', confirmPw:'' });
+    setEditModal(u);
+    setShowPw(false);
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.name) { toast('err','กรุณากรอกชื่อ'); return; }
+    if (editForm.password && editForm.password.length < 4) { toast('err','รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร'); return; }
+    if (editForm.password && editForm.password !== editForm.confirmPw) { toast('err','รหัสผ่านยืนยันไม่ตรงกัน'); return; }
+    setSaving(true);
+    try {
+      const payload = { name:editForm.name, email:editForm.email||null, role:editForm.role, is_active:true, updated_by:'Admin' };
+      if (editForm.password) payload.password = editForm.password;
+      if (window.SP_API && typeof window.SP_API.saveUser === 'function') {
+        await window.SP_API.saveUser(editModal.id, payload);
+      }
+      const idx = D.users.findIndex(u => u.id === editModal.id);
+      if (idx >= 0) Object.assign(D.users[idx], { name:editForm.name, email:editForm.email, role:editForm.role });
+      refreshUsers(); setEditModal(null);
+      toast('ok', `แก้ไขข้อมูล ${editForm.name} เรียบร้อย`);
+    } catch (err) {
+      toast('err', 'แก้ไขไม่สำเร็จ: ' + err.message);
+    } finally { setSaving(false); }
+  };
+
+  const doDelete = async () => {
+    const u = deleteConfirm; if (!u) return;
+    try {
+      if (window.SP_API && typeof window.SP_API.deleteUser === 'function') {
+        await window.SP_API.deleteUser(u.id);
+      }
+      const idx = D.users.findIndex(x => x.id === u.id);
+      if (idx >= 0) D.users[idx].status = 'inactive';
+      refreshUsers(); setDeleteConfirm(null);
+      toast('ok', `ลบผู้ใช้ ${u.name} เรียบร้อย`);
+    } catch (err) {
+      toast('err', 'ลบไม่สำเร็จ: ' + err.message);
+    }
+  };
+
+  const BTN = { fontSize:12, padding:'4px 10px', border:'1px solid var(--bd)', borderRadius:6, cursor:'pointer', background:'var(--sur)', color:'var(--t2)', fontFamily:'inherit' };
   return (
     <div>
       <Card title="จัดการผู้ใช้งาน" actions={<Button variant="bp" size="sm" onClick={()=>setShowModal(true)}>+ เพิ่มผู้ใช้</Button>}>
         <div className="tw"><table>
-          <thead><tr><th>ชื่อ</th><th>Username</th><th>สิทธิ์</th><th>สถานะ</th><th>เข้าใช้ล่าสุด</th><th></th></tr></thead>
+          <thead><tr><th>ชื่อ</th><th>Username</th><th>อีเมล</th><th>สิทธิ์</th><th>สถานะ</th><th>เข้าใช้ล่าสุด</th><th></th></tr></thead>
           <tbody>{users.map(u=>(
             <tr key={u.id} style={{ borderBottom:'1px solid var(--bd)' }}>
-              <td style={{ padding:'11px 14px' }}><div style={{ display:'flex', alignItems:'center', gap:10 }}><div style={{ width:32, height:32, borderRadius:'50%', background:'var(--grad-brand)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:12, flexShrink:0 }}>{u.name.slice(0,2)}</div><span style={{ fontWeight:600 }}>{u.name}</span></div></td>
-              <td className="mono">{u.user}</td>
-              <td><span className={'bx '+(u.role==='Administrator'?'xb':'xx')}>{u.role}</span></td>
-              <td><span className={'bx '+(u.status==='active'?'xg':'xr')}>{u.status==='active'?'ใช้งาน':'ระงับ'}</span></td>
-              <td style={{ fontSize:12, color:'var(--t3)' }}>{u.last}</td>
-              <td style={{ padding:'11px 14px' }}><button onClick={()=>setUsers(p=>p.map(x=>x.id===u.id?{...x,status:x.status==='active'?'inactive':'active'}:x))} style={{ fontSize:12, padding:'4px 10px', border:'1px solid var(--bd)', borderRadius:6, cursor:'pointer', background:'var(--sur)', color:'var(--t2)', fontFamily:'inherit' }}>{u.status==='active'?'ระงับ':'เปิดใช้'}</button></td>
+              <td style={{ padding:'11px 14px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ width:32, height:32, borderRadius:'50%', background:'var(--grad-brand)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:12, flexShrink:0 }}>{u.name.slice(0,2)}</div>
+                  <span style={{ fontWeight:600 }}>{u.name}</span>
+                </div>
+              </td>
+              <td className="mono" style={{ padding:'11px 14px' }}>{u.user}</td>
+              <td style={{ padding:'11px 14px', fontSize:12.5, color: u.email ? 'var(--t2)' : 'var(--t3)' }}>{u.email || '—'}</td>
+              <td style={{ padding:'11px 14px' }}><span className={'bx '+(u.role==='Administrator'?'xb':'xx')}>{u.role}</span></td>
+              <td style={{ padding:'11px 14px' }}><span className={'bx '+(u.status==='active'?'xg':'xr')}>{u.status==='active'?'ใช้งาน':'ระงับ'}</span></td>
+              <td style={{ fontSize:12, color:'var(--t3)', padding:'11px 14px' }}>{u.last}</td>
+              <td style={{ padding:'11px 14px' }}>
+                <div style={{ display:'flex', gap:5 }}>
+                  <button style={BTN} onClick={()=>setUsers(p=>p.map(x=>x.id===u.id?{...x,status:x.status==='active'?'inactive':'active'}:x))}>{u.status==='active'?'ระงับ':'เปิดใช้'}</button>
+                  <button style={{ ...BTN, borderColor:'var(--ac)', color:'var(--ac)', background:'var(--abg)' }} onClick={()=>openEdit(u)}>แก้ไข</button>
+                  <button style={{ ...BTN, borderColor:'rgba(208,48,48,.35)', color:'var(--rd)', background:'var(--rbg)' }} onClick={()=>setDeleteConfirm(u)}>ลบ</button>
+                </div>
+              </td>
             </tr>
           ))}</tbody>
         </table></div>
       </Card>
-      {showModal && <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}><div className="md" style={{ width:460 }}>
-        <div className="md-h"><span className="md-t">เพิ่มผู้ใช้งานใหม่</span><div className="md-x" onClick={()=>setShowModal(false)}>✕</div></div>
-        <div className="md-b">
-          <div className="gr c2">
-            <Field label="ชื่อ-นามสกุล" required><input className="fc" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} /></Field>
-            <Field label="Username" required><input className="fc" value={form.user} onChange={e=>setForm(f=>({...f,user:e.target.value}))} /></Field>
-          </div>
-          <Field label="สิทธิ์"><select className="fc" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}><option>Administrator</option><option>Staff</option></select></Field>
 
-          <div className="gr c2" style={{ marginTop:4 }}>
-            <Field label="รหัสผ่าน" optional>
-              <div style={{ position:'relative' }}>
-                <input className="fc" type={showPw?'text':'password'} value={form.password} placeholder="ค่าเริ่มต้น 1234"
-                  onChange={e=>setForm(f=>({...f,password:e.target.value}))} style={{ paddingRight:36 }} />
-                <span onClick={()=>setShowPw(s=>!s)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', cursor:'pointer', color:'var(--t3)', fontSize:11.5, userSelect:'none' }}>
-                  {showPw?'ซ่อน':'แสดง'}
-                </span>
+      {/* ── Add modal ── */}
+      {showModal && (
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+          <div className="md" style={{ width:500 }}>
+            <div className="md-h"><span className="md-t">เพิ่มผู้ใช้งานใหม่</span><div className="md-x" onClick={()=>setShowModal(false)}>✕</div></div>
+            <div className="md-b" style={{ display:'flex', flexDirection:'column', gap:0 }}>
+              <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'14px 16px', marginBottom:14, border:'1px solid var(--bd)' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', marginBottom:10, letterSpacing:.4, textTransform:'uppercase' }}>ข้อมูลบัญชี</div>
+                <div className="gr c2">
+                  <Field label="ชื่อ-นามสกุล" required><input className="fc" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="ชื่อผู้ใช้งาน" /></Field>
+                  <Field label="Username" required><input className="fc" value={form.user} onChange={e=>setForm(f=>({...f,user:e.target.value}))} placeholder="login username" style={{ fontFamily:'var(--font-mono)' }} /></Field>
+                  <div style={{ gridColumn:'1/-1' }}>
+                    <Field label="อีเมล" optional><input className="fc" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@example.com (สำหรับรีเซ็ตรหัสผ่าน)" /></Field>
+                  </div>
+                  <Field label="สิทธิ์" required>
+                    <select className="fc" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
+                      <option value="Administrator">Administrator</option>
+                      <option value="Staff">Staff</option>
+                    </select>
+                  </Field>
+                </div>
               </div>
-            </Field>
-            <Field label="ยืนยันรหัสผ่าน" optional>
-              <input className="fc" type={showPw?'text':'password'} value={form.confirmPw} placeholder="พิมพ์รหัสผ่านอีกครั้ง"
-                onChange={e=>setForm(f=>({...f,confirmPw:e.target.value}))} />
-            </Field>
+              <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'14px 16px', border:'1px solid var(--bd)' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', marginBottom:10, letterSpacing:.4, textTransform:'uppercase' }}>รหัสผ่าน</div>
+                <div className="gr c2">
+                  <Field label="รหัสผ่าน" optional>
+                    <div style={{ position:'relative' }}>
+                      <input className="fc" type={showPw?'text':'password'} value={form.password} placeholder="ค่าเริ่มต้น 1234" onChange={e=>setForm(f=>({...f,password:e.target.value}))} style={{ paddingRight:40 }} />
+                      <span onClick={()=>setShowPw(s=>!s)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', cursor:'pointer', color:'var(--t3)', fontSize:11.5, userSelect:'none' }}>{showPw?'ซ่อน':'แสดง'}</span>
+                    </div>
+                  </Field>
+                  <Field label="ยืนยันรหัสผ่าน" optional><input className="fc" type={showPw?'text':'password'} value={form.confirmPw} placeholder="พิมพ์รหัสผ่านอีกครั้ง" onChange={e=>setForm(f=>({...f,confirmPw:e.target.value}))} /></Field>
+                </div>
+                <div style={{ fontSize:12, color:'var(--t3)', marginTop:8 }}>หากไม่กำหนดรหัสผ่าน ระบบจะตั้งค่าเริ่มต้นเป็น <b style={{ color:'var(--t2)' }}>1234</b> อัตโนมัติ</div>
+              </div>
+            </div>
+            <div className="md-f">
+              <Button variant="bg2" onClick={()=>{ setShowModal(false); resetForm(); }} disabled={saving}>ยกเลิก</Button>
+              <Button variant="bp" icon="check" onClick={addUser} disabled={saving}>{saving?'กำลังบันทึก...':'บันทึก'}</Button>
+            </div>
           </div>
-          <div className="nc nc-b" style={{ fontSize:12.5 }}>หากไม่กำหนดรหัสผ่าน ระบบจะตั้งค่าเริ่มต้นเป็น <b>1234</b> ให้อัตโนมัติ — ผู้ใช้สามารถเปลี่ยนได้ภายหลัง</div>
         </div>
-        <div className="md-f"><Button variant="bg2" onClick={()=>setShowModal(false)} disabled={saving}>ยกเลิก</Button><Button variant="bp" icon="check" onClick={addUser} disabled={saving}>{saving?'กำลังบันทึก...':'บันทึก'}</Button></div>
+      )}
+
+      {/* ── Edit modal ── */}
+      {editModal && (
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditModal(null)}>
+          <div className="md" style={{ width:500 }}>
+            <div className="md-h">
+              <span className="md-t">แก้ไขผู้ใช้งาน</span>
+              <div className="md-x" onClick={()=>setEditModal(null)}>✕</div>
+            </div>
+            <div className="md-b" style={{ display:'flex', flexDirection:'column', gap:0 }}>
+              {/* ── info bar ── */}
+              <div style={{ display:'flex', alignItems:'center', gap:12, background:'var(--abg)', borderRadius:'var(--rs)', padding:'12px 14px', marginBottom:14, border:'1px solid rgba(91,124,255,.2)' }}>
+                <div style={{ width:38, height:38, borderRadius:'50%', background:'var(--grad-brand)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:800, fontSize:13, flexShrink:0 }}>{editModal.name.slice(0,2)}</div>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14 }}>{editModal.name}</div>
+                  <div style={{ fontSize:12, color:'var(--t2)', fontFamily:'var(--font-mono)' }}>@{editModal.user} · {editModal.role}</div>
+                  {editModal.email && <div style={{ fontSize:11.5, color:'var(--t3)' }}>{editModal.email}</div>}
+                </div>
+              </div>
+              <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'14px 16px', marginBottom:14, border:'1px solid var(--bd)' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', marginBottom:10, letterSpacing:.4, textTransform:'uppercase' }}>ข้อมูลทั่วไป</div>
+                <div className="gr c2">
+                  <Field label="ชื่อ-นามสกุล" required><input className="fc" value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></Field>
+                  <Field label="สิทธิ์">
+                    <select className="fc" value={editForm.role} onChange={e=>setEditForm(f=>({...f,role:e.target.value}))}>
+                      <option value="Administrator">Administrator</option>
+                      <option value="Staff">Staff</option>
+                    </select>
+                  </Field>
+                  <div style={{ gridColumn:'1/-1' }}>
+                    <Field label="อีเมล (สำหรับรีเซ็ตรหัสผ่าน)" optional>
+                      <input className="fc" type="email" value={editForm.email} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} placeholder="email@example.com" />
+                    </Field>
+                  </div>
+                </div>
+              </div>
+              <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'14px 16px', border:'1px solid var(--bd)' }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', marginBottom:10, letterSpacing:.4, textTransform:'uppercase' }}>เปลี่ยนรหัสผ่าน <span style={{ fontWeight:400, textTransform:'none', letterSpacing:0 }}>(ไม่บังคับ — เว้นว่างเพื่อคงเดิม)</span></div>
+                <div className="gr c2">
+                  <Field label="รหัสผ่านใหม่" optional>
+                    <div style={{ position:'relative' }}>
+                      <input className="fc" type={showPw?'text':'password'} value={editForm.password} placeholder="เว้นว่างเพื่อคงเดิม" onChange={e=>setEditForm(f=>({...f,password:e.target.value}))} style={{ paddingRight:40 }} />
+                      <span onClick={()=>setShowPw(s=>!s)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', cursor:'pointer', color:'var(--t3)', fontSize:11.5, userSelect:'none' }}>{showPw?'ซ่อน':'แสดง'}</span>
+                    </div>
+                  </Field>
+                  <Field label="ยืนยันรหัสผ่านใหม่" optional><input className="fc" type={showPw?'text':'password'} value={editForm.confirmPw} placeholder="พิมพ์อีกครั้ง" onChange={e=>setEditForm(f=>({...f,confirmPw:e.target.value}))} /></Field>
+                </div>
+              </div>
+            </div>
+            <div className="md-f">
+              <Button variant="bg2" onClick={()=>setEditModal(null)} disabled={saving}>ยกเลิก</Button>
+              <Button variant="bp" icon="check" onClick={saveEdit} disabled={saving}>{saving?'กำลังบันทึก...':'บันทึก'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete confirm ── */}
+      {deleteConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+        <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
+          <div style={{ width:48, height:48, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={22}/></div>
+          <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ลบผู้ใช้งาน?</div>
+          <div style={{ fontSize:13, color:'var(--t2)' }}>ต้องการลบ <b>{deleteConfirm.name}</b> ({deleteConfirm.user}) ออกจากระบบ?</div>
+          <div style={{ fontSize:12, color:'var(--t3)', marginTop:6 }}>ข้อมูลจะถูกซ่อนจากระบบ (ไม่สามารถเข้าใช้งานได้)</div>
+        </div>
+        <div className="md-f" style={{ marginTop:20 }}>
+          <Button variant="bg2" onClick={()=>setDeleteConfirm(null)}>ยกเลิก</Button>
+          <button onClick={doDelete} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันลบ</button>
+        </div>
       </div></div>}
     </div>
   );
@@ -2461,6 +2640,27 @@ function Settings({ toast }) {
   const [justSaved, setJustSaved] = React.useState(false);
   const [co, setCo] = React.useState({...D.company});
   const [logoUrl, setLogoUrl] = React.useState(D.company.logoUrl || '');
+  const [apiBase, setApiBase] = React.useState(() => localStorage.getItem('nexflow_api_base') || 'http://localhost:3001');
+  const [connStatus, setConnStatus] = React.useState(null); // null | 'ok' | 'err' | 'testing'
+
+  const testConnection = async () => {
+    setConnStatus('testing');
+    try {
+      const url = apiBase.replace(/\/+$/, '');
+      const r = await fetch(url + '/api/health', { signal: AbortSignal.timeout(4000) });
+      if (r.ok) { setConnStatus('ok'); toast('ok', 'เชื่อมต่อ Server สำเร็จ'); }
+      else       { setConnStatus('err'); toast('err', 'Server ตอบกลับ HTTP ' + r.status); }
+    } catch (e) {
+      setConnStatus('err');
+      toast('err', 'ไม่สามารถเชื่อมต่อ: ' + e.message);
+    }
+  };
+
+  const saveApiBase = () => {
+    const url = apiBase.replace(/\/+$/, '');
+    window.SP_CONFIG && window.SP_CONFIG.setApiBase && window.SP_CONFIG.setApiBase(url);
+    toast('ok', 'บันทึก Server URL แล้ว — รีโหลดแอปเพื่อให้มีผล');
+  };
   const logoInputRef = React.useRef(null);
 
   const handleLogoFile = (e) => {
@@ -2597,7 +2797,8 @@ function Settings({ toast }) {
           </div>
         ))}
         <div style={{ marginLeft:'auto' }}>
-          <Button variant="bp" size="sm" icon={saving?undefined:'check'} className={'stg-save'+(justSaved?' ok':'')} onClick={saveSettings} disabled={saving}>
+          <Button variant="bp" icon={saving?undefined:'check'} className={'stg-save'+(justSaved?' ok':'')} onClick={saveSettings} disabled={saving}
+            style={{ padding:'10px 22px', fontSize:14, fontWeight:700, boxShadow:'0 3px 8px rgba(26,79,160,.35)', letterSpacing:.3 }}>
             {saving ? <><span className="stg-spin"></span>กำลังบันทึก...</> : 'บันทึกการตั้งค่า'}
           </Button>
         </div>
@@ -2736,6 +2937,36 @@ function Settings({ toast }) {
               <Field label="ธีมสี / Tweaks"><div className="nc nc-b" style={{ fontSize:12 }}>เปิดได้จากปุ่ม Tweaks Panel มุมขวาล่างของหน้าจอ — ปรับธีม สี ความหนาแน่น และสไตล์ KPI ได้แบบเรียลไทม์</div></Field>
             </div></div>
           </Card>
+          <Card title="เครื่องพิมพ์" className="stg-card">
+            <div className="cb"><div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              <label style={{ fontSize:11.5, fontWeight:700, color:'var(--t3)' }}>เครื่องพิมพ์ใบเสร็จ (TM-T82)</label>
+              <input className="fc" value={co.receiptPrinter||''} onChange={e=>setCo(c=>({...c,receiptPrinter:e.target.value}))} placeholder="ชื่อเครื่องพิมพ์ หรือว่างเว้น" />
+              <label style={{ fontSize:11.5, fontWeight:700, color:'var(--t3)' }}>เครื่องพิมพ์ A4 (สำหรับใบกำกับภาษี/GRN/PDF)</label>
+              <input className="fc" value={co.a4Printer||''} onChange={e=>setCo(c=>({...c,a4Printer:e.target.value}))} placeholder="ชื่อเครื่องพิมพ์ A4 หรือว่างเว้น" />
+            </div></div>
+          </Card>
+          <Card title="เซิร์ฟเวอร์ API" className="stg-card">
+            <div className="cb">
+              <div style={{ fontSize:12.5, color:'var(--t2)', marginBottom:12, lineHeight:1.7 }}>
+                กำหนด URL ของ API Server — ใช้ <b>localhost:3001</b> ถ้ารันบนเครื่องเดียว<br/>
+                หรือใส่ IP ของเครื่อง Server กลางหากใช้งานหลายเครื่องใน LAN เช่น <code style={{ background:'var(--s2)', padding:'1px 6px', borderRadius:4 }}>http://192.168.33.253:3001</code>
+              </div>
+              <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:10 }}>
+                <input className="fc" value={apiBase} onChange={e=>{setApiBase(e.target.value);setConnStatus(null);}}
+                  placeholder="http://192.168.33.253:3001" style={{ flex:1, fontFamily:'var(--font-mono)', fontSize:13 }} />
+                <Button variant="bg2" size="sm" onClick={testConnection} disabled={connStatus==='testing'}>
+                  {connStatus==='testing' ? 'กำลังทดสอบ…' : 'ทดสอบ'}
+                </Button>
+              </div>
+              {connStatus === 'ok'  && <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12.5, color:'var(--gn)', marginBottom:10 }}><Icon name="check" size={14}/>เชื่อมต่อสำเร็จ</div>}
+              {connStatus === 'err' && <div style={{ fontSize:12.5, color:'var(--rd)', marginBottom:10 }}>✕ เชื่อมต่อไม่ได้ — ตรวจสอบ IP / port และให้แน่ใจว่า API server รันอยู่</div>}
+              <div style={{ display:'flex', gap:8 }}>
+                <Button variant="bp" size="sm" icon="check" onClick={saveApiBase}>บันทึก URL</Button>
+                <Button variant="bg2" size="sm" onClick={()=>{ window.location.href = '/ui_kits/nexflow/index.html'; }}>รีโหลดแอป</Button>
+              </div>
+              <div style={{ fontSize:11.5, color:'var(--t3)', marginTop:8 }}>* บันทึกแล้วกด "รีโหลดแอป" เพื่อให้มีผล</div>
+            </div>
+          </Card>
         </div>
       )}
     </div>
@@ -2747,7 +2978,11 @@ function Products({ toast }) {
   const [products, setProducts]   = React.useState(D.products);
   const [importResult, setImportResult] = React.useState(null);
   const [showAdd, setShowAdd]     = React.useState(false);
-  const [form, setForm]           = React.useState({ code:'', name:'', cat:'ปลา', sell:'', cost:'', stock:'0', min:'10', tax:'vat7' });
+  const [form, setForm]           = React.useState({ code:'', name:'', cat:'ปลา', sell:'', cost:'', stock:'0', min:'10', tax:'vat7', unitType:'kg', unitLabel:'KG' });
+  const [editProd, setEditProd]   = React.useState(null);
+  const [editForm, setEditForm]   = React.useState({});
+  const [deleteConfirm,     setDeleteConfirm]     = React.useState(null);
+  const [deactivateConfirm, setDeactivateConfirm] = React.useState(null);
   const [prodSearch, setProdSearch] = React.useState('');
   const csvRef = React.useRef(null);
   const filteredProds = prodSearch.trim()
@@ -2759,7 +2994,7 @@ function Products({ toast }) {
   const downloadTemplate = () => {
     window.exportCSV('products_template.csv',
       ['code','name','cat','sell','cost','stock','min','tax'],
-      [['00007','สินค้าใหม่','ปลา','150','100','0.000','10','vat7'],
+      [['000007','สินค้าใหม่','ปลา','150','100','0.000','10','vat7'],
        ['00008','สินค้าตัวอย่าง','กุ้ง','200','140','0.000','5','nonvat']]
     );
   };
@@ -2807,13 +3042,99 @@ function Products({ toast }) {
     reader.readAsText(file, 'utf-8');
   };
 
+  /* ── Open edit modal ── */
+  const openEdit = (p) => {
+    setEditProd(p);
+    setEditForm({ code:p.code, name:p.name, cat:p.cat||'ปลา', sell:String(p.sell||''), cost:String(p.cost||''), min:String(p.min||''), tax:p.tax||'vat7', unitType:p.unitType||'kg', unitLabel:p.unitLabel||'KG' });
+  };
+
+  /* ── Save edit ── */
+  const saveEdit = async () => {
+    if (!editForm.name) { if (toast) toast('err','กรุณากรอกชื่อสินค้า'); return; }
+    const uLabel = editForm.unitType === 'kg' ? 'KG' : (editForm.unitLabel||'หน่วย');
+    const payload = { name:editForm.name, cat:editForm.cat, sell:parseFloat(editForm.sell)||0, cost:parseFloat(editForm.cost)||0, min:parseFloat(editForm.min)||0, tax:editForm.tax, unitType:editForm.unitType, unitLabel:uLabel };
+    const dbPayload = { name:payload.name, category:payload.cat, sell_price:payload.sell, cost_price:payload.cost, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:uLabel };
+
+    const finish = async (msg) => {
+      if (window.SP_API && typeof window.SP_API.reloadProducts === 'function') {
+        try { await window.SP_API.reloadProducts(); } catch(e) { Object.assign(editProd, payload); }
+      } else {
+        Object.assign(editProd, payload);
+      }
+      setProducts([...window.SP_DATA.products]);
+      setEditProd(null);
+      if (toast) toast('ok', msg);
+    };
+
+    if (window.SP_API && typeof window.SP_API.updateProduct === 'function') {
+      try {
+        await window.SP_API.updateProduct(editProd.code, dbPayload);
+        await finish(`อัพเดต ${payload.name} ลง DB เรียบร้อย`);
+      } catch (err) {
+        console.warn('[Products] updateProduct ล้มเหลว:', err.message);
+        await finish(`อัพเดต ${payload.name} เรียบร้อย (บันทึกในเครื่อง)`);
+      }
+      return;
+    }
+    await finish(`อัพเดต ${payload.name} เรียบร้อย`);
+  };
+
+  /* ── Deactivate / Reactivate product ── */
+  const doDeactivateProduct = async () => {
+    const p = deactivateConfirm; if (!p) return;
+    try {
+      if (window.SP_API && typeof window.SP_API.toggleProductActive === 'function') {
+        await window.SP_API.toggleProductActive(p.code, false);
+      }
+      const idx = D.products.findIndex(x => x.code === p.code);
+      if (idx >= 0) D.products[idx].is_active = false;
+      setProducts([...D.products]);
+      setDeactivateConfirm(null);
+      if (toast) toast('ok', `ปิดการใช้งาน ${p.name} เรียบร้อย`);
+    } catch (err) {
+      if (toast) toast('err', 'เกิดข้อผิดพลาด: ' + err.message);
+    }
+  };
+
+  const doReactivateProduct = async (p) => {
+    try {
+      if (window.SP_API && typeof window.SP_API.toggleProductActive === 'function') {
+        await window.SP_API.toggleProductActive(p.code, true);
+      }
+      const idx = D.products.findIndex(x => x.code === p.code);
+      if (idx >= 0) D.products[idx].is_active = true;
+      setProducts([...D.products]);
+      if (toast) toast('ok', `เปิดการใช้งาน ${p.name} เรียบร้อย`);
+    } catch (err) {
+      if (toast) toast('err', 'เกิดข้อผิดพลาด: ' + err.message);
+    }
+  };
+
+  /* ── Delete product ── */
+  const doDeleteProduct = async () => {
+    const p = deleteConfirm; if (!p) return;
+    try {
+      if (window.SP_API && typeof window.SP_API.deleteProduct === 'function') {
+        await window.SP_API.deleteProduct(p.code);
+      }
+      const idx = D.products.findIndex(x => x.code === p.code);
+      if (idx >= 0) D.products.splice(idx, 1);
+      setProducts([...D.products]);
+      setDeleteConfirm(null);
+      if (toast) toast('ok', `ลบสินค้า ${p.name} เรียบร้อย`);
+    } catch (err) {
+      if (toast) toast('err', 'ลบไม่สำเร็จ: ' + err.message);
+    }
+  };
+
   /* ── Add product ── */
   const addProduct = async () => {
     if (!form.code||!form.name) { if (toast) toast('err','กรุณากรอกรหัสและชื่อสินค้า'); return; }
     if (D.products.find(p=>p.code===form.code)) { if (toast) toast('err',`รหัส ${form.code} มีอยู่แล้ว`); return; }
-    const payload = { code:form.code, name:form.name, cat:form.cat, sell:parseFloat(form.sell)||0, cost:parseFloat(form.cost)||0, stock:parseFloat(form.stock)||0, min:parseFloat(form.min)||0, tax:form.tax };
+    const addULabel = form.unitType === 'kg' ? 'KG' : (form.unitLabel||'หน่วย');
+    const payload = { code:form.code, name:form.name, cat:form.cat, sell:parseFloat(form.sell)||0, cost:parseFloat(form.cost)||0, stock:parseFloat(form.stock)||0, min:parseFloat(form.min)||0, tax:form.tax, unitType:form.unitType||'kg', unitLabel:addULabel };
     /* backend ใช้ชื่อ field ต่างจาก mock data — ต้อง map ก่อนส่ง */
-    const dbPayload = { code:payload.code, name:payload.name, category:payload.cat, sell_price:payload.sell, cost_price:payload.cost, stock_qty:payload.stock, min_qty:payload.min, tax_type:payload.tax };
+    const dbPayload = { code:payload.code, name:payload.name, category:payload.cat, sell_price:payload.sell, cost_price:payload.cost, stock_qty:payload.stock, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:addULabel };
 
     const finishAdd = (id, okMsg) => {
       const p = { id, ...payload };
@@ -2850,36 +3171,139 @@ function Products({ toast }) {
             <Icon name="download" size={14} />Import CSV
             <input ref={csvRef} type="file" accept=".csv,text/csv" style={{ display:'none' }} onChange={importCSV} />
           </label>
-          <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('products.csv',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย','ราคาทุน','สต็อก (KG)','ขั้นต่ำ (KG)','ภาษี'],products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(3),p.min,p.tax]))}>CSV</Button>
-          <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้า',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย','ราคาทุน','สต็อก KG','ขั้นต่ำ KG','ภาษี'],products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(3),p.min,p.tax]))}>PDF</Button>
+          <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('products.csv',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย','ราคาทุน','สต็อก (KG)','ขั้นต่ำ (KG)','ภาษี'],products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(2),p.min,p.tax]))}>CSV</Button>
+          <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้า',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย','ราคาทุน','สต็อก KG','ขั้นต่ำ KG','ภาษี'],products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(2),p.min,p.tax]))}>PDF</Button>
           <Button variant="bp" size="sm" onClick={()=>setShowAdd(true)}>+ เพิ่มสินค้า</Button>
         </div>
       }>
         <div className="tw"><table>
           <thead><tr>
             <th>รหัส</th><th>ชื่อสินค้า</th><th>หมวด</th>
-            <th style={{textAlign:'right'}}>ราคาขาย/KG</th><th style={{textAlign:'right'}}>ราคาทุน/KG</th>
-            <th>คงเหลือ</th><th>ขั้นต่ำ</th><th>ภาษี</th>
+            <th style={{textAlign:'right'}}>ราคาขาย</th><th style={{textAlign:'right'}}>ราคาทุน</th>
+            <th>คงเหลือ</th><th>ขั้นต่ำ</th><th>ภาษี</th><th></th>
           </tr></thead>
           <tbody>{prodSlice.length===0
-            ? <tr><td colSpan={8} style={{ textAlign:'center', padding:'24px 0', color:'var(--t3)' }}>ไม่พบสินค้าที่ตรงกับคำค้นหา</td></tr>
-            : prodSlice.map(p=>(
-            <tr key={p.id} style={{ borderBottom:'1px solid var(--bd)' }}>
+            ? <tr><td colSpan={9} style={{ textAlign:'center', padding:'24px 0', color:'var(--t3)' }}>ไม่พบสินค้าที่ตรงกับคำค้นหา</td></tr>
+            : prodSlice.map(p=>{
+            const uLabel = p.unitLabel || 'KG';
+            const fmtAmt = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ' + uLabel;
+            return (
+            <tr key={p.id} style={{ borderBottom:'1px solid var(--bd)', opacity: p.is_active === false ? 0.6 : 1 }}>
               <td className="mono">{p.code}</td>
-              <td style={{ fontWeight:600 }}>{p.name}</td>
+              <td style={{ fontWeight:600 }}>
+                {p.name}
+                {p.is_active === false && <span style={{ marginLeft:7, fontSize:10.5, padding:'2px 6px', borderRadius:4, background:'var(--s3,#e5e5e5)', color:'var(--t3)', fontWeight:600, verticalAlign:'middle' }}>ระงับ</span>}
+              </td>
               <td>{p.cat}</td>
-              <td style={{ textAlign:'right' }}>{window.fmtMoney(p.sell)}</td>
-              <td style={{ textAlign:'right', color:'var(--t2)' }}>{window.fmtMoney(p.cost)}</td>
-              <td><StockPill stock={p.stock} min={p.min}/></td>
-              <td style={{ color:'var(--t3)', fontSize:12.5 }}>{window.fmtKg(p.min)}</td>
-              <td>{p.tax==='vat7'?<Badge kind="online">VAT 7%</Badge>:<Badge kind="sample">Non VAT</Badge>}</td>
+              <td style={{ textAlign:'right' }}>{window.fmtMoney(p.sell)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
+              <td style={{ textAlign:'right', color:'var(--t2)' }}>{window.fmtMoney(p.cost)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
+              <td><StockPill stock={p.stock} min={p.min} unitLabel={uLabel}/></td>
+              <td style={{ color:'var(--t3)', fontSize:12.5 }}>{fmtAmt(p.min)}</td>
+              <td>{p.tax==='vat7'&&<Badge kind="info">Incl VAT</Badge>}
+              {p.tax==='vat7_excl'&&<Badge kind="pending">Exclude VAT</Badge>}
+              {p.tax==='nonvat'&&<Badge kind="sample">Non VAT</Badge>}</td>
+              <td>
+                <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+                  {p.is_active !== false ? (
+                    <>
+                      <Button variant="bg2" size="sm" onClick={()=>openEdit(p)}>แก้ไข</Button>
+                      <button onClick={()=>setDeactivateConfirm(p)} style={{ fontSize:12, padding:'4px 10px', border:'1px solid var(--b2)', borderRadius:6, cursor:'pointer', background:'var(--sur)', color:'var(--t2)', fontFamily:'inherit' }}>ปิดการใช้งาน</button>
+                    </>
+                  ) : (
+                    <button onClick={()=>doReactivateProduct(p)} style={{ fontSize:12, padding:'4px 10px', border:'1px solid var(--gn)', borderRadius:6, cursor:'pointer', background:'rgba(34,197,94,.08)', color:'var(--gn)', fontFamily:'inherit', fontWeight:600 }}>เปิดใช้งาน</button>
+                  )}
+                  <button onClick={()=>setDeleteConfirm(p)} style={{ fontSize:12, padding:'4px 10px', border:'1px solid rgba(208,48,48,.35)', borderRadius:6, cursor:'pointer', background:'var(--rbg)', color:'var(--rd)', fontFamily:'inherit' }}>ลบ</button>
+                </div>
+              </td>
             </tr>
-          ))}</tbody>
+          )})}</tbody>
         </table></div>
         <Paginator page={prodPage} totalPages={prodTotalPages} setPage={setProdPage} total={prodTotal} pageSize={20} noun="สินค้า" />
       </Card>
 
       {importResult && <ImportResultModal result={importResult} entityLabel="สินค้า" onClose={()=>setImportResult(null)} />}
+
+      {/* Deactivate product confirm */}
+      {deactivateConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+        <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
+          <div style={{ width:48, height:48, borderRadius:14, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--t2)' }}><Icon name="x-circle" size={22}/></div>
+          <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ปิดการใช้งานสินค้า?</div>
+          <div style={{ fontSize:13, color:'var(--t2)' }}>ระงับการใช้งาน <b>{deactivateConfirm.name}</b> ({deactivateConfirm.code})</div>
+          <div style={{ fontSize:12, color:'var(--t3)', marginTop:6 }}>สินค้ายังอยู่ในรายการ สามารถเปิดใช้งานใหม่ได้ภายหลัง</div>
+        </div>
+        <div className="md-f" style={{ marginTop:20 }}>
+          <Button variant="bg2" onClick={()=>setDeactivateConfirm(null)}>ยกเลิก</Button>
+          <button onClick={doDeactivateProduct} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--t2)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันปิดใช้งาน</button>
+        </div>
+      </div></div>}
+
+      {/* Delete product confirm */}
+      {deleteConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+        <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
+          <div style={{ width:48, height:48, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={22}/></div>
+          <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ลบสินค้า?</div>
+          <div style={{ fontSize:13, color:'var(--t2)' }}>ต้องการลบ <b>{deleteConfirm.name}</b> ({deleteConfirm.code}) ออกจากระบบ?</div>
+          <div style={{ fontSize:12, color:'var(--t3)', marginTop:6 }}>ประวัติการรับ/ขายที่ผ่านมาจะยังคงอยู่ในระบบ</div>
+        </div>
+        <div className="md-f" style={{ marginTop:20 }}>
+          <Button variant="bg2" onClick={()=>setDeleteConfirm(null)}>ยกเลิก</Button>
+          <button onClick={doDeleteProduct} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันลบ</button>
+        </div>
+      </div></div>}
+
+      {/* Edit product modal */}
+      {editProd && (
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditProd(null)}>
+          <div className="md" style={{ width:500 }}>
+            <div className="md-h"><span className="md-t">แก้ไขสินค้า <span style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--t2)' }}>{editProd.code}</span></span><div className="md-x" onClick={()=>setEditProd(null)}>✕</div></div>
+            <div className="md-b">
+              <div className="gr c2">
+                <Field label="หมวดหมู่">
+                  <select className="fc" value={editForm.cat} onChange={e=>setEditForm(f=>({...f,cat:e.target.value}))}>
+                    <option>ปลา</option><option>กุ้ง</option><option>หอย</option><option>อื่นๆ</option>
+                  </select>
+                </Field>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <Field label="ชื่อสินค้า" required><input className="fc" value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></Field>
+                </div>
+                <Field label={`ราคาขาย/${editForm.unitType==='unit'?(editForm.unitLabel||'หน่วย'):'KG'}`}><input type="number" className="fc" value={editForm.sell} onChange={e=>setEditForm(f=>({...f,sell:e.target.value}))} placeholder="0.00" /></Field>
+                <Field label={`ราคาทุน/${editForm.unitType==='unit'?(editForm.unitLabel||'หน่วย'):'KG'}`}><input type="number" className="fc" value={editForm.cost} onChange={e=>setEditForm(f=>({...f,cost:e.target.value}))} placeholder="0.00" /></Field>
+                <Field label="ขั้นต่ำ"><input type="number" className="fc" value={editForm.min} onChange={e=>setEditForm(f=>({...f,min:e.target.value}))} placeholder="10" /></Field>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <Field label="หน่วยสินค้า">
+                    <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
+                        <input type="radio" name="editUnitType" value="kg" checked={editForm.unitType==='kg'} onChange={()=>setEditForm(f=>({...f,unitType:'kg',unitLabel:'KG'}))} />
+                        ชั่งน้ำหนัก (KG)
+                      </label>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
+                        <input type="radio" name="editUnitType" value="unit" checked={editForm.unitType==='unit'} onChange={()=>setEditForm(f=>({...f,unitType:'unit',unitLabel:f.unitLabel==='KG'?'หน่วย':f.unitLabel}))} />
+                        นับจำนวน
+                      </label>
+                      {editForm.unitType==='unit' && (
+                        <input className="fc" value={editForm.unitLabel} onChange={e=>setEditForm(f=>({...f,unitLabel:e.target.value}))} placeholder="ชิ้น / กล่อง / แพ็ค" style={{ width:130, padding:'5px 8px', fontSize:12.5 }} />
+                      )}
+                    </div>
+                  </Field>
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <Field label="ภาษี">
+                    <select className="fc" value={editForm.tax} onChange={e=>setEditForm(f=>({...f,tax:e.target.value}))}>
+                      <option value="vat7">Include VAT (ราคารวม VAT)</option>
+                      <option value="vat7_excl">Exclude VAT (ราคาไม่รวม VAT, +7%)</option>
+                      <option value="nonvat">Non VAT</option>
+                    </select>
+                  </Field>
+                </div>
+              </div>
+            </div>
+            <div className="md-f">
+              <Button variant="bg2" onClick={()=>setEditProd(null)}>ยกเลิก</Button>
+              <Button variant="bp" icon="check" onClick={saveEdit}>บันทึก</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add product modal */}
       {showAdd && (
@@ -2888,7 +3312,7 @@ function Products({ toast }) {
             <div className="md-h"><span className="md-t">เพิ่มสินค้าใหม่</span><div className="md-x" onClick={()=>setShowAdd(false)}>✕</div></div>
             <div className="md-b">
               <div className="gr c2">
-                <Field label="รหัสสินค้า" required><input className="fc" value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))} placeholder="00007" style={{ fontFamily:'var(--font-mono)' }} /></Field>
+                <Field label="รหัสสินค้า" required><input className="fc" value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))} placeholder="000007" maxLength={6} style={{ fontFamily:'var(--font-mono)' }} /></Field>
                 <Field label="หมวดหมู่" required>
                   <select className="fc" value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>
                     <option>ปลา</option><option>กุ้ง</option><option>หอย</option><option>อื่นๆ</option>
@@ -2897,14 +3321,33 @@ function Products({ toast }) {
                 <div style={{ gridColumn:'1/-1' }}>
                   <Field label="ชื่อสินค้า" required><input className="fc" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="ชื่อสินค้า..." /></Field>
                 </div>
-                <Field label="ราคาขาย/KG" required><input type="number" className="fc" value={form.sell} onChange={e=>setForm(f=>({...f,sell:e.target.value}))} placeholder="0.00" /></Field>
-                <Field label="ราคาทุน/KG" required><input type="number" className="fc" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} placeholder="0.00" /></Field>
-                <Field label="สต็อกเริ่มต้น (KG)"><input type="number" className="fc" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))} placeholder="0.000" step="0.001" /></Field>
-                <Field label="ขั้นต่ำ (KG)"><input type="number" className="fc" value={form.min} onChange={e=>setForm(f=>({...f,min:e.target.value}))} placeholder="10" /></Field>
+                <Field label={`ราคาขาย/${form.unitType==='unit'?(form.unitLabel||'หน่วย'):'KG'}`} required><input type="number" className="fc" value={form.sell} onChange={e=>setForm(f=>({...f,sell:e.target.value}))} placeholder="0.00" /></Field>
+                <Field label={`ราคาทุน/${form.unitType==='unit'?(form.unitLabel||'หน่วย'):'KG'}`} required><input type="number" className="fc" value={form.cost} onChange={e=>setForm(f=>({...f,cost:e.target.value}))} placeholder="0.00" /></Field>
+                <Field label="สต็อกเริ่มต้น"><input type="number" className="fc" value={form.stock} onChange={e=>setForm(f=>({...f,stock:e.target.value}))} placeholder="0.000" step="0.001" /></Field>
+                <Field label="ขั้นต่ำ"><input type="number" className="fc" value={form.min} onChange={e=>setForm(f=>({...f,min:e.target.value}))} placeholder="10" /></Field>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <Field label="หน่วยสินค้า">
+                    <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
+                        <input type="radio" name="addUnitType" value="kg" checked={form.unitType==='kg'} onChange={()=>setForm(f=>({...f,unitType:'kg',unitLabel:'KG'}))} />
+                        ชั่งน้ำหนัก (KG)
+                      </label>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:13 }}>
+                        <input type="radio" name="addUnitType" value="unit" checked={form.unitType==='unit'} onChange={()=>setForm(f=>({...f,unitType:'unit',unitLabel:f.unitLabel==='KG'?'หน่วย':f.unitLabel}))} />
+                        นับจำนวน
+                      </label>
+                      {form.unitType==='unit' && (
+                        <input className="fc" value={form.unitLabel} onChange={e=>setForm(f=>({...f,unitLabel:e.target.value}))} placeholder="ชิ้น / กล่อง / แพ็ค" style={{ width:130, padding:'5px 8px', fontSize:12.5 }} />
+                      )}
+                    </div>
+                  </Field>
+                </div>
                 <div style={{ gridColumn:'1/-1' }}>
                   <Field label="ภาษี">
                     <select className="fc" value={form.tax} onChange={e=>setForm(f=>({...f,tax:e.target.value}))}>
-                      <option value="vat7">VAT 7%</option><option value="nonvat">Non VAT</option>
+                      <option value="vat7">Include Vat (ราคารวม Vat)</option>
+                      <option value="vat7_excl">Exclude VAT (ราคาไม่รวม VAT, +7%)</option>
+                      <option value="nonvat">Non VAT</option>
                     </select>
                   </Field>
                 </div>
@@ -2984,12 +3427,17 @@ function ImportResultModal({ result, entityLabel, onClose }) {
 /* ═══ CUSTOMERS ═══ */
 function Customers({ toast }) {
   const D = window.SP_DATA;
-  const [customers, setCustomers] = React.useState(D.customers);
-  const [importResult, setImportResult] = React.useState(null);
-  const [showAdd, setShowAdd] = React.useState(false);
-  const [form, setForm] = React.useState({ code:'', name:'', type:'wholesale', tax:'', tel:'', addr:'', discount:'0' });
+  const [customers,        setCustomers]        = React.useState(() => [...D.customers]);
+  const [importResult,     setImportResult]     = React.useState(null);
+  const [showAdd,          setShowAdd]          = React.useState(false);
+  const [editModal,        setEditModal]        = React.useState(null);
+  const [deleteConfirm,    setDeleteConfirm]    = React.useState(null);
+  const [deactivateConfirm,setDeactivateConfirm]= React.useState(null);
+  const [form, setForm] = React.useState({ code:'', name:'', type:'wholesale', tax:'', tel:'', addr:'', discount:'0', branch:'head' });
+  const [editForm, setEditForm] = React.useState({ name:'', type:'wholesale', tax:'', tel:'', addr:'', discount:'0', branch:'head' });
   const [custSearch, setCustSearch] = React.useState('');
   const csvRef = React.useRef(null);
+  const refreshCusts = () => setCustomers([...D.customers]);
   const filteredCusts = custSearch.trim()
     ? customers.filter(c => c.name.toLowerCase().includes(custSearch.toLowerCase()) || c.code.toLowerCase().includes(custSearch.toLowerCase()) || (c.tel||'').includes(custSearch))
     : customers;
@@ -3003,7 +3451,7 @@ function Customers({ toast }) {
     );
   };
 
-  const importCSV = (e) => {
+  const importCSV = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -3037,33 +3485,81 @@ function Customers({ toast }) {
   const addCustomer = async () => {
     if (!form.code||!form.name) { if(toast)toast('err','กรุณากรอกรหัสและชื่อลูกค้า'); return; }
     if (D.customers.find(c=>c.code===form.code)) { if(toast)toast('err',`รหัส ${form.code} มีอยู่แล้ว`); return; }
-    const payload = { code:form.code, name:form.name, type:form.type, tax:form.tax, tel:form.tel, addr:form.addr, discount:parseFloat(form.discount)||0 };
-    /* backend ใช้ชื่อ field ต่างจาก mock data — ต้อง map ก่อนส่ง */
-    const dbPayload = { code:payload.code, name:payload.name, type:payload.type, tax_id:payload.tax, tel:payload.tel, address:payload.addr, discount:payload.discount };
-
+    const payload = { code:form.code, name:form.name, type:form.type, tax:form.tax, tel:form.tel, addr:form.addr, discount:parseFloat(form.discount)||0, branch:form.branch||'head' };
+    const dbPayload = { code:payload.code, name:payload.name, type:payload.type, tax_id:payload.tax, tel:payload.tel, address:payload.addr, discount:payload.discount, branch:payload.branch };
     const finishAdd = (id, okMsg) => {
-      const c = { id, ...payload };
-      D.customers.push(c);
-      setCustomers([...D.customers]);
-      setShowAdd(false);
-      setForm({code:'',name:'',type:'wholesale',tax:'',tel:'',addr:'',discount:'0'});
+      const c = { id, ...payload, is_active:true };
+      D.customers.push(c); refreshCusts();
+      setShowAdd(false); setForm({code:'',name:'',type:'wholesale',tax:'',tel:'',addr:'',discount:'0',branch:'head'});
       if(toast)toast('ok', okMsg);
     };
-
-    /* ── บันทึกลง DB (มี fallback เป็น mock data เสมอถ้า DB ใช้ไม่ได้) ── */
     if (window.SP_API && typeof window.SP_API.createCustomer === 'function') {
       try {
         const result = await window.SP_API.createCustomer(dbPayload);
         finishAdd(result.id || Date.now(), `เพิ่มลูกค้า ${payload.name} ลง DB เรียบร้อย`);
       } catch (err) {
-        console.warn('[Customers] createCustomer ไม่สำเร็จ (บันทึกในเครื่องแทน):', err.message);
-        finishAdd(Date.now(), `เพิ่มลูกค้า ${payload.name} เรียบร้อย (บันทึกในเครื่อง — ยังไม่เชื่อมต่อ DB)`);
+        finishAdd(Date.now(), `เพิ่มลูกค้า ${payload.name} เรียบร้อย (บันทึกในเครื่อง)`);
       }
       return;
     }
-
-    /* ── fallback: mock data ── */
     finishAdd(Date.now(), `เพิ่มลูกค้า ${payload.name} เรียบร้อย`);
+  };
+
+  const openEditCust = (c) => {
+    setEditForm({ name:c.name, type:c.type||'wholesale', tax:c.tax||'', tel:c.tel||'', addr:c.addr||'', discount:String(c.discount||0), branch:c.branch||'head' });
+    setEditModal(c);
+  };
+
+  const saveEditCust = async () => {
+    if (!editForm.name) { toast('err','กรุณากรอกชื่อลูกค้า'); return; }
+    try {
+      const payload = { name:editForm.name, type:editForm.type, tax_id:editForm.tax, tel:editForm.tel, address:editForm.addr, discount:parseFloat(editForm.discount)||0, branch:editForm.branch||'head', is_active:true, updated_by:'Admin' };
+      if (window.SP_API && typeof window.SP_API.updateCustomer === 'function') {
+        await window.SP_API.updateCustomer(editModal.code, payload);
+      }
+      const idx = D.customers.findIndex(c => c.code === editModal.code);
+      if (idx >= 0) Object.assign(D.customers[idx], { name:editForm.name, type:editForm.type, tax:editForm.tax, tel:editForm.tel, addr:editForm.addr, discount:parseFloat(editForm.discount)||0, branch:editForm.branch||'head' });
+      refreshCusts(); setEditModal(null);
+      toast('ok', `แก้ไขข้อมูล ${editForm.name} เรียบร้อย`);
+    } catch (err) { toast('err', 'แก้ไขไม่สำเร็จ: ' + err.message); }
+  };
+
+  const doDeleteCust = async () => {
+    const c = deleteConfirm; if (!c) return;
+    try {
+      if (window.SP_API && typeof window.SP_API.deleteCustomer === 'function') {
+        await window.SP_API.deleteCustomer(c.code);
+      }
+      const idx = D.customers.findIndex(x => x.code === c.code);
+      if (idx >= 0) D.customers.splice(idx, 1);
+      refreshCusts(); setDeleteConfirm(null);
+      toast('ok', `ลบลูกค้า ${c.name} เรียบร้อย`);
+    } catch (err) { toast('err', 'ลบไม่สำเร็จ: ' + err.message); }
+  };
+
+  const doDeactivateCust = async () => {
+    const c = deactivateConfirm; if (!c) return;
+    try {
+      if (window.SP_API && typeof window.SP_API.toggleCustomerActive === 'function') {
+        await window.SP_API.toggleCustomerActive(c.code, false);
+      }
+      const idx = D.customers.findIndex(x => x.code === c.code);
+      if (idx >= 0) D.customers[idx].is_active = false;
+      refreshCusts(); setDeactivateConfirm(null);
+      toast('ok', `ปิดการใช้งาน ${c.name} เรียบร้อย`);
+    } catch (err) { toast('err', 'เกิดข้อผิดพลาด: ' + err.message); }
+  };
+
+  const doReactivateCust = async (c) => {
+    try {
+      if (window.SP_API && typeof window.SP_API.toggleCustomerActive === 'function') {
+        await window.SP_API.toggleCustomerActive(c.code, true);
+      }
+      const idx = D.customers.findIndex(x => x.code === c.code);
+      if (idx >= 0) D.customers[idx].is_active = true;
+      refreshCusts();
+      toast('ok', `เปิดการใช้งาน ${c.name} เรียบร้อย`);
+    } catch (err) { toast('err', 'เกิดข้อผิดพลาด: ' + err.message); }
   };
 
   return (
@@ -3082,17 +3578,34 @@ function Customers({ toast }) {
         </div>
       }>
         <div className="tw"><table>
-          <thead><tr><th>รหัส</th><th>ชื่อลูกค้า</th><th>ประเภท</th><th>เลขผู้เสียภาษี</th><th>โทร</th><th>ส่วนลด</th></tr></thead>
+          <thead><tr><th>รหัส</th><th>ชื่อลูกค้า</th><th>ประเภท</th><th>เลขผู้เสียภาษี</th><th>สาขา</th><th>โทร</th><th>ส่วนลด</th><th></th></tr></thead>
           <tbody>{custSlice.length===0
-            ? <tr><td colSpan={6} style={{ textAlign:'center', padding:'24px 0', color:'var(--t3)' }}>ไม่พบลูกค้าที่ตรงกับคำค้นหา</td></tr>
+            ? <tr><td colSpan={8} style={{ textAlign:'center', padding:'24px 0', color:'var(--t3)' }}>ไม่พบลูกค้าที่ตรงกับคำค้นหา</td></tr>
             : custSlice.map(c=>(
-            <tr key={c.id} style={{ borderBottom:'1px solid var(--bd)' }}>
-              <td className="mono" style={{ color:'var(--t2)' }}>{c.code}</td>
-              <td style={{ fontWeight:600 }}>{c.name}</td>
-              <td><Badge kind={c.type}/></td>
-              <td className="mono">{c.tax||'—'}</td>
-              <td style={{ color:'var(--t2)', fontSize:13 }}>{c.tel||'—'}</td>
-              <td style={{ color:'var(--am)', fontWeight:600 }}>{c.discount>0?window.fmtMoney(c.discount):'—'}</td>
+            <tr key={c.id} style={{ borderBottom:'1px solid var(--bd)', opacity: c.is_active === false ? 0.6 : 1 }}>
+              <td className="mono" style={{ color:'var(--t2)', padding:'10px 14px' }}>{c.code}</td>
+              <td style={{ fontWeight:600, padding:'10px 14px' }}>
+                {c.name}
+                {c.is_active === false && <span style={{ marginLeft:7, fontSize:10.5, padding:'2px 6px', borderRadius:4, background:'var(--s3,#e5e5e5)', color:'var(--t3)', fontWeight:600, verticalAlign:'middle' }}>ระงับ</span>}
+              </td>
+              <td style={{ padding:'10px 14px' }}><Badge kind={c.type}/></td>
+              <td className="mono" style={{ padding:'10px 14px' }}>{c.tax||'—'}</td>
+              <td style={{ fontSize:12.5, padding:'10px 14px', color:'var(--t2)' }}>{(!c.branch||c.branch==='head')?'สำนักงานใหญ่':c.branch}</td>
+              <td style={{ color:'var(--t2)', fontSize:13, padding:'10px 14px' }}>{c.tel||'—'}</td>
+              <td style={{ color:'var(--am)', fontWeight:600, padding:'10px 14px' }}>{c.discount>0?window.fmtMoney(c.discount):'—'}</td>
+              <td style={{ padding:'10px 14px' }}>
+                <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
+                  {c.is_active !== false ? (
+                    <>
+                      <button onClick={()=>openEditCust(c)} style={{ fontSize:12, padding:'4px 10px', border:'1px solid var(--ac)', borderRadius:6, cursor:'pointer', background:'var(--abg)', color:'var(--ac)', fontFamily:'inherit', fontWeight:600 }}>แก้ไข</button>
+                      <button onClick={()=>setDeactivateConfirm(c)} style={{ fontSize:12, padding:'4px 10px', border:'1px solid var(--b2)', borderRadius:6, cursor:'pointer', background:'var(--sur)', color:'var(--t2)', fontFamily:'inherit' }}>ปิดการใช้งาน</button>
+                    </>
+                  ) : (
+                    <button onClick={()=>doReactivateCust(c)} style={{ fontSize:12, padding:'4px 10px', border:'1px solid var(--gn)', borderRadius:6, cursor:'pointer', background:'rgba(34,197,94,.08)', color:'var(--gn)', fontFamily:'inherit', fontWeight:600 }}>เปิดใช้งาน</button>
+                  )}
+                  <button onClick={()=>setDeleteConfirm(c)} style={{ fontSize:12, padding:'4px 10px', border:'1px solid rgba(208,48,48,.35)', borderRadius:6, cursor:'pointer', background:'var(--rbg)', color:'var(--rd)', fontFamily:'inherit' }}>ลบ</button>
+                </div>
+              </td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -3101,6 +3614,7 @@ function Customers({ toast }) {
 
       {importResult && <ImportResultModal result={importResult} entityLabel="ลูกค้า" onClose={()=>setImportResult(null)} />}
 
+      {/* ── Add modal ── */}
       {showAdd && (
         <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
           <div className="md" style={{ width:480 }}>
@@ -3114,12 +3628,81 @@ function Customers({ toast }) {
                 <Field label="เบอร์โทร" optional><input className="fc" value={form.tel} onChange={e=>setForm(f=>({...f,tel:e.target.value}))}/></Field>
                 <div style={{gridColumn:'1/-1'}}><Field label="ที่อยู่" optional><textarea className="fc" rows="2" value={form.addr} onChange={e=>setForm(f=>({...f,addr:e.target.value}))} style={{resize:'vertical'}}/></Field></div>
                 <Field label="ส่วนลดประจำ (฿)" optional><input type="number" className="fc" value={form.discount} onChange={e=>setForm(f=>({...f,discount:e.target.value}))} placeholder="0"/></Field>
+                <Field label="สาขา">
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <select className="fc" style={{flex:1}} value={form.branch==='head'?'head':'branch'} onChange={e=>setForm(f=>({...f,branch:e.target.value==='head'?'head':'สาขาที่ '}))}>
+                      <option value="head">สำนักงานใหญ่</option>
+                      <option value="branch">สาขา</option>
+                    </select>
+                    {form.branch!=='head' && <input className="fc" style={{width:80}} placeholder="เลขสาขา" value={form.branch.replace(/^สาขาที่\s*/,'')} onChange={e=>setForm(f=>({...f,branch:'สาขาที่ '+e.target.value}))}/>}
+                  </div>
+                </Field>
               </div>
             </div>
             <div className="md-f"><Button variant="bg2" onClick={()=>setShowAdd(false)}>ยกเลิก</Button><Button variant="bp" icon="check" onClick={addCustomer}>บันทึก</Button></div>
           </div>
         </div>
       )}
+
+      {/* ── Edit modal ── */}
+      {editModal && (
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditModal(null)}>
+          <div className="md" style={{ width:480 }}>
+            <div className="md-h">
+              <span className="md-t">แก้ไขลูกค้า — <span style={{ fontFamily:'var(--font-mono)', color:'var(--ac)' }}>{editModal.code}</span></span>
+              <div className="md-x" onClick={()=>setEditModal(null)}>✕</div>
+            </div>
+            <div className="md-b">
+              <div className="gr c2">
+                <Field label="ประเภท"><select className="fc" value={editForm.type} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))}><option value="wholesale">Wholesale</option><option value="online">Online</option></select></Field>
+                <div style={{gridColumn:'1/-1'}}><Field label="ชื่อลูกค้า" required><input className="fc" value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></Field></div>
+                <Field label="เลขผู้เสียภาษี" optional><input className="fc" value={editForm.tax} onChange={e=>setEditForm(f=>({...f,tax:e.target.value}))} style={{fontFamily:'var(--font-mono)'}}/></Field>
+                <Field label="เบอร์โทร" optional><input className="fc" value={editForm.tel} onChange={e=>setEditForm(f=>({...f,tel:e.target.value}))}/></Field>
+                <div style={{gridColumn:'1/-1'}}><Field label="ที่อยู่" optional><textarea className="fc" rows="2" value={editForm.addr} onChange={e=>setEditForm(f=>({...f,addr:e.target.value}))} style={{resize:'vertical'}}/></Field></div>
+                <Field label="ส่วนลดประจำ (฿)" optional><input type="number" className="fc" value={editForm.discount} onChange={e=>setEditForm(f=>({...f,discount:e.target.value}))} placeholder="0"/></Field>
+                <Field label="สาขา">
+                  <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                    <select className="fc" style={{flex:1}} value={editForm.branch==='head'?'head':'branch'} onChange={e=>setEditForm(f=>({...f,branch:e.target.value==='head'?'head':'สาขาที่ '}))}>
+                      <option value="head">สำนักงานใหญ่</option>
+                      <option value="branch">สาขา</option>
+                    </select>
+                    {editForm.branch!=='head' && <input className="fc" style={{width:80}} placeholder="เลขสาขา" value={editForm.branch.replace(/^สาขาที่\s*/,'')} onChange={e=>setEditForm(f=>({...f,branch:'สาขาที่ '+e.target.value}))}/>}
+                  </div>
+                </Field>
+              </div>
+            </div>
+            <div className="md-f"><Button variant="bg2" onClick={()=>setEditModal(null)}>ยกเลิก</Button><Button variant="bp" icon="check" onClick={saveEditCust}>บันทึก</Button></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Deactivate confirm ── */}
+      {deactivateConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+        <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
+          <div style={{ width:48, height:48, borderRadius:14, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--t2)' }}><Icon name="x-circle" size={22}/></div>
+          <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ปิดการใช้งานลูกค้า?</div>
+          <div style={{ fontSize:13, color:'var(--t2)' }}>ระงับการใช้งาน <b>{deactivateConfirm.name}</b> ({deactivateConfirm.code})</div>
+          <div style={{ fontSize:12, color:'var(--t3)', marginTop:6 }}>ลูกค้ายังอยู่ในรายการ สามารถเปิดใช้งานใหม่ได้ภายหลัง</div>
+        </div>
+        <div className="md-f" style={{ marginTop:20 }}>
+          <Button variant="bg2" onClick={()=>setDeactivateConfirm(null)}>ยกเลิก</Button>
+          <button onClick={doDeactivateCust} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--t2)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันปิดใช้งาน</button>
+        </div>
+      </div></div>}
+
+      {/* ── Delete confirm ── */}
+      {deleteConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+        <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
+          <div style={{ width:48, height:48, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={22}/></div>
+          <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ลบลูกค้า?</div>
+          <div style={{ fontSize:13, color:'var(--t2)' }}>ต้องการลบ <b>{deleteConfirm.name}</b> ({deleteConfirm.code}) ออกจากระบบ?</div>
+          <div style={{ fontSize:12, color:'var(--t3)', marginTop:6 }}>ประวัติการขายที่ผ่านมาจะยังคงอยู่ในระบบ</div>
+        </div>
+        <div className="md-f" style={{ marginTop:20 }}>
+          <Button variant="bg2" onClick={()=>setDeleteConfirm(null)}>ยกเลิก</Button>
+          <button onClick={doDeleteCust} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันลบ</button>
+        </div>
+      </div></div>}
     </div>
   );
 }
@@ -3143,13 +3726,35 @@ function IssueINVModal({ tiv, onConfirm, onClose, toast }) {
 
   const [saving, setSaving] = React.useState(false);
   const today = new Date().toISOString().slice(0, 10);
-  const [invDate, setInvDate] = React.useState(tiv.date || today);
+  const [invDate] = React.useState(tiv.date || today);
 
-  // Preview INV number (counter not yet incremented)
   const invPfx = (st.docPrefixes?.inv) || 'INV';
   const now    = new Date();
-  const yymm   = String(now.getFullYear()+543).slice(-4) + String(now.getMonth() + 1).padStart(2, '0');
-  const nextNo = `${invPfx}-${yymm}-${String(st.invCounterA4 || 1).padStart(4, '0')}`;
+  const yymm   = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
+  const [nextNo, setNextNo] = React.useState(`${invPfx}-${yymm}-????`);
+
+  React.useEffect(() => {
+    const compute = async () => {
+      let lastSeq = 0;
+      if (window.SP_API) {
+        try {
+          const rows = await window.SP_API.getCounters();
+          const row  = rows.find(r => r.prefix === invPfx && String(r.year_month) === yymm);
+          if (row) lastSeq = Number(row.last_counter) || 0;
+        } catch (e) { /* fallback */ }
+      }
+      if (lastSeq === 0) {
+        const pat = `${invPfx}-${yymm}-`;
+        lastSeq = (st.invoices || [])
+          .filter(iv => iv.no && iv.no.startsWith(pat))
+          .map(iv => parseInt(iv.no.slice(pat.length), 10))
+          .filter(n => !isNaN(n))
+          .reduce((m, n) => Math.max(m, n), 0);
+      }
+      setNextNo(`${invPfx}-${yymm}-${String(lastSeq + 1).padStart(4, '0')}`);
+    };
+    compute();
+  }, []);
 
   const cust = D.customers.find(c => c.id === tiv.custId);
 
@@ -3232,64 +3837,85 @@ function IssueINVModal({ tiv, onConfirm, onClose, toast }) {
     <div className="ov" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="md" style={{ width: 520 }}>
         <div className="md-h">
-          <span className="md-t">ออกใบกำกับภาษีเต็มรูปแบบ (INV)</span>
+          <span className="md-t">ออกใบกำกับภาษีเต็มรูปแบบ</span>
           <div className="md-x" onClick={onClose}>✕</div>
         </div>
         <div className="md-b">
-          {/* TIV ref summary */}
-          <div style={{ padding: '10px 14px', background: 'var(--abg)', borderRadius: 'var(--rs)', border: '1px solid rgba(var(--ac-rgb,66,99,235),.18)', marginBottom: 14, fontSize: 13 }}>
-            <span style={{ color: 'var(--t2)' }}>อ้างอิง TIV: </span>
-            <b style={{ fontFamily: 'var(--font-mono)', color: 'var(--ac)' }}>{tiv.no}</b>
-            &ensp;·&ensp;
-            <span style={{ color: 'var(--t2)' }}>ลูกค้า: </span><b>{tiv.custName}</b>
-            &ensp;·&ensp;
-            <span style={{ color: 'var(--t2)' }}>ยอด: </span>
-            <b style={{ color: 'var(--gn)' }}>{$(tiv.total)}</b>
-          </div>
-
-          {/* INV number preview */}
-          <div className="fg">
-            <label className="fl">หมายเลข INV ที่จะออก</label>
-            <div style={{ padding: '9px 12px', background: 'var(--s2)', borderRadius: 'var(--rs)', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14.5, color: 'var(--ac)', border: '1px solid var(--bd)', letterSpacing: 1 }}>
-              {nextNo}
+          {/* Header: INV number + date side by side */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
+            <div>
+              <label className="fl" style={{ marginBottom:4, display:'block' }}>เลขที่ INV ที่จะออก</label>
+              <div style={{ padding:'10px 14px', background:'var(--abg)', borderRadius:'var(--rs)', fontFamily:'var(--font-mono)', fontWeight:800, fontSize:15, color:'var(--ac)', border:'2px solid var(--ac)', letterSpacing:1 }}>
+                {nextNo}
+              </div>
+              {invPfx !== 'INV' && (
+                <div style={{ fontSize:11, color:'var(--am)', marginTop:4 }}>⚠ prefix ปัจจุบัน "{invPfx}" — เปลี่ยนได้ที่ ตั้งค่า → เลขเอกสาร</div>
+              )}
+            </div>
+            <div>
+              <label className="fl" style={{ marginBottom:4, display:'block' }}>วันที่ใบกำกับ</label>
+              <DateField value={invDate} readOnly style={{ height:44, background:'var(--s2)', cursor:'default' }} />
             </div>
           </div>
 
-          {/* Date */}
-          <div className="fg">
-            <label className="fl">วันที่ใบกำกับ</label>
-            <input type="date" className="fc" value={invDate} onChange={e => setInvDate(e.target.value)} />
-          </div>
-
-          {/* Customer info (if known) */}
-          {cust && (
-            <div className="fg">
-              <label className="fl">ข้อมูลลูกค้า</label>
-              <div style={{ padding: '10px 12px', background: 'var(--s2)', borderRadius: 'var(--rs)', fontSize: 12.5, lineHeight: 1.8 }}>
-                <div style={{ fontWeight: 700 }}>{cust.name}</div>
-                {cust.tax && <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--t2)' }}>เลขภาษี: {cust.tax}</div>}
-                {cust.addr && <div style={{ color: 'var(--t2)' }}>{cust.addr}</div>}
+          {/* TIV ref + Customer info box */}
+          <div style={{ padding:'12px 14px', background:'var(--s2)', borderRadius:'var(--rs)', border:'1px solid var(--bd)', marginBottom:14 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:8 }}>
+              <div>
+                <div style={{ fontSize:11, color:'var(--t3)', marginBottom:2 }}>อ้างอิง TIV</div>
+                <div style={{ fontFamily:'var(--font-mono)', fontWeight:700, fontSize:13, color:'var(--ac)' }}>{tiv.no}</div>
+              </div>
+              <div style={{ textAlign:'right' }}>
+                <div style={{ fontSize:11, color:'var(--t3)', marginBottom:2 }}>ยอดรวม</div>
+                <div style={{ fontWeight:800, fontSize:16, color:'var(--gn)' }}>{$(tiv.total)}</div>
               </div>
             </div>
-          )}
+            {/* Customer details */}
+            {(cust || tiv.custName) && (
+              <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid var(--bd)' }}>
+                <div style={{ fontSize:11, color:'var(--t3)', marginBottom:4 }}>ลูกค้า / Customer</div>
+                <div style={{ fontWeight:700, fontSize:13 }}>{cust?.name || tiv.custName}</div>
+                {(cust?.tax || tiv.custTax) && (
+                  <div style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)', marginTop:2 }}>
+                    เลขภาษี: {cust?.tax || tiv.custTax}
+                  </div>
+                )}
+                {(cust?.addr) && (
+                  <div style={{ fontSize:12, color:'var(--t2)', marginTop:2, lineHeight:1.6 }}>{cust.addr}</div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Items summary */}
-          <div style={{ marginTop: 4, padding: '10px 12px', background: 'var(--s2)', borderRadius: 'var(--rs)', fontSize: 12 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--t2)' }}>รายการสินค้า ({(tiv.items || []).length} รายการ)</div>
-            {(tiv.items || []).slice(0, 3).map((it, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid var(--bd)' }}>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 8 }}>{it.name}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-                  {Number(it.weight).toFixed(3)} KG &nbsp;{$(Number(it.weight) * Number(it.price || it.price_per_kg || 0))}
-                </span>
+          <div style={{ borderRadius:'var(--rs)', border:'1px solid var(--bd)', overflow:'hidden', fontSize:12.5 }}>
+            <div style={{ padding:'8px 12px', background:'var(--s2)', fontWeight:700, color:'var(--t2)', fontSize:12, borderBottom:'1px solid var(--bd)' }}>
+              รายการสินค้า ({(tiv.items || []).length} รายการ)
+            </div>
+            {(tiv.items || []).slice(0, 5).map((it, i) => {
+              const qty = window.fmtItemQty(Number(it.weight), it.code);
+              const lineAmt = Number(it.weight) * Number(it.price || it.price_per_kg || 0);
+              return (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 12px', borderBottom:'1px solid var(--bd)', background: i%2===0?'var(--sur)':'var(--s2)' }}>
+                  <div style={{ flex:1, overflow:'hidden', paddingRight:8 }}>
+                    <div style={{ fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{it.name}</div>
+                    <div style={{ fontSize:11, color:'var(--t3)', fontFamily:'var(--font-mono)' }}>{it.code}</div>
+                  </div>
+                  <div style={{ textAlign:'right', whiteSpace:'nowrap', fontFamily:'var(--font-mono)', fontSize:12 }}>
+                    <div style={{ color:'var(--t2)' }}>{qty}</div>
+                    <div style={{ fontWeight:700 }}>{$(lineAmt)}</div>
+                  </div>
+                </div>
+              );
+            })}
+            {(tiv.items || []).length > 5 && (
+              <div style={{ padding:'6px 12px', color:'var(--t3)', fontSize:11.5, background:'var(--s2)' }}>
+                ...และอีก {tiv.items.length - 5} รายการ
               </div>
-            ))}
-            {(tiv.items || []).length > 3 && (
-              <div style={{ color: 'var(--t3)', marginTop: 4, fontSize: 11 }}>...และอีก {tiv.items.length - 3} รายการ</div>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, marginTop: 8, paddingTop: 6, borderTop: '2px solid var(--bd)' }}>
-              <span>ยอดรวม</span>
-              <span style={{ color: 'var(--gn)' }}>{$(tiv.total)}</span>
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 12px', fontWeight:800, background:'var(--s3)', borderTop:'2px solid var(--bd)' }}>
+              <span>ยอดรวมทั้งสิ้น</span>
+              <span style={{ color:'var(--gn)', fontSize:15 }}>{$(tiv.total)}</span>
             </div>
           </div>
         </div>
@@ -3313,242 +3939,166 @@ window.IssueINVModal = IssueINVModal;
    • All cases: void original INV + restore stock + date = original INV date        */
 function AmendINVModal({ inv, onConfirm, onClose, toast }) {
   const D   = window.SP_DATA;
-  const co  = D.company;
   const st  = window.SP_STATE;
-  const $   = window.fmtMoney;
 
-  /* ── Editable state (pre-filled from original INV) ── */
-  const [custName,  setCustName]  = React.useState(inv.custName  || '');
-  const [custAddr,  setCustAddr]  = React.useState(inv.custAddr  || D.customers?.find(c=>c.id===inv.custId)?.addr || '');
-  const [custTax,   setCustTax]   = React.useState(inv.custTax   || '');
-  const [items,     setItems]     = React.useState(
-    () => (inv.items || []).map((it, i) => ({
-      ...it,
-      key:   i,
-      weight: Number(it.weight  || 0),
-      price:  Number(it.price   || it.price_per_kg || 0),
-    }))
+  const [custName,   setCustName]   = React.useState(inv.custName || '');
+  const [custAddr,   setCustAddr]   = React.useState(
+    inv.custAddr || D.customers?.find(c=>c.id===inv.custId)?.addr || ''
   );
-  const [discount,  setDiscount]  = React.useState(Number(inv.discount || 0));
-  const [reason,    setReason]    = React.useState('');
-  const [saving,    setSaving]    = React.useState(false);
+  const [custTax,    setCustTax]    = React.useState(inv.custTax || '');
+  const [branchType, setBranchType] = React.useState(() => {
+    const b = inv.custBranch || D.customers?.find(c=>c.id===inv.custId)?.branch || 'head';
+    return (b === 'head' || !b) ? 'head' : 'other';
+  });
+  const [branchName, setBranchName] = React.useState(() => {
+    const b = inv.custBranch || D.customers?.find(c=>c.id===inv.custId)?.branch || 'head';
+    return (b === 'head' || !b) ? '' : b;
+  });
+  const [reason,     setReason]     = React.useState('');
+  const [saving,     setSaving]     = React.useState(false);
 
-  /* ── Compute totals ── */
-  const origTotal  = Number(inv.total || 0);
-  const newGross   = items.reduce((s, it) => s + it.weight * it.price, 0);
-  const newNet     = Math.max(0, newGross - discount);
-  const newVat     = newNet * 7 / 107;
-  const newTotal   = newNet;
-  const diff       = newTotal - origTotal;
+  const custBranch = branchType === 'head' ? 'head' : (branchName.trim() || 'head');
 
-  /* ── Detect customer info changes ── */
-  const origAddr = inv.custAddr || D.customers?.find(c=>c.id===inv.custId)?.addr || '';
+  const origAddr   = inv.custAddr || D.customers?.find(c=>c.id===inv.custId)?.addr || '';
+  const origBranch = inv.custBranch || D.customers?.find(c=>c.id===inv.custId)?.branch || 'head';
   const custInfoChanged =
     custName.trim() !== (inv.custName||'').trim() ||
     custTax.trim()  !== (inv.custTax||'').trim()  ||
-    custAddr.trim() !== origAddr.trim();
+    custAddr.trim() !== origAddr.trim()             ||
+    custBranch      !== origBranch;
 
-  /* ── Detect document type ── */
-  let docType;
-  if      (diff < -0.01)    docType = 'CN';       // ลดราคา/ปริมาณ → ใบลดหนี้
-  else if (diff > 0.01)     docType = 'DN';        // เพิ่มราคา/ปริมาณ → ใบเพิ่มหนี้
-  else if (custInfoChanged) docType = 'newINV';    // แก้ข้อมูลลูกค้าเท่านั้น → INV ฉบับใหม่
-  else                      docType = 'none';
-
-  const DOCTYPE_META = {
-    CN:     { label:'ใบลดหนี้ (Credit Note)',             color:'var(--am)', badge:'CN',  pfxKey:'cn'  },
-    DN:     { label:'ใบเพิ่มหนี้ (Debit Note)',           color:'var(--rd)', badge:'DN',  pfxKey:'dn'  },
-    newINV: { label:'ใบกำกับภาษีฉบับใหม่ (แทนฉบับเดิม)', color:'var(--ac)', badge:'INV', pfxKey:'inv' },
-    none:   { label:'ไม่มีการเปลี่ยนแปลง',                color:'var(--t3)', badge:'',   pfxKey:''    },
-  };
-  const meta = DOCTYPE_META[docType];
-
-  /* ── Preview next document number ── */
-  const pfx     = st.docPrefixes || {};
-  const now     = new Date();
-  const yymm    = String(now.getFullYear()+543).slice(-4) + String(now.getMonth()+1).padStart(2,'0');
-  const nextNo  = docType !== 'none'
-    ? `${(pfx[meta.pfxKey]||meta.badge)}-${yymm}-${String(
-        docType==='CN'  ? (st.invCounterCN||1)  :
-        docType==='DN'  ? (st.invCounterDN||1)  :
-        st.invCounterA4||1
-      ).padStart(4,'0')}`
+  const pfx  = st.docPrefixes || {};
+  const now  = new Date();
+  const yymm = String(now.getFullYear()) + String(now.getMonth()+1).padStart(2,'0');
+  const nextNo = custInfoChanged
+    ? (pfx.inv||'INV') + '-' + yymm + '-' + String(st.invCounterA4||1).padStart(4,'0')
     : '—';
 
-  /* ── Item helpers ── */
-  const updateItem = (key, field, val) =>
-    setItems(prev => prev.map(it => it.key===key ? {...it, [field]: Number(val)||0} : it));
-  const removeItem = key => setItems(prev => prev.filter(it => it.key !== key));
-
-  /* ── Submit ── */
   const doAmend = async () => {
-    if (docType === 'none') { toast('err', 'ไม่มีการเปลี่ยนแปลง — กรุณาแก้ไขข้อมูลหรือรายการสินค้าก่อน'); return; }
-    if (!reason.trim())          { toast('err', 'กรุณาระบุเหตุผล'); return; }
+    if (!custInfoChanged) { toast('err', 'ไม่มีการเปลี่ยนแปลงข้อมูลลูกค้า'); return; }
+    if (!reason.trim())   { toast('err', 'กรุณาระบุเหตุผล'); return; }
     if (saving) return;
     setSaving(true);
     try {
-      const usr    = D.user?.name || 'Admin';
-      const refNo  = inv.no;           // หมายเลขใบกำกับฉบับเดิม
-      const refDate = inv.date;        // วันที่ต้องตรงกับฉบับเดิม (ตามกฎหมาย VAT)
+      const usr      = D.user?.name || 'Admin';
+      const refNo    = inv.no;
+      const refDate  = inv.date;
+      const noteText = 'ออกใบกำกับภาษีฉบับใหม่แทนฉบับเดิม เลขที่ ' + refNo;
 
-      /* ── note text ตาม docType ── */
-      const noteText = docType === 'newINV'
-        ? `เป็นการยกเลิกและออกใบกำกับภาษีฉบับใหม่แทนฉบับเดิม เลขที่ ${refNo}`
-        : docType === 'CN'
-          ? `ใบลดหนี้อ้างอิงใบกำกับภาษีเลขที่ ${refNo} ลงวันที่ ${inv.dateDisplay || refDate}`
-          : `ใบเพิ่มหนี้อ้างอิงใบกำกับภาษีเลขที่ ${refNo} ลงวันที่ ${inv.dateDisplay || refDate}`;
-
-      /* ── 1. void original INV (คืนสต็อก) ── */
       if (window.SP_API) {
         await window.SP_API.voidInvoice(inv.id, {
           voided_by:     usr,
           void_reason:   reason,
-          restore_stock: true,       // คืนสต็อกทุกกรณี
+          restore_stock: false,
         });
 
-        /* clear full_inv_no บน TIV */
-        const tiv = st.invoices.find(x => x.no === inv.thermalNo && x.type === 'Thermal');
-        if (tiv) {
-          await window.SP_API.updateInvoiceFullInvNo(tiv.id, null).catch(() => {});
-          tiv.fullInvNo = null;
-        }
-
-        /* ── 2. สร้าง correcting document ── */
         const payload = {
-          invoice_type:    docType === 'CN' ? 'CN' : docType === 'DN' ? 'DN' : 'INV',
-          prefix:          pfx[meta.pfxKey] || meta.badge,
+          invoice_type:    'INV',
+          prefix:          pfx.inv || 'INV',
           channel:         inv.channel || 'wholesale',
           ref_invoice_no:  refNo,
           customer_id:     inv.custId || null,
           customer_name:   custName,
           customer_tax_id: custTax,
-          invoice_date:    refDate,    // วันเดียวกับฉบับเดิม
-          gross_sale:      newGross,
-          discount:        discount,
-          net_sale:        newNet,
-          vat_base:        newNet - newVat,
-          vat7:            newVat,
-          total:           newTotal,
+          customer_branch: custBranch,
+          invoice_date:    refDate,
+          gross_sale:      Number(inv.gross_sale || inv.grossSale || 0),
+          discount:        Number(inv.discount || 0),
+          net_sale:        Number(inv.net_sale  || inv.netSale   || 0),
+          vat_base:        Number(inv.vat_base  || inv.vatBase   || 0),
+          vat7:            Number(inv.vat7  || 0),
+          total:           Number(inv.total || 0),
           payment_method:  inv.pay || null,
           note:            noteText,
-          items: items.map(it => ({
+          reason:          reason,
+          items: (inv.items || []).map(it => ({
             code:   it.code,
             name:   it.name,
-            weight: it.weight,
-            price:  it.price,
+            weight: Number(it.weight || 0),
+            price:  Number(it.price  || it.price_per_kg || 0),
             tax:    it.tax || 'vat7',
           })),
         };
 
-        const result  = await window.SP_API.createInvoice(payload);
+        const result   = await window.SP_API.createInvoice(payload);
         const newDocNo = result.invoice_no;
 
-        /* สำหรับ newINV: เชื่อม TIV → INV ใหม่ (แทนที่ฉบับเดิมที่ถูก void) */
-        if (docType === 'newINV') {
-          const tiv2 = st.invoices.find(x => x.no === inv.thermalNo && x.type === 'Thermal');
-          if (tiv2) {
-            await window.SP_API.updateInvoiceFullInvNo(tiv2.id, newDocNo).catch(() => {});
-            tiv2.fullInvNo = newDocNo;
-          }
+        const tiv2 = st.invoices.find(x => x.no === inv.thermalNo && x.type === 'Thermal');
+        if (tiv2) {
+          await window.SP_API.updateInvoiceFullInvNo(tiv2.id, newDocNo).catch(() => {});
+          tiv2.fullInvNo = newDocNo;
         }
 
-        await window.SP_API.logAudit(
-          docType === 'newINV' ? 'REPLACE_INV' : 'AMEND_INV',
-          inv.no, newDocNo, reason
-        );
+        await window.SP_API.logAudit('REPLACE_INV', inv.no, newDocNo, reason);
         await window.SP_API.reloadInvoices();
         await window.SP_API.reloadProducts();
 
-        // อัปเดต counter ใน SP_STATE
-        if (docType === 'CN')            st.invCounterCN = (st.invCounterCN||0) + 1;
-        else if (docType === 'DN')       st.invCounterDN = (st.invCounterDN||0) + 1;
-        else                             st.invCounterA4 = (st.invCounterA4||0) + 1;
+        st.invCounterA4 = (st.invCounterA4||0) + 1;
 
-        const newDoc = st.invoices.find(x => x.no === newDocNo) || { ...payload, no: newDocNo, id: result.invoice_id };
-        toast('ok', `ยกเลิก ${refNo} แล้ว — ออก ${meta.badge} ${newDocNo} เรียบร้อย`);
+        const newDoc = {
+          ...(st.invoices.find(x => x.no === newDocNo) || { ...payload, no: newDocNo, id: result.invoice_id }),
+          refInvDate: inv.dateDisplay || inv.date,
+          custAddr,
+        };
+        toast('ok', 'ยกเลิก ' + refNo + ' แล้ว — ออก INV ' + newDocNo + ' เรียบร้อย');
         onConfirm(newDoc);
 
       } else {
-        /* ── Mock mode ── */
-        // void original
         st.invoices = st.invoices.map(x => x.id===inv.id
-          ? { ...x, voided:true, status:'voided', voidedBy:usr, voidReason:reason, stockRestored:true }
+          ? { ...x, voided:true, status:'voided', voidedBy:usr, voidReason:reason, stockRestored:false }
           : x
         );
-        const tiv = st.invoices.find(x => x.no===inv.thermalNo && x.type==='Thermal');
-        if (tiv) tiv.fullInvNo = null;
 
-        // restore stock mock
-        (inv.items||[]).forEach(it => {
-          const prod = D.products.find(p => p.code===it.code);
-          if (prod) prod.stock = (Number(prod.stock)||0) + Number(it.weight||0);
-        });
-
-        // สร้าง doc ใหม่
         const d = new Date(refDate);
-        const beDate = refDate ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${(d.getFullYear()+543)%100}` : inv.dateDisplay;
+        const beDate = refDate
+          ? String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String((d.getFullYear()+543)%100)
+          : inv.dateDisplay;
         const newDoc = {
-          id: Date.now(), no: nextNo, type: docType==='CN'?'CN':docType==='DN'?'DN':'A4',
-          thermalNo: inv.thermalNo, refInvNo: refNo,
+          id: Date.now(), no: nextNo, type: 'A4',
+          thermalNo: inv.thermalNo, refInvNo: refNo, refInvDate: inv.dateDisplay || inv.date,
           channel: inv.channel||'wholesale',
-          custId: inv.custId, custName, custTax, custAddr,
+          custId: inv.custId, custName, custTax, custAddr, custBranch,
           date: refDate, dateDisplay: beDate,
-          items, grossSale: newGross, discount, netSale: newNet,
-          vatBase: newNet-newVat, vat7: newVat, total: newTotal,
+          items: inv.items,
+          grossSale: Number(inv.gross_sale||inv.grossSale||0),
+          discount:  Number(inv.discount||0),
+          netSale:   Number(inv.net_sale||inv.netSale||0),
+          vatBase:   Number(inv.vat_base||inv.vatBase||0),
+          vat7:      Number(inv.vat7||0),
+          total:     Number(inv.total||0),
           pay: inv.pay, status:'paid', voided:false, printCount:0,
-          note: noteText,
+          note: noteText, reason,
         };
         st.invoices.unshift(newDoc);
-        if (docType==='CN')           st.invCounterCN = (st.invCounterCN||1) + 1;
-        else if (docType==='DN')      st.invCounterDN = (st.invCounterDN||1) + 1;
-        else                          st.invCounterA4 = (st.invCounterA4||1) + 1;
+        st.invCounterA4 = (st.invCounterA4||1) + 1;
 
-        /* newINV mock: เชื่อม TIV → INV ใหม่ */
-        if (docType === 'newINV') {
-          const tiv2 = st.invoices.find(x => x.no === inv.thermalNo && x.type === 'Thermal');
-          if (tiv2) tiv2.fullInvNo = nextNo;
-        }
+        const tiv2 = st.invoices.find(x => x.no === inv.thermalNo && x.type === 'Thermal');
+        if (tiv2) tiv2.fullInvNo = nextNo;
 
-        toast('ok', `ยกเลิก ${refNo} แล้ว — ออก ${meta.badge} ${nextNo} เรียบร้อย`);
+        toast('ok', 'ยกเลิก ' + refNo + ' แล้ว — ออก INV ' + nextNo + ' เรียบร้อย');
         onConfirm(newDoc);
       }
     } catch (err) {
-      toast('err', `ดำเนินการไม่สำเร็จ: ${err.message}`);
+      toast('err', 'ดำเนินการไม่สำเร็จ: ' + err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  /* ── Styles ── */
-  const FS = { fontSize:12.5 };
-  const TH = { padding:'7px 10px', fontWeight:700, fontSize:11.5, color:'var(--t2)', borderBottom:'1px solid var(--bd)', background:'var(--s2)', textAlign:'left', whiteSpace:'nowrap' };
-  const THR = { ...TH, textAlign:'right' };
-  const TD = { padding:'7px 10px', borderBottom:'1px solid var(--bd)', verticalAlign:'middle', fontSize:12.5 };
-  const TDR = { ...TD, textAlign:'right' };
-
   return (
     <div className="ov" onClick={e => e.target===e.currentTarget && onClose()}>
-      <div className="md" style={{ width:'min(700px,97vw)', maxHeight:'92vh', display:'flex', flexDirection:'column' }}>
+      <div className="md" style={{ width:'min(600px,97vw)' }}>
         <div className="md-h">
-          <span className="md-t">แก้ไข / ยกเลิก INV — <span style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{inv.no}</span></span>
+          <span className="md-t">แก้ไขหัวใบกำกับภาษี — <span style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{inv.no}</span></span>
           <div className="md-x" onClick={onClose}>✕</div>
         </div>
 
-        <div className="md-b" style={{ overflowY:'auto', flex:1 }}>
-          {/* Info banner — แตกต่างตาม case */}
-          {docType === 'newINV' ? (
-            <div style={{ padding:'9px 14px', background:'rgba(66,99,235,.07)', border:'1px solid rgba(66,99,235,.25)', borderRadius:'var(--rs)', marginBottom:14, fontSize:12, lineHeight:1.7 }}>
-              <b>ℹ กรณีแก้ไขข้อมูลลูกค้า:</b> ใบกำกับเดิม <b>{inv.no}</b> จะถูก<b>ยกเลิก</b> และออก<b>ใบกำกับภาษีฉบับใหม่</b>แทน
-              &nbsp;· วันที่ต้องตรงกับฉบับเดิม = <b>{inv.dateDisplay || inv.date}</b> · ลายเซ็น/ตราประทับเดิมยังคงใช้ได้
-            </div>
-          ) : (
-            <div style={{ padding:'9px 14px', background:'rgba(var(--am-rgb,245,158,11),.1)', border:'1px solid rgba(245,158,11,.25)', borderRadius:'var(--rs)', marginBottom:14, fontSize:12, lineHeight:1.7 }}>
-              <b>ℹ หมายเหตุ:</b> ใบกำกับเดิม <b>{inv.no}</b> จะถูก<b>ยกเลิก + คืนสต็อก</b> และออกเอกสารใหม่
-              &nbsp;· วันที่เอกสารใหม่ = <b>{inv.dateDisplay || inv.date}</b> (ตามกฎหมาย VAT ไทย ม.86/9, 86/10)
-            </div>
-          )}
+        <div className="md-b">
+          <div style={{ padding:'9px 14px', background:'rgba(66,99,235,.07)', border:'1px solid rgba(66,99,235,.25)', borderRadius:'var(--rs)', marginBottom:14, fontSize:12, lineHeight:1.7 }}>
+            <b>ℹ แก้ไขข้อมูลลูกค้า:</b> ใบกำกับเดิม <b>{inv.no}</b> จะถูก<b>ยกเลิก</b> และออก<b>ใบกำกับภาษีฉบับใหม่</b>แทน
+            &nbsp;· วันที่ตรงกับฉบับเดิม = <b>{inv.dateDisplay || inv.date}</b>
+          </div>
 
-          {/* Buyer info */}
           <div style={{ marginBottom:14 }}>
             <div style={{ fontWeight:700, fontSize:12, color:'var(--t2)', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>ข้อมูลผู้ซื้อ (แก้ไขได้)</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 12px' }}>
@@ -3564,104 +4114,41 @@ function AmendINVModal({ inv, onConfirm, onClose, toast }) {
                 <label className="fl">ที่อยู่</label>
                 <input className="fc" value={custAddr} onChange={e=>setCustAddr(e.target.value)} />
               </div>
+              <div className="fg" style={{ margin:0 }}>
+                <label className="fl">ประเภทสาขา</label>
+                <select className="fc" value={branchType} onChange={e=>setBranchType(e.target.value)}>
+                  <option value="head">สำนักงานใหญ่</option>
+                  <option value="other">สาขา</option>
+                </select>
+              </div>
+              {branchType === 'other' && (
+                <div className="fg" style={{ margin:0 }}>
+                  <label className="fl">ชื่อ / รหัสสาขา</label>
+                  <input className="fc" value={branchName} onChange={e=>setBranchName(e.target.value)}
+                    placeholder="เช่น สาขาลาดพร้าว / 00001" />
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Items table */}
-          <div style={{ marginBottom:14 }}>
-            <div style={{ fontWeight:700, fontSize:12, color:'var(--t2)', marginBottom:6, textTransform:'uppercase', letterSpacing:.5 }}>รายการสินค้า (แก้ไขได้)</div>
-            <div className="tw">
-              <table>
-                <thead>
-                  <tr>
-                    <th style={TH}>#</th>
-                    <th style={TH}>สินค้า</th>
-                    <th style={THR}>น้ำหนัก (KG)</th>
-                    <th style={THR}>ราคา/KG</th>
-                    <th style={THR}>รวม</th>
-                    <th style={TH}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it, i) => (
-                    <tr key={it.key}>
-                      <td style={{ ...TD, color:'var(--t3)', fontSize:11 }}>{i+1}</td>
-                      <td style={TD}><b style={{ fontSize:12.5 }}>{it.name}</b><div style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--t3)' }}>{it.code}</div></td>
-                      <td style={TDR}>
-                        <input type="number" step="0.001" min="0"
-                          style={{ width:90, textAlign:'right', padding:'4px 6px', borderRadius:5, border:'1px solid var(--bd)', fontFamily:'var(--font-mono)', fontSize:12, background:'var(--sur)' }}
-                          value={it.weight} onChange={e=>updateItem(it.key,'weight',e.target.value)} />
-                      </td>
-                      <td style={TDR}>
-                        <input type="number" step="0.01" min="0"
-                          style={{ width:90, textAlign:'right', padding:'4px 6px', borderRadius:5, border:'1px solid var(--bd)', fontFamily:'var(--font-mono)', fontSize:12, background:'var(--sur)' }}
-                          value={it.price} onChange={e=>updateItem(it.key,'price',e.target.value)} />
-                      </td>
-                      <td style={{ ...TDR, fontWeight:700, color:'var(--gn)', fontFamily:'var(--font-mono)' }}>
-                        {$(it.weight * it.price)}
-                      </td>
-                      <td style={TD}>
-                        <button onClick={()=>removeItem(it.key)}
-                          style={{ background:'none', border:'none', cursor:'pointer', color:'var(--rd)', fontSize:14, padding:'2px 6px' }}>✕</button>
-                      </td>
-                    </tr>
-                  ))}
-                  {items.length===0 && (
-                    <tr><td colSpan="6" style={{ padding:'18px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการ</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Discount + totals */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'8px 24px', marginBottom:14 }}>
-            <div className="fg" style={{ margin:0 }}>
-              <label className="fl">ส่วนลด (บาท)</label>
-              <input type="number" step="0.01" min="0" className="fc"
-                value={discount} onChange={e=>setDiscount(Number(e.target.value)||0)} />
-            </div>
-            <div style={{ padding:'10px 12px', background:'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                <span style={{ color:'var(--t2)' }}>ยอดเดิม</span>
-                <b style={{ fontFamily:'var(--font-mono)' }}>{$(origTotal)}</b>
+          {custInfoChanged && (
+            <div style={{ padding:'10px 14px', background:'rgba(66,99,235,.07)', border:'1px solid rgba(66,99,235,.25)', borderRadius:'var(--rs)', marginBottom:14 }}>
+              <div style={{ fontSize:11, color:'var(--t2)', marginBottom:3 }}>เอกสารที่จะออก</div>
+              <div style={{ fontWeight:800, fontSize:14, color:'var(--ac)' }}>
+                <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:4, background:'var(--ac)', color:'#fff', fontSize:11, fontFamily:'var(--font-mono)', marginRight:8 }}>INV</span>
+                ใบกำกับภาษีฉบับใหม่ (แทนฉบับเดิม)
+                <span style={{ fontSize:11, color:'var(--t2)', marginLeft:8, fontWeight:400 }}>→ {nextNo}</span>
               </div>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                <span style={{ color:'var(--t2)' }}>ยอดใหม่</span>
-                <b style={{ fontFamily:'var(--font-mono)', color: diff < -0.01?'var(--am)':diff>0.01?'var(--rd)':'var(--gn)' }}>{$(newTotal)}</b>
-              </div>
-              <div style={{ display:'flex', justifyContent:'space-between', paddingTop:6, borderTop:'1px solid var(--bd)' }}>
-                <span style={{ color:'var(--t2)' }}>ผลต่าง</span>
-                <b style={{ fontFamily:'var(--font-mono)', fontWeight:800, color: diff<0?'var(--am)':diff>0?'var(--rd)':'var(--t3)' }}>
-                  {diff>=0?'+':''}{$(diff)}
-                </b>
-              </div>
-            </div>
-          </div>
-
-          {/* Detected doc type */}
-          <div style={{ padding:'10px 14px', background: docType==='none'?'var(--s2)':`rgba(var(--ac-rgb,66,99,235),.07)`, border:`1px solid ${docType==='none'?'var(--bd)':meta.color}`, borderRadius:'var(--rs)', marginBottom:14 }}>
-            <div style={{ fontSize:11, color:'var(--t2)', marginBottom:3 }}>ประเภทเอกสารที่จะออก (ตรวจจับอัตโนมัติ)</div>
-            <div style={{ fontWeight:800, fontSize:14, color: meta.color }}>
-              {docType !== 'none' && <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:4, background:meta.color, color:'#fff', fontSize:11, fontFamily:'var(--font-mono)', marginRight:8 }}>{meta.badge}</span>}
-              {meta.label}
-              {docType !== 'none' && <span style={{ fontSize:11, color:'var(--t2)', marginLeft:8, fontWeight:400 }}>→ {nextNo}</span>}
-            </div>
-            {docType !== 'none' && (
               <div style={{ fontSize:11, color:'var(--t2)', marginTop:4 }}>
-                {docType === 'newINV'
-                  ? <>ออกใบกำกับภาษีฉบับใหม่แทนเลขที่ <b>{inv.no}</b> ลงวันที่ <b>{inv.dateDisplay || inv.date}</b> — หมายเหตุ: "ออกใบกำกับฉบับใหม่แทนฉบับเดิมเลขที่ {inv.no}"</>
-                  : <>หมายเหตุอ้างอิง: อ้างอิงใบกำกับภาษีเลขที่ <b>{inv.no}</b> ลงวันที่ <b>{inv.dateDisplay || inv.date}</b></>
-                }
+                ออกใบกำกับภาษีฉบับใหม่แทนเลขที่ <b>{inv.no}</b> ลงวันที่ <b>{inv.dateDisplay || inv.date}</b>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Reason */}
           <div className="fg" style={{ marginBottom:0 }}>
             <label className="fl">เหตุผล <span style={{ color:'var(--rd)' }}>*</span></label>
             <textarea className="fc" rows={2} value={reason} onChange={e=>setReason(e.target.value)}
-              placeholder="เช่น ข้อมูลลูกค้าผิด / ลูกค้าคืนสินค้าบางส่วน / ปรับราคาสินค้า…"
+              placeholder="เช่น ข้อมูลลูกค้าผิด / ชื่อบริษัทไม่ถูกต้อง / เลขภาษีผิด…"
               style={{ resize:'vertical' }} />
           </div>
         </div>
@@ -3669,24 +4156,18 @@ function AmendINVModal({ inv, onConfirm, onClose, toast }) {
         <div className="md-f">
           <Button variant="bg2" onClick={onClose}>ยกเลิก</Button>
           <button onClick={doAmend}
-            disabled={saving || docType==='none' || !reason.trim()}
+            disabled={saving || !custInfoChanged || !reason.trim()}
             style={{
               display:'flex', alignItems:'center', gap:7,
               padding:'9px 22px', borderRadius:'var(--rs)',
-              background: (docType!=='none'&&reason.trim()&&!saving) ? meta.color : 'var(--s2)',
-              color: (docType!=='none'&&reason.trim()&&!saving) ? '#fff' : 'var(--t3)',
+              background: (custInfoChanged&&reason.trim()&&!saving) ? 'var(--ac)' : 'var(--s2)',
+              color: (custInfoChanged&&reason.trim()&&!saving) ? '#fff' : 'var(--t3)',
               fontSize:14, fontWeight:700,
-              cursor: (docType!=='none'&&reason.trim()&&!saving) ? 'pointer' : 'not-allowed',
+              cursor: (custInfoChanged&&reason.trim()&&!saving) ? 'pointer' : 'not-allowed',
               border:'none', fontFamily:'inherit',
-              opacity: (docType!=='none'&&reason.trim()&&!saving) ? 1 : 0.55,
+              opacity: (custInfoChanged&&reason.trim()&&!saving) ? 1 : 0.55,
             }}>
-            {saving
-              ? 'กำลังบันทึก…'
-              : docType==='none'
-                ? 'ไม่มีการเปลี่ยนแปลง'
-                : docType==='newINV'
-                  ? `ออกใบกำกับใหม่ ${nextNo}`
-                  : `ออก ${meta.badge} ${nextNo}`}
+            {saving ? 'กำลังบันทึก…' : !custInfoChanged ? 'ยังไม่มีการเปลี่ยนแปลง' : ('ออกใบกำกับใหม่ ' + nextNo)}
           </button>
         </div>
       </div>
@@ -3696,7 +4177,7 @@ function AmendINVModal({ inv, onConfirm, onClose, toast }) {
 window.AmendINVModal = AmendINVModal;
 
 /* ═══ TIV ABBREVIATED INVOICE MODAL — รูปแบบเดียวกับใบเสร็จตอนชำระเงิน ═══ */
-function TIVDocModal({ tiv, onClose, toast }) {
+function TIVDocModal({ tiv, onClose, toast, onVoid }) {
   if (!tiv) return null;
   const co  = window.SP_DATA.company;
   const usr = window.SP_DATA.user;
@@ -3729,15 +4210,22 @@ function TIVDocModal({ tiv, onClose, toast }) {
     <div className="ov" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="md" style={{ width:480 }}>
         <div className="md-h">
-          <span className="md-t">ใบเสร็จรับเงิน / ใบกำกับภาษีแบบย่อ</span>
+          <span className="md-t">{tiv.voided ? 'ใบเสร็จยกเลิก' : 'ใบเสร็จรับเงิน / ใบกำกับภาษีแบบย่อ'}</span>
           <div style={{ display:'flex', gap:8 }}>
-            <Button variant="bp" size="sm" icon="printer" onClick={handlePrint}>พิมพ์</Button>
+            <Button variant={tiv.voided ? 'bg2' : 'bp'} size="sm" icon="printer" onClick={handlePrint}>พิมพ์{tiv.voided?' (สำเนายกเลิก)':''}</Button>
             <div className="md-x" onClick={onClose}>✕</div>
           </div>
         </div>
 
         <div className="md-b" style={{ background:'#f5f4f0', padding:'16px' }}>
           <div style={{ background:'#fff', maxWidth:400, margin:'0 auto', padding:'20px 20px 16px', fontFamily:'var(--font-sans)', color:'#18171a', boxShadow:'0 2px 12px rgba(0,0,0,.1)', borderRadius:4 }}>
+
+            {/* Void stamp */}
+            {tiv.voided && (
+              <div style={{ textAlign:'center', marginBottom:14 }}>
+                <span style={{ fontSize:24, fontWeight:900, color:'#c0392b', letterSpacing:6 }}>ยกเลิก</span>
+              </div>
+            )}
 
             {/* Header */}
             <div style={{ textAlign:'center', marginBottom:12 }}>
@@ -3757,8 +4245,9 @@ function TIVDocModal({ tiv, onClose, toast }) {
               {[
                 ['เลขที่เอกสาร', tiv.no || tiv.thermalNo],
                 ['วันที่ขาย',    tiv.dateDisplay || tiv.date || ''],
-                ['พนักงานขาย',   usr?.name || 'Admin Kanya'],
+                ['พนักงานขาย',   usr?.name || 'Admin'],
                 ...(tiv.custName && tiv.custName !== '—' ? [['ลูกค้า', tiv.custName]] : []),
+                ...(tiv.replaces ? [['ออกแทนใบ', tiv.replaces]] : []),
               ].map(([l,v]) => (
                 <div key={l} style={{ display:'flex', gap:8, marginBottom:2 }}>
                   <span style={{ color:'#555', minWidth:90 }}>{l}:</span>
@@ -3776,19 +4265,23 @@ function TIVDocModal({ tiv, onClose, toast }) {
             {items.map((it, i) => {
               const w       = Number(it.indivWeight || it.weight || 0);
               const p       = Number(it.price || it.price_per_kg || 0);
-              const qty     = it.scanCount || 1;
-              const perPack = w * p;
+              const uInfo   = window.unitOf ? window.unitOf(it.code) : { unitType:'kg', unitLabel:'KG' };
+              const isUnit  = uInfo.unitType === 'unit';
+              const qty     = isUnit ? w * (it.scanCount||1) : (it.scanCount || 1);
               const iDisc   = Number(it.lineDisc || 0);
-              const total   = qty * perPack - iDisc;
+              const total   = isUnit ? qty * p - iDisc : qty * w * p - iDisc;
+              const subInfo = isUnit
+                ? `${qty} ${uInfo.unitLabel} · ฿${p}/${uInfo.unitLabel}`
+                : `${w.toFixed(3)} KG · ฿${p}/KG`;
               return (
                 <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 36px 80px 85px', gap:4, fontSize:12, marginBottom:8, alignItems:'start' }}>
                   <div>
                     <div style={{ fontWeight:600, lineHeight:1.4 }}>{it.name}</div>
-                    <div style={{ fontSize:10.5, color:'#888' }}>{w.toFixed(3)} KG · ฿{p}/KG</div>
+                    <div style={{ fontSize:10.5, color:'#888' }}>{subInfo}</div>
                     {iDisc > 0 && <div style={{ fontSize:10.5, color:'#e00' }}>ส่วนลด -{nf(iDisc)}</div>}
                   </div>
                   <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:12, fontWeight:600 }}>{qty}</div>
-                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:11.5 }}>{nf(perPack)}</div>
+                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:11.5 }}>{nf(isUnit ? p : w * p)}</div>
                   <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:11.5, fontWeight:700 }}>{nf(total)}</div>
                 </div>
               );
@@ -3808,27 +4301,61 @@ function TIVDocModal({ tiv, onClose, toast }) {
                 {disc>0 ? '-'+nf(disc) : '0.00'}
               </span>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:15, fontWeight:800, borderTop:'2px solid #18171a', borderBottom:'2px solid #18171a', padding:'5px 0', margin:'4px 0 8px' }}>
-              <span>รวมทั้งสิ้น</span><span>{$(net)}</span>
-            </div>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:11.5, marginBottom:3 }}>
               <span style={{ color:'#555' }}>รวมมูลค่าสินค้า (ก่อน VAT)</span><span>{$(preVat)}</span>
             </div>
-            <div style={{ display:'flex', justifyContent:'space-between', fontSize:11.5, marginBottom:8 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:11.5, marginBottom:4 }}>
               <span style={{ color:'#555' }}>ภาษีมูลค่าเพิ่ม 7%</span><span>{$(vat)}</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:15, fontWeight:800, borderTop:'2px solid #18171a', borderBottom:'2px solid #18171a', padding:'5px 0', margin:'4px 0 8px' }}>
+              <span>รวมทั้งสิ้น</span><span>{$(net)}</span>
             </div>
 
             <div style={{ ...DL }} />
-            <div style={{ fontSize:12, marginBottom:8, fontWeight:600 }}>{payLabel} &nbsp;{$(net)}</div>
-
-            <div style={{ textAlign:'center', fontSize:11, color:'#888', borderTop:'1px dashed #ccc', paddingTop:10 }}>
-              ขอบคุณที่ใช้บริการ
+            <div style={{ fontSize:12, marginBottom:8 }}>
+              <span style={{ color:'#555' }}>ประเภทการชำระเงิน: </span><b>{payLabel}</b>
             </div>
+
+            {tiv.voided ? (
+              <div style={{ borderTop:'2px dashed #c0392b', paddingTop:10, marginTop:4 }}>
+                <div style={{ textAlign:'center', fontSize:12, fontWeight:800, color:'#c0392b', marginBottom:6 }}>
+                  — เอกสารฉบับนี้ถูกยกเลิกแล้ว —
+                </div>
+                <div style={{ fontSize:11, color:'#666', display:'grid', gridTemplateColumns:'auto 1fr', gap:'3px 10px' }}>
+                  <span>วันที่ยกเลิก:</span><span style={{ fontWeight:700 }}>{(() => {
+                    const v = tiv.voidedAt;
+                    if (!v) return '—';
+                    if (v.includes('T') || v.includes('Z')) {
+                      const d = new Date(v);
+                      const dd = String(d.getDate()).padStart(2,'0');
+                      const mm = String(d.getMonth()+1).padStart(2,'0');
+                      const yy = d.getFullYear()+543;
+                      const hh = String(d.getHours()).padStart(2,'0');
+                      const mi = String(d.getMinutes()).padStart(2,'0');
+                      return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+                    }
+                    return v;
+                  })()}</span>
+                  <span>ผู้ยกเลิก:</span><span>{tiv.voidedBy || '—'}</span>
+                  <span>เหตุผล:</span><span>{tiv.voidReason || '—'}</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign:'center', fontSize:11, color:'#888', borderTop:'1px dashed #ccc', paddingTop:10 }}>
+                ขอบคุณที่ใช้บริการ
+              </div>
+            )}
           </div>
         </div>
 
         <div className="md-f">
           <Button variant="bg2" onClick={onClose}>ปิด</Button>
+          {!tiv.voided && onVoid && (
+            <button onClick={onVoid}
+              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:'var(--rs)', background:'var(--rbg)', color:'var(--rd)', fontSize:13, fontWeight:700, cursor:'pointer', border:'1px solid rgba(208,48,48,.3)', fontFamily:'inherit' }}>
+              <Icon name="x-circle" size={14} style={{ color:'var(--rd)' }}/> ยกเลิกใบนี้
+            </button>
+          )}
           <Button variant="bp" icon="printer" onClick={handlePrint}>พิมพ์</Button>
         </div>
       </div>
@@ -3836,308 +4363,151 @@ function TIVDocModal({ tiv, onClose, toast }) {
   );
 }
 
-/* ═══ CREDIT NOTE / DEBIT NOTE A4 DOCUMENT ═══ */
-function CnDnDocument({ doc, onClose, toast }) {
+/* ═══ เอกสารปรับปรุงสต็อก (ADJ) ═══ */
+function AdjDocument({ doc, onClose, toast }) {
   if (!doc) return null;
-  const isCN = doc.type==='CN' || doc.docType==='CN';
-  const isDN = doc.type==='DN' || doc.docType==='DN';
-  const D    = window.SP_DATA;
-  const co   = D.company;
-  const $    = window.fmtMoney;
-  const cust = D.customers.find(c=>c.id===doc.custId);
-  const docTitle  = isCN ? 'ใบลดหนี้' : 'ใบเพิ่มหนี้';
-  const docEn     = isCN ? 'Credit Note' : 'Debit Note';
-  const docColor  = isCN ? 'var(--am)' : 'var(--rd)';
-  const adjSign   = isCN ? '' : '+';
-  const adjAmt    = doc.adjAmount ?? (doc.total - (doc.origTotal||0));
-  const adjVat    = doc.adjVat7   ?? (doc.vat7 - (doc.origVat7||0));
-  const adjPreVat = adjAmt - adjVat;
+  const co  = window.SP_DATA.company;
+  const nf  = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  const ACC       = '#1a4fa0';
+  const ACC_LIGHT = '#e8eef8';
+  const items = doc.items || [];
 
-  const handlePrint = () => {
-    const st = window.SP_STATE;
-    const inv = st.invoices.find(x=>x.id===doc.id);
-    if (inv) inv.printCount = (inv.printCount||0)+1;
-    toast('info', `กำลังพิมพ์${docTitle}…`);
-  };
+  const adjTypeLabel = { expired:'หมดอายุ', damage:'เสียหาย', recount:'นับใหม่', other:'อื่นๆ' }[doc.adjType] || doc.adjType;
+  const netAdj = Number(doc.totalAdj || 0);
 
-  const TH3 = { padding:'8px 10px', background:'#1a1826', color:'#fff', fontWeight:700, fontSize:11.5, textAlign:'left' };
-  const THR3 = { ...TH3, textAlign:'right' };
+  const TH = { padding:'8px 10px', background:ACC, color:'#fff', fontWeight:700, fontSize:11.5,
+    borderBottom:'1px solid rgba(0,0,0,.15)', borderRight:'1px solid rgba(255,255,255,.2)', verticalAlign:'middle' };
+  const TD = { padding:'8px 10px', fontSize:12.5, borderBottom:'1px solid #e8e8e8', borderRight:'1px solid #e8e8e8', verticalAlign:'top' };
 
   return (
     <div className="ov" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="md" style={{ width:'min(720px,96vw)' }}>
+      <div className="md" style={{ width:'min(860px,96vw)' }}>
         <div className="md-h">
-          <span className="md-t">
-            {docTitle} · <span style={{ fontFamily:'var(--font-mono)', color:docColor }}>{doc.no}</span>
-            {(doc.printCount||0)>0 && <span className="bx xa" style={{ marginLeft:8,fontSize:11 }}>สำเนา</span>}
+          <span className="md-t" style={{ color:ACC }}>
+            เอกสารปรับปรุงสต็อก · <span style={{ fontFamily:'var(--font-mono)' }}>{doc.id}</span>
           </span>
           <div style={{ display:'flex', gap:8 }}>
-            <Button variant="bp" size="sm" icon="printer" onClick={handlePrint}>พิมพ์ {docTitle}</Button>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportPDF(`${docTitle} ${doc.no}`,
-              ['#','รหัส','สินค้า','น้ำหนัก KG','ราคา/KG','รวม'],
-              (doc.items||[]).map((it,i)=>[i+1,it.code,it.name,Number(it.weight).toFixed(3),it.price,$(it.weight*it.price)]),
-              `อ้างอิง: ${doc.refInvNo} วันที่ ${doc.refInvDate}`)}>PDF</Button>
+            <Button variant="bp" size="sm" icon="printer" onClick={()=>toast('info','กำลังพิมพ์เอกสาร ADJ…')}>พิมพ์</Button>
             <div className="md-x" onClick={onClose}>✕</div>
           </div>
         </div>
-        <div className="md-b" style={{ background:'var(--s2)', padding:'16px', overflowX:'auto' }}>
-          <div style={{ width:'100%', maxWidth:640, background:'#fff', padding:'20px 24px', margin:'0 auto', fontFamily:'var(--font-sans)', color:'#18171a', boxSizing:'border-box', boxShadow:'0 2px 16px rgba(0,0,0,.08)' }}>
+
+        <div className="md-b" style={{ background:'#e8e7e2', padding:16, overflowX:'auto' }}>
+          <div style={{ width:'100%', maxWidth:794, background:'#fff', margin:'0 auto',
+            boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)',
+            color:'#111', padding:'24px 28px', boxSizing:'border-box', fontSize:12.5 }}>
 
             {/* Header */}
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', borderBottom:`3px solid ${docColor}`, paddingBottom:14, marginBottom:16 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <CompanyLogo size={38} radius={11} />
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start',
+              borderBottom:`3px solid ${ACC}`, paddingBottom:14, marginBottom:14 }}>
+              <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
+                {co.logoUrl && <img src={co.logoUrl} alt="logo" style={{ width:52,height:52,objectFit:'contain',borderRadius:6,flexShrink:0 }} />}
                 <div>
-                  <div style={{ fontSize:15,fontWeight:800 }}>{co.name}</div>
-                  <div style={{ fontSize:11,color:'#555',lineHeight:1.7 }}>{co.addr}</div>
-                  <div style={{ fontSize:11,color:'#555' }}>โทร {co.tel} · เลขภาษี {co.tax}</div>
-                </div>
-              </div>
-              <div style={{ textAlign:'right' }}>
-                <div style={{ fontSize:26,fontWeight:800,color:docColor }}>{docTitle}</div>
-                <div style={{ fontSize:12,color:'#666' }}>{docEn}</div>
-              </div>
-            </div>
-
-            {/* Reference bar */}
-            <div style={{ background: isCN?'var(--ambg)':'var(--rbg)', border:`1px solid ${docColor}`, borderRadius:8, padding:'10px 14px', marginBottom:16 }}>
-              <div style={{ fontSize:13,fontWeight:700,color:docColor,marginBottom:4 }}>
-                อ้างอิงใบกำกับภาษีเลขที่ <span style={{ fontFamily:'var(--font-mono)' }}>{doc.refInvNo}</span> วันที่ {doc.refInvDate}
-              </div>
-              <div style={{ fontSize:11.5,color:'#555' }}>{doc.note}</div>
-            </div>
-
-            {/* Doc info grid */}
-            <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'4px 24px',fontSize:12.5,marginBottom:16 }}>
-              {[['เลขที่เอกสาร',doc.no,true],['วันที่',doc.dateDisplay,false],
-                ['ลูกค้า',doc.custName,false],['เลขภาษีลูกค้า',doc.custTax||cust?.tax||'—',false]
-              ].map(([l,v,mono])=>(
-                <div key={l}><span style={{ color:'#666' }}>{l}: </span>
-                  <b style={{ fontFamily:mono?'var(--font-mono)':'inherit', color:mono?docColor:'inherit' }}>{v}</b>
-                </div>
-              ))}
-            </div>
-
-            {/* Items table — shows only CHANGED items (deltaItems) or all if no delta */}
-            {(() => {
-              const displayItems = doc.deltaItems && doc.deltaItems.length > 0 ? doc.deltaItems : (doc.items||[]);
-              const hasDelta = doc.deltaItems && doc.deltaItems.length > 0;
-              return (
-                <>
-                  <div style={{ fontSize:11.5, color:'#888', marginBottom:6 }}>
-                    {hasDelta ? `รายการที่เปลี่ยนแปลง (${displayItems.length} รายการ)` : `รายการทั้งหมด (${displayItems.length} รายการ)`}
-                  </div>
-                  <table style={{ width:'100%',borderCollapse:'collapse',fontSize:12.5,marginBottom:14 }}>
-                    <thead><tr>
-                      <th style={{ ...TH3,width:32 }}>#</th>
-                      <th style={{ ...TH3,width:60 }}>รหัส</th>
-                      <th style={TH3}>สินค้า</th>
-                      <th style={{ ...THR3,width:80 }}>KG {hasDelta&&'(เดิม)'}</th>
-                      {hasDelta && <th style={{ ...THR3,width:90 }}>KG ใหม่ / ผลต่าง</th>}
-                      <th style={{ ...THR3,width:90 }}>ราคา/KG</th>
-                      <th style={{ ...THR3,width:110 }}>จำนวนเงิน</th>
-                      {hasDelta && <th style={{ ...TH3,width:80 }}>การเปลี่ยนแปลง</th>}
-                    </tr></thead>
-                    <tbody>
-                      {displayItems.map((it,i)=>{
-                        const hasDeltaRow = it.deltaWeight !== undefined;
-                        const bgRow = hasDeltaRow && it.deltaNote==='ยกเลิกรายการ' ? '#fff8f8'
-                                    : hasDeltaRow && it.deltaNote==='เพิ่มรายการ'   ? '#f8fff8' : '#fff';
-                        return (
-                          <tr key={i} style={{ borderBottom:'1px solid #eee', background:bgRow }}>
-                            <td style={{ padding:'7px 10px',color:'#999' }}>{i+1}</td>
-                            <td style={{ padding:'7px 10px',fontFamily:'var(--font-mono)',fontSize:11 }}>{it.code}</td>
-                            <td style={{ padding:'7px 10px',fontWeight:600 }}>{it.name}</td>
-                            <td style={{ padding:'7px 10px',textAlign:'right',color:hasDeltaRow?'#888':'#18171a' }}>
-                              {hasDeltaRow && it.origWeight!=null ? Number(it.origWeight).toFixed(3) : Number(it.weight).toFixed(3)}
-                            </td>
-                            {hasDelta && (
-                              <td style={{ padding:'7px 10px',textAlign:'right',fontWeight:700,
-                                color: hasDeltaRow?(it.deltaWeight>=0?'var(--gn)':'var(--rd)'):'#18171a' }}>
-                                {hasDeltaRow ? `${it.deltaWeight>=0?'+':''}${Number(it.deltaWeight).toFixed(3)}` : Number(it.weight).toFixed(3)}
-                              </td>
-                            )}
-                            <td style={{ padding:'7px 10px',textAlign:'right' }}>฿{it.price}</td>
-                            <td style={{ padding:'7px 10px',textAlign:'right',fontWeight:700 }}>
-                              {$(hasDeltaRow && it.origWeight!=null ? Math.abs(it.deltaWeight)*it.price : it.weight*it.price)}
-                            </td>
-                            {hasDelta && (
-                              <td style={{ padding:'7px 10px' }}>
-                                <span style={{ fontSize:10.5, padding:'2px 7px', borderRadius:100, fontWeight:700,
-                                  background: it.deltaNote==='ยกเลิกรายการ'?'var(--rbg)':it.deltaNote==='เพิ่มรายการ'?'var(--gbg)':'var(--ambg)',
-                                  color: it.deltaNote==='ยกเลิกรายการ'?'var(--rd)':it.deltaNote==='เพิ่มรายการ'?'var(--gn)':'var(--am)' }}>
-                                  {it.deltaNote||'แก้ไข'}
-                                </span>
-                              </td>
-                            )}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </>
-              );
-            })()}
-
-            {/* Amount comparison */}
-            <div style={{ display:'flex',justifyContent:'flex-end',marginBottom:14 }}>
-              <div style={{ minWidth:340 }}>
-                {[
-                  ['ยอดตามใบกำกับภาษีเดิม',  doc.origTotal||0, '#333'],
-                  ['ยอดที่ถูกต้อง',            doc.total,        '#333'],
-                  ['ผลต่างก่อน VAT',           adjPreVat,        docColor],
-                  ['VAT 7% ที่'+( isCN?'ลด':'เพิ่ม'),  adjVat,  'var(--pu)'],
-                ].map(([l,v,c])=>(
-                  <div key={l} style={{ display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid #eee' }}>
-                    <span style={{ fontSize:13,color:'#555' }}>{l}</span>
-                    <span style={{ fontSize:13,fontWeight:700,color:c }}>{adjSign}{$(v)}</span>
-                  </div>
-                ))}
-                <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',background:'#f5f4f0',borderRadius:8,padding:'12px 14px',marginTop:8 }}>
-                  <span style={{ fontSize:13.5,fontWeight:700,color:'#333' }}>({window.bahtText(Math.round(Math.abs(adjAmt)))})</span>
-                  <div style={{ display:'flex',alignItems:'center',gap:24 }}>
-                    <span style={{ fontSize:14,fontWeight:800 }}>มูลค่า{docTitle}รวมทั้งสิ้น</span>
-                    <span style={{ fontSize:18,fontWeight:800,color:docColor }}>{adjSign}{$(Math.abs(adjAmt))}</span>
+                  <div style={{ fontSize:16, fontWeight:800, color:'#111' }}>{co.name}</div>
+                  {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
+                  <div style={{ fontSize:11, color:'#555', lineHeight:1.8, marginTop:2 }}>
+                    {co.addr && <div>{co.addr}</div>}
+                    <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
+                    <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b></div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Signatures */}
-            <div style={{ display:'flex',justifyContent:'space-between',marginTop:24,fontSize:11.5,color:'#666',borderTop:'1px solid #ddd',paddingTop:14 }}>
-              <div style={{ textAlign:'center',flex:1 }}>____________________<br/>ผู้รับ</div>
-              <div style={{ textAlign:'center',flex:1 }}>____________________<br/>ผู้ออกเอกสาร</div>
-              <div style={{ textAlign:'center',flex:1 }}>____________________<br/>ผู้มีอำนาจลงนาม</div>
-            </div>
-            <div style={{ marginTop:10,fontSize:10.5,color:'#aaa',textAlign:'center' }}>
-              พิมพ์เมื่อ {window.fmtDate()} · StockPro — {co.name}
-            </div>
-          </div>
-        </div>
-        <div className="md-f">
-          <Button variant="bg2" onClick={onClose}>ปิด</Button>
-          <Button variant="bp" icon="printer" onClick={handlePrint}>พิมพ์ {docTitle}</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AdjDocument({ doc, onClose, toast }) {
-  if (!doc) return null;
-  const D  = window.SP_DATA;
-  const co = D.company;
-  const TH = { padding:'8px 10px', background:'#1a1826', color:'#fff', fontWeight:700, fontSize:12, textAlign:'left', borderBottom:'2px solid #333' };
-  const THR = { ...TH, textAlign:'right' };
-  return (
-    <div className="ov" onClick={e => e.target===e.currentTarget && onClose()}>
-      <div className="md" style={{ width:'min(720px,96vw)' }}>
-        <div className="md-h">
-          <span className="md-t">เอกสารปรับปรุงสต็อก · {doc.id}</span>
-          <div style={{ display:'flex', gap:8 }}>
-            <Button variant="bp" size="sm" icon="printer" onClick={() => toast('info','กำลังพิมพ์เอกสาร A4…')}>พิมพ์ A4</Button>
-            <div className="md-x" onClick={onClose}>✕</div>
-          </div>
-        </div>
-        <div className="md-b" style={{ background:'var(--s2)' }}>
-          <div style={{ background:'#fff', padding:28, maxWidth:640, margin:'0 auto', border:'1px solid var(--bd)', fontFamily:'var(--font-sans)', boxShadow:'var(--sh2)' }}>
-
-            {/* Header */}
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', borderBottom:'2px solid #1a1826', paddingBottom:14, marginBottom:16 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ width:38, height:38, borderRadius:11, background:'linear-gradient(135deg,#5b7cff,#8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:800, fontSize:15 }}>SP</div>
-                <div>
-                  <div style={{ fontSize:15, fontWeight:800 }}>{co.name}</div>
-                  <div style={{ fontSize:11, color:'var(--t2)', lineHeight:1.6 }}>{co.addr}</div>
-                  <div style={{ fontSize:11, color:'var(--t2)' }}>โทร {co.tel} · เลขภาษี {co.tax}</div>
-                </div>
-              </div>
-              <div style={{ textAlign:'right' }}>
-                <div style={{ fontSize:24, fontWeight:800, color:'var(--rd)', letterSpacing:1 }}>ADJ</div>
-                <div style={{ fontSize:11.5, color:'var(--t2)', marginTop:2 }}>เอกสารปรับปรุงสต็อก</div>
+              <div style={{ textAlign:'right', minWidth:200, flexShrink:0 }}>
+                <div style={{ fontSize:20, fontWeight:800, color:ACC, lineHeight:1.3 }}>เอกสารปรับปรุงสต็อก</div>
+                <div style={{ fontSize:12, color:'#555', marginTop:2 }}>Stock Adjustment Document</div>
               </div>
             </div>
 
             {/* Meta grid */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'5px 24px', fontSize:12.5, marginBottom:16 }}>
-              {[['เลขที่เอกสาร', doc.id, true],
-                ['วันที่', doc.dateDisplay, false],
-                ['ประเภทการปรับ', {expired:'หมดอายุ',damage:'เสียหาย',recount:'นับสต็อกใหม่',other:'สต็อกออกเอง / อื่นๆ'}[doc.adjType]||doc.adjType, false],
-                ['เหตุผล', doc.reason, false],
-                ['ผู้รับผิดชอบ', doc.approver||'—', false],
-                doc.note ? ['หมายเหตุ', doc.note, false] : null,
-              ].filter(Boolean).map(([l,v,red])=>(
-                <div key={l}><span style={{ color:'var(--t2)' }}>{l}: </span><b style={{ fontFamily: red?'var(--font-mono)':'inherit', color: red?'var(--rd)':'inherit' }}>{v}</b></div>
-              ))}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0,
+              border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginBottom:14 }}>
+              <div style={{ padding:'12px 16px' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:'4px 12px', fontSize:12.5 }}>
+                  <span style={{ color:'#888' }}>ประเภท:</span>
+                  <b>{adjTypeLabel}</b>
+                  <span style={{ color:'#888' }}>เหตุผล:</span>
+                  <span>{doc.reason || '—'}</span>
+                  {doc.note && <><span style={{ color:'#888' }}>หมายเหตุ:</span><span>{doc.note}</span></>}
+                  <span style={{ color:'#888' }}>ผู้อนุมัติ:</span>
+                  <span>{doc.approver || '—'}</span>
+                </div>
+              </div>
+              <div style={{ padding:'12px 16px', background:ACC_LIGHT, minWidth:180, borderLeft:'1px solid #ccc' }}>
+                <div style={{ fontSize:11, color:'#666', marginBottom:2 }}>เลขที่เอกสาร</div>
+                <div style={{ fontFamily:'var(--font-mono)', fontSize:14, fontWeight:800, color:ACC, marginBottom:8 }}>{doc.id}</div>
+                <div style={{ fontSize:11, color:'#666', marginBottom:2 }}>วันที่</div>
+                <div style={{ fontWeight:700 }}>{doc.dateDisplay || doc.date}</div>
+              </div>
             </div>
 
             {/* Items table */}
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5, marginBottom:16 }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', border:'1px solid #ccc', marginBottom:14 }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, width:30 }}>#</th>
-                  <th style={TH}>สินค้า</th>
-                  <th style={{ ...THR, width:90 }}>ก่อนปรับ (KG)</th>
-                  <th style={{ ...THR, width:90 }}>หลังปรับ (KG)</th>
-                  <th style={{ ...THR, width:90 }}>ผลต่าง (KG)</th>
+                  <th style={{ ...TH, width:36 }}>#</th>
+                  <th style={TH}>รหัส</th>
+                  <th style={TH}>ชื่อสินค้า</th>
+                  <th style={{ ...TH, textAlign:'right' }}>ก่อนปรับ (KG)</th>
+                  <th style={{ ...TH, textAlign:'right' }}>ปรับ (+/-)</th>
+                  <th style={{ ...TH, textAlign:'right', borderRight:'none' }}>หลังปรับ (KG)</th>
                 </tr>
               </thead>
               <tbody>
-                {doc.items.map((it, i) => {
-                  const minQ  = D.products.find(p=>p.code===it.code)?.min || 0;
-                  const isLow = it.after < minQ;
-                  return (
-                    <tr key={i} style={{ borderBottom:'1px solid #eee' }}>
-                      <td style={{ padding:'8px 10px', color:'var(--t3)', fontSize:11 }}>{i+1}</td>
-                      <td style={{ padding:'8px 10px', fontWeight:600 }}>
-                        {it.name}<br/>
-                        <span style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--t3)' }}>{it.code}</span>
-                      </td>
-                      <td style={{ padding:'8px 10px', textAlign:'right', color:'var(--t2)' }}>{Number(it.before).toFixed(3)}</td>
-                      <td style={{ padding:'8px 10px', textAlign:'right', fontWeight:800, color:isLow?'var(--am)':'var(--gn)' }}>
-                        {Number(it.after).toFixed(3)}{isLow && <span style={{ fontSize:10, marginLeft:4 }}>⚠️</span>}
-                      </td>
-                      <td style={{ padding:'8px 10px', textAlign:'right', fontWeight:800, color: it.adj>=0?'var(--gn)':'var(--rd)' }}>
-                        {it.adj>=0?'+':''}{Number(it.adj).toFixed(3)}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {items.map((it, i) => (
+                  <tr key={it.code+i}>
+                    <td style={{ ...TD, color:'#999', fontSize:11 }}>{i+1}</td>
+                    <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5 }}>{it.code}</td>
+                    <td style={{ ...TD, fontWeight:600 }}>{it.name}</td>
+                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)' }}>{nf(it.before)}</td>
+                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700,
+                      color: Number(it.adj) >= 0 ? '#15803d' : '#dc2626' }}>
+                      {Number(it.adj) >= 0 ? '+' : ''}{nf(it.adj)}
+                    </td>
+                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, borderRight:'none' }}>{nf(it.after)}</td>
+                  </tr>
+                ))}
+                {items.length === 0 && (
+                  <tr><td colSpan="6" style={{ padding:20, textAlign:'center', color:'#aaa' }}>ไม่มีรายการ</td></tr>
+                )}
               </tbody>
               <tfoot>
-                <tr style={{ background:'#f5f4f0', fontWeight:700 }}>
-                  <td colSpan="2" style={{ padding:'8px 10px' }}>รวม {doc.items.length} รายการ</td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', color:'var(--t2)' }}>
-                    {doc.items.reduce((s,it)=>s+it.before,0).toFixed(3)}
+                <tr style={{ background:ACC_LIGHT }}>
+                  <td colSpan="3" style={{ padding:'8px 10px', fontWeight:700, fontSize:12 }}>รวม {items.length} รายการ</td>
+                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>{nf(doc.totalBefore||0)}</td>
+                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:800,
+                    color: netAdj >= 0 ? '#15803d' : '#dc2626' }}>
+                    {netAdj >= 0 ? '+' : ''}{nf(netAdj)}
                   </td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', fontWeight:800, color: doc.totalAdj>=0?'var(--gn)':'var(--rd)' }}>
-                    {doc.totalAdj>=0?'+':''}{window.fmtKg(doc.totalAdj)}
-                  </td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', color:'var(--gn)' }}>
-                    {doc.items.reduce((s,it)=>s+it.after,0).toFixed(3)}
-                  </td>
+                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>{nf(doc.totalAfter||0)}</td>
                 </tr>
               </tfoot>
             </table>
 
             {/* Signatures */}
-            <div style={{ display:'flex', justifyContent:'space-between', marginTop:32, fontSize:11.5, color:'var(--t2)', borderTop:'1px solid var(--bd)', paddingTop:16 }}>
-              <div style={{ textAlign:'center', flex:1 }}>____________________<br/>ผู้ปรับปรุงสต็อก</div>
-              <div style={{ textAlign:'center', flex:1 }}>____________________<br/>ผู้ตรวจสอบ</div>
-              <div style={{ textAlign:'center', flex:1 }}>____________________<br/>ผู้มีอำนาจอนุมัติ</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:0,
+              border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginTop:8 }}>
+              {['ผู้จัดทำ / Prepared by','ผู้ตรวจสอบ / Checked by','ผู้อนุมัติ / Approved by'].map((label, i) => (
+                <div key={i} style={{ padding:'10px 14px', borderRight: i<2 ? '1px solid #ccc' : 'none' }}>
+                  {i === 2 && doc.approver && <div style={{ fontSize:12.5, fontWeight:700, textAlign:'center', marginBottom:6 }}>{doc.approver}</div>}
+                  <div style={{ marginTop: i === 2 && doc.approver ? 20 : 40, borderTop:'1px solid #bbb',
+                    paddingTop:6, textAlign:'center', fontSize:11, color:'#666' }}>{label}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ marginTop:12, fontSize:11, color:'var(--t3)', textAlign:'center' }}>
-              พิมพ์เมื่อ {window.fmtDate()} · StockPro — {co.name}
+
+            <div style={{ textAlign:'center', fontSize:10.5, color:'#aaa', marginTop:12 }}>
+              NEXflow — {co.name}
             </div>
           </div>
         </div>
+
         <div className="md-f">
           <Button variant="bg2" onClick={onClose}>ปิด</Button>
-          <Button variant="bp" icon="printer" onClick={() => toast('info','กำลังพิมพ์เอกสาร A4…')}>พิมพ์ A4</Button>
+          <Button variant="bp" icon="printer" onClick={()=>toast('info','กำลังพิมพ์เอกสาร ADJ…')}>พิมพ์ A4</Button>
         </div>
       </div>
     </div>
   );
 }
 
-Object.assign(window, { InvoiceList, StockManage, Users, Settings, Products, Customers, Placeholder, AdjDocument, IssueINVModal, AmendINVModal, CnDnDocument, TIVDocModal });
+Object.assign(window, { InvoiceList, StockManage, Users, Settings, Products, Customers, Placeholder, AdjDocument, IssueINVModal, AmendINVModal, TIVDocModal });

@@ -225,9 +225,9 @@ window.nextDocNo = function(counterKey, prefix, hasYM) {
 window.fmtMoney = n => '฿' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 window.fmtKg = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:3,maximumFractionDigits:3}) + ' KG';
 /* แสดงจำนวน/น้ำหนัก ตามหน่วยสินค้า — KG ทศนิยม 3 ตำแหน่ง, หน่วยอื่นเป็นจำนวนเต็ม */
-window.fmtQty = (n, unitLabel) => {
+window.fmtQty = (n, unitLabel, unitType) => {
   const u = unitLabel || 'KG';
-  const dec = u === 'KG' ? 3 : 0;
+  const dec = (unitType ? unitType === 'kg' : u === 'KG') ? 3 : 0;
   return Number(n).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec}) + ' ' + u;
 };
 window.fmtDate = () => { const d=new Date(); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${(d.getFullYear()+543)%100}`; };
@@ -246,7 +246,10 @@ window.unitOf = (code) => {
   return { unitType: p?.unitType || 'kg', unitLabel: p?.unitLabel || 'KG' };
 };
 /* แสดงจำนวน/น้ำหนักของรายการ ตามหน่วยของสินค้านั้นๆ (ดึงจาก code) */
-window.fmtItemQty = (n, code) => window.fmtQty(n, window.unitOf(code).unitLabel);
+window.fmtItemQty = (n, code) => {
+  const { unitType, unitLabel } = window.unitOf(code);
+  return window.fmtQty(n, unitLabel, unitType);
+};
 
 /* Thai baht-to-text (จำนวนเงินเป็นตัวอักษร) */
 window.bahtText = function(amount) {

@@ -1,4 +1,4 @@
-/* StockPro UI Kit — ตัดสต็อก / ขาย (Stock Out) — faithful to original */
+/* NEXflow UI Kit — ตัดสต็อก / ขาย (Stock Out) — faithful to original */
 
 /* Sale type icons as SVGs matching the original */
 const SALE_ICONS = {
@@ -18,10 +18,10 @@ const SALE_TYPES = [
 ];
 
 /* Thermal Receipt popup — white receipt matching printDoc('tiv') layout */
-function ThermalReceipt({ data, onClose, onDone }) {
+function ThermalReceipt({ data, onClose, onDone, toast }) {
   if (!data) return null;
   const co  = window.SP_DATA.company;
-  const usr = window.SP_DATA.user?.name || 'Admin Kanya';
+  const usr = window.SP_DATA.user?.name || 'Admin';
   const isCommercial = data.type === 'Thermal';
   const $   = window.fmtMoney;
   const nf  = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -30,10 +30,9 @@ function ThermalReceipt({ data, onClose, onDone }) {
   const merged = window.mergeInvItems
     ? window.mergeInvItems(data.items || [], Number(data.discount || 0))
     : (data.items || []).map(it => ({ ...it, indivWeight:Number(it.weight||0), scanCount:1, lineDisc:0 }));
-  const totalW = merged.reduce((s,it) => s + (it.indivWeight||0) * (it.scanCount||1), 0);
-
   const net      = Number(data.afterDisc || data.netSale || 0);
   const disc     = Number(data.discount || 0);
+  const billDisc = Number(data.billDiscount || 0);
   const subtotal = Number(data.subtotal || data.grossSale || net + disc || 0);
   const vat      = Number(data.vat7 || data.vat || 0);
   const preVat   = net - vat;
@@ -41,12 +40,14 @@ function ThermalReceipt({ data, onClose, onDone }) {
 
   const DL = { borderBottom:'1px dashed #ccc', margin:'8px 0' };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     /* Increment printCount on the matching saved invoice */
     const st  = window.SP_STATE;
     const inv = st.invoices.find(x => x.no === (data.thermalNo || data.no));
     if (inv) inv.printCount = (inv.printCount || 0) + 1;
+
     window.printDoc('tiv', { ...data, items: data.items });
+    onClose();
   };
 
   return (
@@ -97,44 +98,53 @@ function ThermalReceipt({ data, onClose, onDone }) {
 
             {/* Items */}
             <div style={{ ...DL }} />
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 36px 80px 85px', gap:4, fontSize:10.5, fontWeight:700, color:'#555', paddingBottom:5, borderBottom:'1px solid #ddd', marginBottom:6 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 22px 60px 62px', gap:3, fontSize:10, fontWeight:700, color:'#555', paddingBottom:5, borderBottom:'1px solid #ddd', marginBottom:6 }}>
               <span>รายการ</span><span style={{ textAlign:'right' }}>จำนวน</span>
               <span style={{ textAlign:'right' }}>หน่วยละ</span><span style={{ textAlign:'right' }}>รวมเงิน</span>
             </div>
             {merged.map((it, i) => {
-              const w       = Number(it.indivWeight || it.weight || 0);
-              const p       = Number(it.price || it.price_per_kg || 0);
-              const qty     = it.scanCount || 1;
-              const perPack = w * p;
-              const iDisc   = Number(it.lineDisc || 0);
-              const total   = qty * perPack - iDisc;
+              const w        = Number(it.indivWeight || it.weight || 0);
+              const p        = Number(it.price || it.price_per_kg || 0);
+              const isUnit   = window.unitOf(it.code).unitType === 'unit';
+              const scanCount = it.scanCount || 1;
+              const qty      = isUnit ? w : scanCount;
+              const unitPrice = isUnit ? p : w * p;
+              const iDisc    = Number(it.lineDisc || 0);
+              const total    = (isUnit ? w * p : scanCount * (w * p)) - iDisc;
+              const itNameFull = window.SP_DATA.products.find(pr => pr.code === it.code)?.name || it.name;
               return (
-                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 36px 80px 85px', gap:4, fontSize:12, marginBottom:8, alignItems:'start' }}>
-                  <div>
-                    <div style={{ fontWeight:600, lineHeight:1.4 }}>{it.name}</div>
-                    <div style={{ fontSize:10.5, color:'#888' }}>{w.toFixed(3)} KG · ฿{p}/KG</div>
-                    {iDisc > 0 && <div style={{ fontSize:10.5, color:'#e00' }}>ส่วนลด -{nf(iDisc)}</div>}
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 22px 60px 62px', gap:3, fontSize:10.5, marginBottom:8, alignItems:'start' }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:9.5, fontWeight:600, lineHeight:1.35, wordBreak:'break-word' }}>{itNameFull}</div>
+                    <div style={{ fontSize:8.5, color:'#888' }}>{window.fmtItemQty(w, it.code)} · ฿{p}/{window.unitOf(it.code).unitLabel}</div>
+                    {iDisc > 0 && <div style={{ fontSize:8.5, color:'#e00' }}>ส่วนลด -{nf(iDisc)}</div>}
                   </div>
-                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:12, fontWeight:600 }}>{qty}</div>
-                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:11.5 }}>{nf(perPack)}</div>
-                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:11.5, fontWeight:700 }}>{nf(total)}</div>
+                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:10.5, fontWeight:600 }}>{qty}</div>
+                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:10.5 }}>{nf(unitPrice)}</div>
+                  <div style={{ textAlign:'right', fontFamily:'var(--font-mono)', fontSize:10.5, fontWeight:700 }}>{nf(total)}</div>
                 </div>
               );
             })}
             <div style={{ fontSize:11, color:'#666', borderTop:'1px dashed #ccc', paddingTop:6, marginBottom:6 }}>
-              รายการ: {merged.length} &nbsp;·&nbsp; น้ำหนักรวม: {totalW.toFixed(3)} KG
+              รายการ: {merged.reduce((s,it) => {
+                const w      = Number(it.indivWeight || it.weight || 0);
+                const isUnit = window.unitOf(it.code).unitType === 'unit';
+                return s + (isUnit ? w : (it.scanCount || 1));
+              }, 0)}
             </div>
 
             {/* Totals */}
             <div style={{ ...DL }} />
             {[
               ['รวมเป็นเงิน', nf(subtotal), false],
-              disc > 0 ? ['ส่วนลด', '-' + nf(disc), false] : null,
-              ['รวมทั้งสิ้น', nf(net), true],
+              ...(billDisc > 0 ? [
+                ['ส่วนลดทั้งบิล' + (data.billDiscType==='percent' ? ` (${Number(data.billDiscNum||0).toFixed(1)}%)` : ''), '-' + nf(billDisc), false],
+                ['ส่วนลดรวมทั้งหมด', '-' + nf(disc), false],
+              ] : (disc > 0 ? [['ส่วนลด', '-' + nf(disc), false]] : [])),
             ].filter(Boolean).map(([l, v, bold]) => (
-              <div key={l} style={{ display:'flex', justifyContent:'space-between', fontSize: bold?13.5:12, fontWeight: bold?800:400, marginBottom:3 }}>
-                <span style={{ color: bold?'#18171a':'#555' }}>{l}</span>
-                <span style={{ fontFamily:'var(--font-mono)', color: bold?'#18171a':'#333' }}>{bold?'฿':''}{v}</span>
+              <div key={l} style={{ display:'flex', justifyContent:'space-between', fontSize:12, fontWeight:400, marginBottom:3 }}>
+                <span style={{ color:'#555' }}>{l}</span>
+                <span style={{ fontFamily:'var(--font-mono)', color:'#333' }}>{v}</span>
               </div>
             ))}
             <div style={{ ...DL }} />
@@ -142,13 +152,17 @@ function ThermalReceipt({ data, onClose, onDone }) {
               <span>รวมมูลค่าสินค้า (ก่อน VAT)</span>
               <span style={{ fontFamily:'var(--font-mono)' }}>{nf(preVat)}</span>
             </div>
-            <div style={{ fontSize:11.5, color:'#555', marginBottom:8, display:'flex', justifyContent:'space-between' }}>
+            <div style={{ fontSize:11.5, color:'#555', marginBottom:4, display:'flex', justifyContent:'space-between' }}>
               <span>ภาษีมูลค่าเพิ่ม 7%</span>
               <span style={{ fontFamily:'var(--font-mono)' }}>{nf(vat)}</span>
             </div>
-            <div style={{ fontSize:12.5, fontWeight:700, display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-              <span>{payLabel}</span>
-              <span style={{ fontFamily:'var(--font-mono)', color:'var(--gn)' }}>฿{nf(net)}</span>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:13.5, fontWeight:800, marginBottom:3 }}>
+              <span style={{ color:'#18171a' }}>รวมทั้งสิ้น</span>
+              <span style={{ fontFamily:'var(--font-mono)', color:'#18171a' }}>฿{nf(net)}</span>
+            </div>
+            <div style={{ ...DL }} />
+            <div style={{ fontSize:12, marginBottom:4 }}>
+              <span style={{ color:'#555' }}>ประเภทการชำระเงิน: </span><b>{payLabel}</b>
             </div>
 
             <div style={{ ...DL }} />
@@ -237,6 +251,7 @@ function StockOut({ toast }) {
   const [billDiscType, setBillDiscType] = React.useState('amount'); // 'amount' | 'percent'
   const [billDiscVal, setBillDiscVal]   = React.useState('');
   const [saving, setSaving]             = React.useState(false);
+  const [replacesNo, setReplacesNo]     = React.useState('');
   const [qty, setQty]                   = React.useState(1);
   const inputRef = React.useRef(null);
   const seqRef = React.useRef(0);
@@ -250,12 +265,27 @@ function StockOut({ toast }) {
     if (!parsed) { setStatus('err'); toast('err','บาร์โค้ดไม่ถูกต้อง'); return; }
     setStatus('ok');
     const n = Math.max(1, parseInt(qty) || 1);
-    const add = Array.from({ length: n }, () => ({
-      key: ++seqRef.current, code: parsed.code, name: parsed.prod.name,
-      weight: parsed.weight, price: parsed.prod.sell, stock: parsed.prod.stock,
-      tax: parsed.prod.tax, discType: 'amount', discVal: 0, isnew: true,
-    }));
-    setItems(prev => [...add, ...prev]);
+    const sellPrice = parsed.prod.sell;
+    const saleTax = parsed.prod.tax;
+    if (parsed.unitType === 'unit') {
+      /* สินค้าหน่วยอื่นๆ (ไม่ใช้ KG): รวมจำนวนกับรายการเดิม แสดงบรรทัดเดียว */
+      setItems(prev => {
+        const idx = prev.findIndex(it => it.code === parsed.code);
+        if (idx >= 0) {
+          return prev.map((it,i) => i===idx ? { ...it, weight: it.weight + n*parsed.weight, isnew:true } : it)
+        }
+        return [{ key: ++seqRef.current, code: parsed.code, name: parsed.prod.name,
+          weight: n*parsed.weight, price: sellPrice, stock: parsed.prod.stock,
+          tax: saleTax, discType: 'amount', discVal: 0, isnew: true }, ...prev];
+      });
+    } else {
+      const add = Array.from({ length: n }, () => ({
+        key: ++seqRef.current, code: parsed.code, name: parsed.prod.name,
+        weight: parsed.weight, price: sellPrice, stock: parsed.prod.stock,
+        tax: saleTax, discType: 'amount', discVal: 0, isnew: true,
+      }));
+      setItems(prev => [...add, ...prev]);
+    }
     setBc('');
     setQty(1);
     setTimeout(() => setItems(prev => prev.map(it => ({ ...it, isnew:false }))), 700);
@@ -266,14 +296,25 @@ function StockOut({ toast }) {
   const patchItem = (key, patch) => setItems(prev => prev.map(it => it.key===key ? { ...it, ...patch } : it));
   const updatePrice = (key, val) => patchItem(key, { price: val==='' ? '' : Math.max(0, parseFloat(val)||0) });
   const updateItemDiscVal = (key, val) => patchItem(key, { discVal: val==='' ? 0 : Math.max(0, parseFloat(val)||0) });
+  const updateWeight = (key, val) => patchItem(key, { weight: val==='' ? '' : Math.max(0, parseFloat(val)||0) });
 
-  /* Per-item line math (VAT-inclusive pricing) */
+  /* Per-item line math */
   const lineMath = (it) => {
     const gross = (Number(it.weight)||0) * (Number(it.price)||0);
     const disc = it.discType==='percent' ? gross*(Number(it.discVal)||0)/100 : (Number(it.discVal)||0);
-    const net = Math.max(0, gross - disc);          // รวม (incl VAT)
-    const vat = it.tax==='vat7' ? net * 7/107 : 0;  // VAT in price
-    const preVat = net - vat;                        // ก่อน VAT
+    const base = Math.max(0, gross - disc);
+    let vat, net;
+    if (it.tax === 'vat7') {
+      vat = base * 7 / 107;   // ดึง VAT ออกจากราคารวม
+      net = base;
+    } else if (it.tax === 'vat7_excl') {
+      vat = base * 7 / 100;   // บวก VAT เพิ่ม 7%
+      net = base + vat;
+    } else {
+      vat = 0;
+      net = base;
+    }
+    const preVat = net - vat;
     return { gross, disc, net, vat, preVat };
   };
 
@@ -282,6 +323,7 @@ function StockOut({ toast }) {
   const lineDiscAmt = items.reduce((s,i) => s + lineMath(i).disc, 0);
   const afterLineDisc = items.reduce((s,i) => s + lineMath(i).net, 0);
   const totalW      = items.reduce((s,i) => s + i.weight, 0);
+  const totalItems  = items.reduce((s,it) => s + (window.unitOf(it.code).unitType === 'unit' ? it.weight : 1), 0);
 
   /* Bill-level discount (applied after per-item discounts) */
   const billDiscNum = parseFloat(billDiscVal) || 0;
@@ -291,11 +333,10 @@ function StockOut({ toast }) {
   const afterDisc = Math.max(0, afterLineDisc - billDiscAmt); // final net (incl VAT)
   const discAmt   = lineDiscAmt + billDiscAmt;                // total all discounts
 
-  /* Recompute VAT on final discounted total */
-  const vatRatio = afterLineDisc > 0
-    ? items.reduce((s,i) => s + (i.tax==='vat7'?lineMath(i).net:0), 0) / afterLineDisc
-    : 0;
-  const vat = afterDisc * vatRatio * 7 / 107;
+  /* Recompute VAT on final discounted total (รองรับ vat7, vat7_excl, nonvat) */
+  const totalLineVat  = items.reduce((s,i) => s + lineMath(i).vat, 0);
+  const discRatio     = afterLineDisc > 0 ? afterDisc / afterLineDisc : 1;
+  const vat           = totalLineVat * discRatio;
 
   const doConfirm = () => {
     if (!items.length) { toast('err','ยังไม่มีรายการ'); return; }
@@ -332,6 +373,7 @@ function StockOut({ toast }) {
           vat7:            vat,
           total:           afterDisc,
           payment_method:  pay,
+          ...(replacesNo.trim() ? { replaces_no: replacesNo.trim() } : {}),
           items: items.map(it => ({
             code: it.code, name: it.name, weight: it.weight,
             price: it.price, tax: it.tax || 'vat7',
@@ -346,7 +388,7 @@ function StockOut({ toast }) {
 
       } else {
         /* ── Mock mode: generate เลขใน frontend ── */
-        const ym   = String(now.getFullYear()+543).slice(-4) + String(now.getMonth()+1).padStart(2,'0');
+        const ym   = String(now.getFullYear()) + String(now.getMonth()+1).padStart(2,'0');
         const pad4 = n => String(n).padStart(4,'0');
 
         if (typeInfo.hasInv) {
@@ -372,6 +414,7 @@ function StockOut({ toast }) {
             grossSale: subtotal, discount: discAmt, lineDiscount: lineDiscAmt, billDiscount: billDiscAmt,
             netSale: afterDisc, vatBase: afterDisc - vat, vat7: vat, total: afterDisc,
             pay, status:'paid', voided:false,
+            ...(replacesNo.trim() ? { replaces: replacesNo.trim() } : {}),
           });
         }
         /* mock mode: rebuild dashboard + reports */
@@ -403,7 +446,7 @@ function StockOut({ toast }) {
     setReceipt(receiptData);
     toast('ok', `บันทึก ${invNo} เรียบร้อย`);
     setItems([]); setCustSearch(''); setCustId(null); setIsWalkIn(false);
-    setDiscVal(''); setShowDisc(false); setBillDiscVal('');
+    setDiscVal(''); setShowDisc(false); setBillDiscVal(''); setReplacesNo('');
     setSaving(false);
   };
 
@@ -440,19 +483,6 @@ function StockOut({ toast }) {
             <div style={{ fontSize:11.5, color:'var(--t3)', display:'flex', alignItems:'center', gap:5, marginTop:7 }}>
               <span className="dot"></span>ระบบอ่านรหัสสินค้าและน้ำหนักอัตโนมัติ
             </div>
-            {/* Demo */}
-            <div style={{ marginTop:10, padding:'8px 12px', background:'var(--s2)', borderRadius:'var(--rs)', border:'1px solid var(--bd)' }}>
-              <div style={{ fontSize:11.5, fontWeight:700, color:'var(--t3)', marginBottom:6 }}>ทดลองสแกน:</div>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                {D.demoBarcodes.slice(0,3).map(b => (
-                  <button key={b.code} onClick={() => scan(b.code)}
-                    style={{ padding:'4px 9px', borderRadius:'var(--r4)', background:'#fff', border:'1px solid var(--bd)', fontSize:11.5, cursor:'pointer', textAlign:'left' }}>
-                    <span style={{ fontFamily:'var(--font-mono)', display:'block', fontSize:11.5 }}>{b.code}</span>
-                    <span style={{ color:'var(--t3)', fontSize:10.5 }}>{b.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Items */}
@@ -460,14 +490,14 @@ function StockOut({ toast }) {
           <div className="ch" style={{ padding:'10px 20px' }}>
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <span className="ct-t">รายการสินค้า</span>
-              {items.length > 0 && <span style={{ fontSize:12, fontWeight:600, color:'var(--t3)' }}>· {items.length} รายการ</span>}
+              {items.length > 0 && <span style={{ fontSize:12, fontWeight:600, color:'var(--t3)' }}>· {totalItems} รายการ</span>}
             </div>
             <Button variant="bg2" size="sm" onClick={() => setItems([])}>ล้างทั้งหมด</Button>
           </div>
           <div className="cb" style={{ paddingTop:6 }}>
             {items.length > 0 && (
               <div style={{ display:'grid', gridTemplateColumns:'26px 1fr 80px 84px 84px 26px', gap:8, paddingBottom:7, fontSize:11, fontWeight:700, color:'var(--t3)' }}>
-                <div></div><div>สินค้า / รหัส</div><div style={{ textAlign:'center' }}>สต็อกก่อนตัด</div><div style={{ textAlign:'center' }}>น้ำหนัก (KG)</div><div style={{ textAlign:'center' }}>ราคา/KG</div><div></div>
+                <div></div><div>สินค้า / รหัส</div><div style={{ textAlign:'center' }}>สต็อกก่อนตัด</div><div style={{ textAlign:'center' }}>จำนวน</div><div style={{ textAlign:'center' }}>ราคา/หน่วย</div><div></div>
               </div>
             )}
             <div style={{ maxHeight:'calc(10 * 88px)', overflowY:'auto' }}>
@@ -481,14 +511,27 @@ function StockOut({ toast }) {
                           <div style={{ width:24, height:24, borderRadius:5, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10.5, fontWeight:700, color:'var(--t2)' }}>{items.length-i}</div>
                           <div>
                             <div style={{ fontSize:13, fontWeight:600 }}>{it.name}</div>
-                            <div style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--t3)' }}>รหัส: {it.code} · <span className={'bx '+(it.tax==='vat7'?'xb':'xx')} style={{ fontSize:10, padding:'1px 5px' }}>{it.tax==='vat7'?'VAT Incl.':'Non VAT'}</span></div>
+                            <div style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--t3)' }}>รหัส: {it.code} · <span className={'bx '+(it.tax==='nonvat'?'xx':'xb')} style={{ fontSize:10, padding:'1px 5px' }}>{it.tax==='vat7'?'VAT Incl.':it.tax==='vat7_excl'?'VAT Excl.':'Non VAT'}</span></div>
                           </div>
-                          <div style={{ padding:'4px 6px', background:'var(--gbg)', borderRadius:'var(--rs)', fontSize:12, fontWeight:700, color:'var(--gt)', textAlign:'center' }}>{it.stock.toFixed(3)}</div>
-                          {/* weight (read-only, from scan) */}
-                          <div style={{ padding:'5px 8px', background:'var(--s2)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', fontSize:13, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>{it.weight.toFixed(3)}</div>
+                          <div style={{ padding:'4px 6px', background:'var(--gbg)', borderRadius:'var(--rs)', fontSize:12, fontWeight:700, color:'var(--gt)', textAlign:'center' }}>{window.fmtItemQty(it.stock, it.code)}</div>
+                          {/* weight (read-only, from scale) / qty (editable for non-KG units) */}
+                          {window.unitOf(it.code).unitType === 'unit' ? (
+                            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                              <input type="number" min="0" step="1" value={it.weight}
+                                onChange={e => updateWeight(it.key, e.target.value)} title="แก้ไขจำนวน"
+                                style={{ width:'100%', padding:'5px 8px', border:'1px solid var(--b2)', borderRadius:'var(--rs)', fontSize:13, fontWeight:700, color:'var(--tx)', background:'var(--sur)', textAlign:'center', outline:'none', fontFamily:'inherit' }}
+                                onFocus={e=>{ e.target.style.borderColor='var(--ac)'; e.target.style.boxShadow='0 0 0 3px rgba(59,91,219,.12)'; }}
+                                onBlur={e=>{ e.target.style.borderColor='var(--b2)'; e.target.style.boxShadow='none'; }} />
+                              <span style={{ fontSize:10, color:'var(--t3)', fontWeight:600 }}>{window.unitOf(it.code).unitLabel}</span>
+                            </div>
+                          ) : (
+                            <div style={{ padding:'5px 8px', background:'var(--s2)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', fontSize:13, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>
+                              {window.fmtItemQty(it.weight, it.code)}
+                            </div>
+                          )}
                           {/* editable price */}
                           <input type="number" min="0" step="0.01" value={it.price}
-                            onChange={e => updatePrice(it.key, e.target.value)} title="แก้ไขราคา/KG"
+                            onChange={e => updatePrice(it.key, e.target.value)} title={`แก้ไขราคา/${window.unitOf(it.code).unitLabel}`}
                             style={{ width:'100%', padding:'6px 8px', border:'1px solid var(--b2)', borderRadius:'var(--rs)', fontSize:13, fontWeight:600, color:'var(--tx)', background:'var(--sur)', textAlign:'center', outline:'none', fontFamily:'inherit' }}
                             onFocus={e=>{ e.target.style.borderColor='var(--ac)'; e.target.style.boxShadow='0 0 0 3px rgba(59,91,219,.12)'; e.target.select(); }}
                             onBlur={e=>{ e.target.style.borderColor='var(--b2)'; e.target.style.boxShadow='none'; }} />
@@ -513,7 +556,7 @@ function StockOut({ toast }) {
                           <div style={{ fontSize:11.5, color:'var(--t3)', display:'flex', gap:10, flexWrap:'wrap' }}>
                             {lm.disc > 0 && <span>ส่วนลด: <b style={{ color:'var(--am)' }}>-{window.fmtMoney(lm.disc)}</b></span>}
                             <span>ก่อน VAT: <b style={{ color:'var(--t2)' }}>{window.fmtMoney(lm.preVat)}</b></span>
-                            {it.tax==='vat7' && <span>VAT: <b style={{ color:'var(--pu)' }}>{window.fmtMoney(lm.vat)}</b></span>}
+                            {(it.tax==='vat7'||it.tax==='vat7_excl') && <span>VAT: <b style={{ color:'var(--pu)' }}>{window.fmtMoney(lm.vat)}</b></span>}
                             <span>รวม: <b style={{ color:'var(--gn)' }}>{window.fmtMoney(lm.net)}</b></span>
                           </div>
                         </div>
@@ -528,6 +571,14 @@ function StockOut({ toast }) {
               <label className="fl">หมายเหตุ</label>
               <input type="text" className="fc" value={note} onChange={e=>setNote(e.target.value)} placeholder="หมายเหตุ…" />
             </div>
+            {typeInfo?.hasInv && (
+              <div className="fg" style={{ marginTop:8 }}>
+                <label className="fl">ออกแทนใบ <span style={{ fontWeight:400, color:'var(--t3)' }}>(กรณีออกใบทดแทน)</span></label>
+                <input type="text" className="fc" value={replacesNo} onChange={e=>setReplacesNo(e.target.value)}
+                  placeholder="เช่น TIV-202506-0001 (เว้นว่างถ้าไม่ใช่ใบทดแทน)"
+                  style={{ fontFamily:'var(--font-mono)', fontSize:12.5 }} />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -603,8 +654,10 @@ function StockOut({ toast }) {
                 )}
                 {!isWalkIn && !custId && (
                   <button type="button" onClick={() => { setIsWalkIn(true); setCustSearch(''); setCustId(null); }}
-                    style={{ marginTop:6, width:'100%', padding:'7px', borderRadius:'var(--rs)', border:'1px dashed var(--bd)', background:'transparent', color:'var(--t3)', cursor:'pointer', fontSize:12, fontFamily:'inherit' }}>
-                    + ลูกค้าทั่วไป (ไม่ระบุชื่อ)
+                    style={{ marginTop:8, width:'100%', padding:'10px 14px', borderRadius:'var(--rs)', border:'2px solid var(--ac)', background:'var(--abg)', color:'var(--ac)', cursor:'pointer', fontSize:13.5, fontFamily:'inherit', fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}
+                    onMouseEnter={e=>{ e.currentTarget.style.background='var(--ac)'; e.currentTarget.style.color='#fff'; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.background='var(--abg)'; e.currentTarget.style.color='var(--ac)'; }}>
+                    <span style={{ fontSize:16 }}>👤</span> ระบุเป็นลูกค้าทั่วไป
                   </button>
                 )}
               </div>
@@ -645,8 +698,7 @@ function StockOut({ toast }) {
           </div>
           <div style={{ padding:'12px 14px' }}>
             <div style={{ marginBottom:12 }}>
-              {[['รายการ', items.length+' รายการ', null],
-                ['น้ำหนักรวม', window.fmtKg(totalW), null],
+              {[['รายการ', totalItems+' รายการ', null],
                 ['ราคารวม', window.fmtMoney(subtotal), null],
                 ...(lineDiscAmt > 0 ? [['ส่วนลดรายการ', '-'+window.fmtMoney(lineDiscAmt), 'var(--am)']] : []),
               ].map(([l,v,c], i, arr) => (
