@@ -1,58 +1,41 @@
 /* NEXflow UI Kit — Dashboard (period tabs + tweak-aware) */
 
 const DASH_CSS = `
-  @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(200%)} }
   @keyframes popIn { 0%{ transform:translateY(7px) scale(.8); opacity:0; } 100%{ transform:translateY(0) scale(1); opacity:1; } }
-  @keyframes glowPulse {
-    0%,100% { box-shadow:0 4px 14px rgba(13,146,114,.28); }
-    50%     { box-shadow:0 6px 22px rgba(13,146,114,.5); }
-  }
-  @keyframes donutGlow {
-    0%,100% { filter:drop-shadow(0 0 0 rgba(59,91,219,0)); }
-    50%     { filter:drop-shadow(0 0 6px rgba(59,91,219,.35)); }
-  }
-  .bar-value {
-    font-size:10px; font-weight:800; padding:3px 8px; border-radius:100px;
-    background:var(--sur); border:1px solid var(--bd); color:var(--tx);
-    white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.08);
-    animation: popIn .5s cubic-bezier(.34,1.56,.64,1) both;
-  }
-  .bar-value.top { background:linear-gradient(135deg,#0d9272,#10b894); color:#fff; border-color:transparent; }
-  .bar-seg { transform-origin:bottom center; }
-  .bar-seg:hover { filter:brightness(1.15) saturate(1.1); transform:scaleX(1.06); }
-  .bar-seg.top-bar { animation: glowPulse 2.6s ease-in-out infinite; }
-  .donut-ring { animation: donutGlow 3.2s ease-in-out infinite; }
-  .dash-card { will-change:transform; }
-  .dash-card:hover { box-shadow:0 12px 32px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.05); }
   @keyframes pulseRing {
     0%  { transform:scale(1);   opacity:.7; }
     70% { transform:scale(2.2); opacity:0; }
     100%{ transform:scale(1);   opacity:0; }
   }
-  .dash-kpi {
-    position:relative; overflow:hidden; border-radius:16px;
-    padding:22px 24px 20px; cursor:default;
-    transition:transform .2s ease, box-shadow .2s ease, opacity .5s ease;
+  .bar-value {
+    font-size:10px; font-weight:800; padding:3px 8px; border-radius:100px;
+    background:var(--sur); border:1px solid var(--bd); color:var(--tx);
+    white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,.08);
+    animation: popIn .5s cubic-bezier(.25,1,.5,1) both;
   }
-  .dash-kpi:hover { transform:translateY(-3px); }
-  .dash-kpi-shimmer {
-    position:absolute; top:0; left:-100%; width:60%; height:100%;
-    background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.14) 50%,transparent 100%);
-    animation: shimmer 2.8s ease-in-out infinite; pointer-events:none;
+  .bar-value.top { background:linear-gradient(135deg,#0d9272,#10b894); color:#fff; border-color:transparent; }
+  .bar-seg {
+    transform-origin:bottom center; border-radius:6px 6px 0 0;
+    transition:height .9s cubic-bezier(.25,1,.5,1); cursor:pointer;
+  }
+  .bar-seg:hover { filter:brightness(1.12) saturate(1.05); }
+  .dash-kpi {
+    position:relative; overflow:hidden; border-radius:var(--r-lg);
+    padding:22px 24px 20px; cursor:default;
+    transition:box-shadow .2s ease, opacity .5s ease;
   }
   .dash-card {
     background:var(--sur); border:1px solid var(--bd);
-    border-radius:16px; overflow:hidden;
+    border-radius:var(--r-lg); overflow:hidden; will-change:transform;
     box-shadow:0 2px 12px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.04);
     transition: opacity .45s ease, transform .45s ease;
   }
+  .dash-card:hover { box-shadow:0 12px 32px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.05); }
   .dash-card-h {
     display:flex; align-items:center; justify-content:space-between;
     padding:14px 20px 12px; border-bottom:1px solid var(--bd);
   }
   .dash-card-t { font-size:13px; font-weight:700; color:var(--t2); letter-spacing:.01em; }
-  .bar-seg { border-radius:6px 6px 0 0; transition:height .9s cubic-bezier(.34,1.4,.64,1); cursor:pointer; }
-  .bar-seg:hover { filter:brightness(1.12); }
   .period-tab {
     padding:4px 11px; border-radius:100px; font-size:11.5px; font-weight:700;
     cursor:pointer; border:none; transition:all .15s; background:transparent; color:var(--t3);
@@ -76,9 +59,13 @@ const DASH_CSS = `
   .rev-tooltip {
     position:absolute; pointer-events:none; z-index:20;
     background:rgba(10,10,20,.88); backdrop-filter:blur(14px);
-    color:#fff; border-radius:10px; padding:8px 13px;
+    color:#fff; border-radius:var(--rs); padding:8px 13px;
     white-space:nowrap; box-shadow:0 4px 22px rgba(0,0,0,.3);
     border:1px solid rgba(255,255,255,.12); transform:translateX(-50%);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dash-kpi, .dash-card, .bar-seg, .stock-bar-fill, .seg-arc,
+    .bar-value, .live-dot::after { animation: none !important; transition: none !important; }
   }
 `;
 
@@ -115,7 +102,7 @@ function KpiCard({ label, rawValue, displayFn, sub, gradient, solidColor, icon, 
 
   if (style === 'minimal') {
     return (
-      <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderTop:`3px solid ${solidColor}`, borderRadius:16, padding:'18px 20px', opacity:started?1:0, transform:started?'translateY(0)':'translateY(20px)', transition:`opacity .5s ease ${delay}s, transform .5s ease ${delay}s` }}>
+      <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderTop:`3px solid ${solidColor}`, borderRadius:'var(--r-lg)', padding:'18px 20px', opacity:started?1:0, transform:started?'translateY(0)':'translateY(20px)', transition:`opacity .5s ease ${delay}s, transform .5s ease ${delay}s` }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
           <span style={{ width:28, height:28, borderRadius:8, background:`${solidColor}18`, display:'flex', alignItems:'center', justifyContent:'center', color:solidColor }}><Icon name={icon} size={14} /></span>
           <span style={{ fontSize:12, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em' }}>{label}</span>
@@ -128,12 +115,12 @@ function KpiCard({ label, rawValue, displayFn, sub, gradient, solidColor, icon, 
 
   if (style === 'glass') {
     return (
-      <div style={{ background:'rgba(255,255,255,.07)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', border:'1px solid rgba(255,255,255,.15)', borderRadius:16, padding:'22px 24px 20px', opacity:started?1:0, transform:started?'translateY(0)':'translateY(20px)', transition:`opacity .5s ease ${delay}s, transform .5s ease ${delay}s`, boxShadow:`0 8px 32px ${solidColor}33` }}>
+      <div style={{ background:'rgba(255,255,255,.07)', backdropFilter:'blur(16px)', WebkitBackdropFilter:'blur(16px)', border:'1px solid rgba(255,255,255,.15)', borderRadius:'var(--r-lg)', padding:'22px 24px 20px', opacity:started?1:0, transform:started?'translateY(0)':'translateY(20px)', transition:`opacity .5s ease ${delay}s, transform .5s ease ${delay}s`, boxShadow:`0 8px 32px ${solidColor}33` }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
           <span style={{ fontSize:11.5, fontWeight:700, color:'rgba(255,255,255,.6)', textTransform:'uppercase', letterSpacing:'.08em' }}>{label}</span>
           <span style={{ width:32, height:32, borderRadius:9, background:'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center' }}><Icon name={icon} size={15} style={{ color:'rgba(255,255,255,.9)' }} /></span>
         </div>
-        <div style={{ fontSize:30, fontWeight:800, backgroundImage:`linear-gradient(135deg, #fff 30%, ${solidColor})`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', letterSpacing:'-.8px', lineHeight:1 }}>{displayFn(v)}</div>
+        <div style={{ fontSize:30, fontWeight:800, color:'#fff', letterSpacing:'-.8px', lineHeight:1 }}>{displayFn(v)}</div>
         <div style={{ marginTop:8, fontSize:12, color:'rgba(255,255,255,.5)' }}>{sub}</div>
       </div>
     );
@@ -142,7 +129,6 @@ function KpiCard({ label, rawValue, displayFn, sub, gradient, solidColor, icon, 
   // Default: gradient
   return (
     <div className="dash-kpi" style={{ background:gradient, boxShadow:`0 8px 32px ${solidColor}44`, opacity:started?1:0, transform:started?'translateY(0)':'translateY(20px)', transition:`opacity .5s ease ${delay}s, transform .5s ease ${delay}s` }}>
-      <div className="dash-kpi-shimmer"></div>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
         <span style={{ fontSize:11.5, fontWeight:700, color:'rgba(255,255,255,.75)', textTransform:'uppercase', letterSpacing:'.08em' }}>{label}</span>
         <span style={{ width:32, height:32, borderRadius:9, background:'rgba(255,255,255,.2)', display:'flex', alignItems:'center', justifyContent:'center' }}><Icon name={icon} size={15} style={{ color:'#fff' }} /></span>
@@ -471,15 +457,15 @@ function Dashboard({ setPage }) {
           </div>
           <div style={{ padding:'14px 16px' }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:14 }}>
-              <div style={{ background:'var(--gbg)', borderRadius:10, padding:'10px 12px' }}>
+              <div style={{ background:'var(--gbg)', borderRadius:'var(--r)', padding:'10px 12px' }}>
                 <div style={{ fontSize:10.5, fontWeight:700, color:'var(--gt)', textTransform:'uppercase', letterSpacing:'.05em' }}>{t('stock_health_value')}</div>
                 <div style={{ fontSize:15, fontWeight:800, color:'var(--gt)', marginTop:3, letterSpacing:'-.4px' }}>{(stockValue/1000).toFixed(0)}k ฿</div>
               </div>
-              <div style={{ background:'var(--ambg)', borderRadius:10, padding:'10px 12px' }}>
+              <div style={{ background:'var(--ambg)', borderRadius:'var(--r)', padding:'10px 12px' }}>
                 <div style={{ fontSize:10.5, fontWeight:700, color:'var(--amt)', textTransform:'uppercase', letterSpacing:'.05em' }}>{t('stock_health_low')}</div>
                 <div style={{ fontSize:15, fontWeight:800, color:'var(--amt)', marginTop:3 }}>{lowStock.length} {t('stock_health_items')}</div>
               </div>
-              <div style={{ background: outOfStock.length > 0 ? 'var(--rbg)' : 'var(--s2)', borderRadius:10, padding:'10px 12px' }}>
+              <div style={{ background: outOfStock.length > 0 ? 'var(--rbg)' : 'var(--s2)', borderRadius:'var(--r)', padding:'10px 12px' }}>
                 <div style={{ fontSize:10.5, fontWeight:700, color: outOfStock.length > 0 ? 'var(--rd)' : 'var(--t3)', textTransform:'uppercase', letterSpacing:'.05em' }}>{t('stock_health_out')}</div>
                 <div style={{ fontSize:15, fontWeight:800, color: outOfStock.length > 0 ? 'var(--rd)' : 'var(--t3)', marginTop:3 }}>{outOfStock.length} {t('stock_health_items')}</div>
               </div>
@@ -530,7 +516,7 @@ function Dashboard({ setPage }) {
                   <td style={{ padding:'11px 14px' }}><Badge kind={r.type} /></td>
                   <td style={{ padding:'11px 14px', fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t3)' }}>{r.code}</td>
                   <td style={{ padding:'11px 14px', fontWeight:600 }}>{r.prod}</td>
-                  <td style={{ padding:'11px 14px' }}>{r.w.toFixed(1)} KG</td>
+                  <td style={{ padding:'11px 14px' }}>{window.fmtItemQty(r.w, r.code)}</td>
                   <td style={{ padding:'11px 14px', fontWeight:800, color:r.val?'var(--gn)':'var(--t3)' }}>{r.val?window.fmtMoney(r.val):'—'}</td>
                   <td style={{ padding:'11px 14px', fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{r.inv}</td>
                 </tr>

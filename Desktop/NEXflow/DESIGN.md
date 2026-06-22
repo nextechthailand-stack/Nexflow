@@ -66,6 +66,7 @@ typography:
     fontWeight: 400
     letterSpacing: "0.07em"
 rounded:
+  hero: "16px"
   surface: "12px"
   control: "8px"
   chip: "4px"
