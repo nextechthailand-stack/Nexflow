@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>StockPro — UI Kit</title>
+<base href="/ui_kits/nexflow/">
+<title>NexFlow</title>
+<link rel="icon" type="image/png" href="../../assets/nexflow-logo.png">
 <link rel="stylesheet" href="kit.css">
 <style>
   html,body,#root{height:100%}
@@ -14,9 +16,25 @@
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="data.js"></script>
+<script src="i18n.js"></script>
 <script src="api.js"></script>
 </head>
 <body>
+<div id="nf-debug" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#1a0000;color:#ff6b6b;padding:24px;font-family:monospace;font-size:13px;overflow:auto;z-index:99999;white-space:pre-wrap;word-break:break-all;"></div>
+<script>
+(function(){
+  var d = document.getElementById('nf-debug');
+  function show(msg){ d.style.display='block'; d.textContent += msg + '\n'; }
+  window.__nfLog = show;
+  window.onerror = function(msg,src,line,col,err){
+    show('❌ ERROR: ' + msg + '\n   at: ' + src + ':' + line + ':' + col + (err?'\n   stack: '+err.stack:''));
+    return false;
+  };
+  window.addEventListener('unhandledrejection',function(e){
+    show('⚠️ Unhandled promise: ' + (e.reason||e));
+  });
+})();
+</script>
 <div id="root"></div>
 
 <script type="text/babel" src="tweaks-panel.jsx"></script>
@@ -65,13 +83,55 @@ const DENSITY_CSS = {
 
 const { useCallback } = React;
 
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{ padding:32, fontFamily:'monospace', background:'#fff0f0', color:'#c00', minHeight:'100vh', overflow:'auto' }}>
+          <h2 style={{ fontFamily:'sans-serif' }}>❌ เกิดข้อผิดพลาด (Render Error)</h2>
+          <pre style={{ whiteSpace:'pre-wrap', wordBreak:'break-all', fontSize:13, background:'#fff', padding:16, border:'1px solid #f99', borderRadius:8 }}>{String(this.state.err)}</pre>
+          <pre style={{ whiteSpace:'pre-wrap', fontSize:11, color:'#888', marginTop:12 }}>{this.state.err && this.state.err.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [, tr] = useLang();
   const [authed, setAuthed] = React.useState(false);
   const [page, setPage] = React.useState('dashboard');
   const [invoice, setInvoice] = React.useState(null);
   const [toasts, setToasts] = React.useState([]);
   const [dbReady, setDbReady] = React.useState(null); // null=loading, true=DB, false=mock
+  const [apiInput, setApiInput] = React.useState(() => localStorage.getItem('nexflow_api_base') || 'http://localhost:3001');
+
+  /* Sync URL path + tab title with current page */
+  const PAGE_PATHS = {
+    dashboard: 'dashboard', 'stock-in': 'grn', 'stock-out': 'sell',
+    invoices: 'invoices', reports: 'reports', 'stock-manage': 'stock',
+    products: 'products', customers: 'customers', users: 'users', settings: 'settings',
+  };
+  const PAGE_TITLES = {
+    dashboard: 'Dashboard', 'stock-in': 'รับสินค้า (GRN)', 'stock-out': 'ตัดสต็อก / ขาย',
+    invoices: 'ใบกำกับภาษี', reports: 'รายงาน', 'stock-manage': 'จัดการสต็อก',
+    products: 'สินค้า', customers: 'ลูกค้า', users: 'ผู้ใช้งาน', settings: 'ตั้งค่า',
+  };
+  React.useEffect(() => {
+    if (!authed) {
+      document.title = 'NexFlow';
+      history.replaceState(null, '', '/login');
+      return;
+    }
+    const path = PAGE_PATHS[page] || page;
+    const name = PAGE_TITLES[page] || page;
+    document.title = 'NexFlow | ' + name;
+    history.replaceState(null, '', '/' + path);
+  }, [authed, page]);
 
   /* รอ API init */
   React.useEffect(() => {
@@ -130,12 +190,50 @@ function App() {
     );
   }
 
+  /* Database connection failed — block app entirely (no mock-data fallback) */
+  if (dbReady === false) {
+    const saveAndReload = () => {
+      const url = apiInput.trim().replace(/\/+$/, '');
+      if (url) { localStorage.setItem('nexflow_api_base', url); }
+      location.reload();
+    };
+    return (
+      <div style={{ height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'var(--bg)', gap:16, fontFamily:'var(--font-sans)', padding:24, textAlign:'center' }}>
+        <div style={{ fontSize:40 }}>⚠️</div>
+        <div style={{ color:'var(--tx)', fontSize:17, fontWeight:700 }}>ไม่สามารถเชื่อมต่อฐานข้อมูลได้</div>
+        <div style={{ color:'var(--t2)', fontSize:13.5, maxWidth:420, lineHeight:1.7 }}>
+          ตรวจสอบว่า API server และ PostgreSQL กำลังทำงานอยู่<br/>
+          หรือเปลี่ยน Server URL ด้านล่างแล้วกด "บันทึกและลองใหม่"
+        </div>
+        <div style={{ display:'flex', gap:8, width:'100%', maxWidth:420 }}>
+          <input value={apiInput} onChange={e => setApiInput(e.target.value)}
+            placeholder="http://192.168.33.253:3001"
+            style={{ flex:1, padding:'9px 12px', borderRadius:8, border:'1px solid var(--bd,#ddd)', fontSize:13, fontFamily:'monospace', background:'var(--sur,#fff)', color:'var(--tx)', outline:'none' }} />
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={saveAndReload}
+            style={{ padding:'10px 24px', borderRadius:8, background:'var(--ac,#3b5bdb)', color:'#fff', fontSize:14, fontWeight:700, border:'none', cursor:'pointer', fontFamily:'inherit' }}>
+            บันทึกและลองใหม่
+          </button>
+          <button onClick={() => location.reload()}
+            style={{ padding:'10px 24px', borderRadius:8, background:'var(--s2,#f0f0f0)', color:'var(--t1,#111)', fontSize:14, fontWeight:600, border:'1px solid var(--bd,#ddd)', cursor:'pointer', fontFamily:'inherit' }}>
+            ลองใหม่
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id="sp-root" style={{ ...themeVars, height:'100vh', overflow:'hidden', background:'var(--bg)' }}>
       {!authed ? (
-        <Login onLogin={() => {
+        <Login onLogin={(user) => {
+          if (user) {
+            const initials = (user.name || '').trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+            Object.assign(window.SP_DATA.user, { name: user.name, role: user.role, username: user.username, initials });
+          }
           setAuthed(true);
-          toast('ok', dbReady ? '✅ เชื่อมต่อ DB สำเร็จ — ยินดีต้อนรับ Admin Kanya' : 'ยินดีต้อนรับ Admin Kanya (mock data)');
+          toast('ok', `✅ ${tr('login_success')} ${user?.name || ''}`);
         }} />
       ) : (
         <React.Fragment>
@@ -182,7 +280,7 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
 </body>
 </html>

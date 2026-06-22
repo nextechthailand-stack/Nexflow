@@ -1,4 +1,4 @@
-/* NEXflow UI Kit — Extras: InvoiceList, StockManage (with grouped movement), Users, Settings, Products, Customers */
+﻿/* NEXflow UI Kit — Extras: InvoiceList, StockManage (with grouped movement), Users, Settings, Products, Customers */
 
 /* ── Shared pagination utilities (used by all list-heavy components) ── */
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -437,16 +437,16 @@ function InvoiceList({ toast }) {
   return (
     <div>
       <div className="tabs">
-        <div className={'tab'+(tab==='list'?' on':'')} onClick={()=>setTab('list')}>รายการใบกำกับภาษี</div>
-        <div className={'tab'+(tab==='void'?' on':'')} style={{ color:'var(--rd)' }} onClick={()=>setTab('void')}>
+        <button type="button" className={'tab'+(tab==='list'?' on':'')} onClick={()=>setTab('list')}>รายการใบกำกับภาษี</button>
+        <button type="button" className={'tab'+(tab==='void'?' on':'')} style={{ color:'var(--rd)' }} onClick={()=>setTab('void')}>
           <Icon name="x-circle" size={13} style={{ marginRight:4 }}/>ยกเลิกใบเสร็จ
-        </div>
-        <div className={'tab'+(tab==='daily'?' on':'')} onClick={()=>setTab('daily')}>สรุปการออกใบกำกับภาษี</div>
-        <div className={'tab'+(tab==='audit'?' on':'')} onClick={()=>{setTab('audit');setAuditLog([...window.SP_STATE.auditLog]);}}
+        </button>
+        <button type="button" className={'tab'+(tab==='daily'?' on':'')} onClick={()=>setTab('daily')}>สรุปการออกใบกำกับภาษี</button>
+        <button type="button" className={'tab'+(tab==='audit'?' on':'')} onClick={()=>{setTab('audit');setAuditLog([...window.SP_STATE.auditLog]);}}
           style={{ color: tab==='audit'?'var(--pu)':undefined }}>
           📋 Audit Trail
           {auditLog.length > 0 && <span style={{ marginLeft:5, background:'var(--pu)', color:'#fff', borderRadius:100, fontSize:10, fontWeight:800, padding:'1px 6px' }}>{auditLog.length}</span>}
-        </div>
+        </button>
       </div>
 
       {/* ── Daily summary tab ── */}
@@ -696,7 +696,7 @@ function InvoiceList({ toast }) {
                     window.SP_API.logPrint('INV', a4Modal.no).then(()=>refresh()).catch(()=>{});
                   }
                 }}>พิมพ์{(a4Modal.printCount||0)>0?' (สำเนา)':' (ต้นฉบับ)'}</Button>
-                <div className="md-x" onClick={()=>setA4Modal(null)}>✕</div>
+                <button type="button" className="md-x" aria-label="ปิด" onClick={()=>setA4Modal(null)}>✕</button>
               </div>
             </div>
             <div className="md-b" style={{ background:'#e8e7e2', padding:'16px', overflowX:'auto' }}>
@@ -957,7 +957,7 @@ function InvoiceList({ toast }) {
                   (voidDetail.items||[]).map((it,i)=>[i+1,it.code,it.name,Number(it.weight).toFixed(2),it.price,window.fmtMoney(it.weight*it.price)]),
                   `ลูกค้า: ${voidDetail.custName} · วันที่: ${voidDetail.dateDisplay}`
                 )}>PDF</Button>
-                <div className="md-x" onClick={()=>setVoidDetail(null)}>✕</div>
+                <button type="button" className="md-x" aria-label="ปิด" onClick={()=>setVoidDetail(null)}>✕</button>
               </div>
             </div>
             <div className="md-b">
@@ -1498,11 +1498,11 @@ function StockManage({ toast }) {
   return (
     <div>
       <div className="tabs">
-        <div className={'tab'+(tab==='balance'?' on':'')} onClick={()=>setTab('balance')}>รายงานสินค้าคงเหลือ</div>
-        <div className={'tab'+(tab==='movement'?' on':'')} onClick={()=>setTab('movement')}>รายงานความเคลื่อนไหวสต็อก</div>
-        <div className={'tab'+(tab==='adjust'?' on':'')} onClick={()=>setTab('adjust')}>ปรับปรุงสต็อก</div>
-        <div className={'tab'+(tab==='adjlog'?' on':'')} onClick={()=>setTab('adjlog')}>รายงานการปรับปรุง</div>
-        <div className={'tab'+(tab==='grn'?' on':'')} onClick={()=>setTab('grn')}>รายงานรับเข้าสินค้า (GRN)</div>
+        <button type="button" className={'tab'+(tab==='balance'?' on':'')} onClick={()=>setTab('balance')}>รายงานสินค้าคงเหลือ</button>
+        <button type="button" className={'tab'+(tab==='movement'?' on':'')} onClick={()=>setTab('movement')}>รายงานความเคลื่อนไหวสต็อก</button>
+        <button type="button" className={'tab'+(tab==='adjust'?' on':'')} onClick={()=>setTab('adjust')}>ปรับปรุงสต็อก</button>
+        <button type="button" className={'tab'+(tab==='adjlog'?' on':'')} onClick={()=>setTab('adjlog')}>รายงานการปรับปรุง</button>
+        <button type="button" className={'tab'+(tab==='grn'?' on':'')} onClick={()=>setTab('grn')}>รายงานรับเข้าสินค้า (GRN)</button>
       </div>
 
       {/* ── Tab: ยอดคงเหลือ ── */}
@@ -2311,7 +2311,7 @@ function StockManage({ toast }) {
           <div className="md" style={{ width:600 }}>
             <div className="md-h">
               <span className="md-t">ใบกำกับภาษี · {docModal.data?.no}</span>
-              <div className="md-x" onClick={()=>setDocModal(null)}>✕</div>
+              <button type="button" className="md-x" aria-label="ปิด" onClick={()=>setDocModal(null)}>✕</button>
             </div>
             <div className="md-b">
               {docModal.type==='inv' && docModal.data && (() => {
@@ -2490,7 +2490,7 @@ function Users({ toast }) {
       {showModal && (
         <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
           <div className="md" style={{ width:500 }}>
-            <div className="md-h"><span className="md-t">เพิ่มผู้ใช้งานใหม่</span><div className="md-x" onClick={()=>setShowModal(false)}>✕</div></div>
+            <div className="md-h"><span className="md-t">เพิ่มผู้ใช้งานใหม่</span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setShowModal(false)}>✕</button></div>
             <div className="md-b" style={{ display:'flex', flexDirection:'column', gap:0 }}>
               <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'14px 16px', marginBottom:14, border:'1px solid var(--bd)' }}>
                 <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', marginBottom:10, letterSpacing:.4, textTransform:'uppercase' }}>ข้อมูลบัญชี</div>
@@ -2536,7 +2536,7 @@ function Users({ toast }) {
           <div className="md" style={{ width:500 }}>
             <div className="md-h">
               <span className="md-t">แก้ไขผู้ใช้งาน</span>
-              <div className="md-x" onClick={()=>setEditModal(null)}>✕</div>
+              <button type="button" className="md-x" aria-label="ปิด" onClick={()=>setEditModal(null)}>✕</button>
             </div>
             <div className="md-b" style={{ display:'flex', flexDirection:'column', gap:0 }}>
               {/* ── info bar ── */}
@@ -2792,9 +2792,9 @@ function Settings({ toast }) {
 
       <div className="stg-tabs">
         {TABS.map(t => (
-          <div key={t.key} className={'stg-tab'+(tab===t.key?' on':'')} onClick={()=>setTab(t.key)}>
+          <button type="button" key={t.key} className={'stg-tab'+(tab===t.key?' on':'')} onClick={()=>setTab(t.key)}>
             <Icon name={t.icon} size={14} />{t.label}
-          </div>
+          </button>
         ))}
         <div style={{ marginLeft:'auto' }}>
           <Button variant="bp" icon={saving?undefined:'check'} className={'stg-save'+(justSaved?' ok':'')} onClick={saveSettings} disabled={saving}
@@ -3255,7 +3255,7 @@ function Products({ toast }) {
       {editProd && (
         <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditProd(null)}>
           <div className="md" style={{ width:500 }}>
-            <div className="md-h"><span className="md-t">แก้ไขสินค้า <span style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--t2)' }}>{editProd.code}</span></span><div className="md-x" onClick={()=>setEditProd(null)}>✕</div></div>
+            <div className="md-h"><span className="md-t">แก้ไขสินค้า <span style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--t2)' }}>{editProd.code}</span></span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setEditProd(null)}>✕</button></div>
             <div className="md-b">
               <div className="gr c2">
                 <Field label="หมวดหมู่">
@@ -3309,7 +3309,7 @@ function Products({ toast }) {
       {showAdd && (
         <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
           <div className="md" style={{ width:500 }}>
-            <div className="md-h"><span className="md-t">เพิ่มสินค้าใหม่</span><div className="md-x" onClick={()=>setShowAdd(false)}>✕</div></div>
+            <div className="md-h"><span className="md-t">เพิ่มสินค้าใหม่</span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setShowAdd(false)}>✕</button></div>
             <div className="md-b">
               <div className="gr c2">
                 <Field label="รหัสสินค้า" required><input className="fc" value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))} placeholder="000007" maxLength={6} style={{ fontFamily:'var(--font-mono)' }} /></Field>
@@ -3373,7 +3373,7 @@ function ImportResultModal({ result, entityLabel, onClose }) {
       <div className="md" style={{ width:620 }}>
         <div className="md-h">
           <span className="md-t">ผลการ Import {entityLabel}</span>
-          <div className="md-x" onClick={onClose}>✕</div>
+          <button type="button" className="md-x" aria-label="ปิด" onClick={onClose}>✕</button>
         </div>
         <div className="md-b">
           {/* Summary chips */}
@@ -3618,7 +3618,7 @@ function Customers({ toast }) {
       {showAdd && (
         <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
           <div className="md" style={{ width:480 }}>
-            <div className="md-h"><span className="md-t">เพิ่มลูกค้าใหม่</span><div className="md-x" onClick={()=>setShowAdd(false)}>✕</div></div>
+            <div className="md-h"><span className="md-t">เพิ่มลูกค้าใหม่</span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setShowAdd(false)}>✕</button></div>
             <div className="md-b">
               <div className="gr c2">
                 <Field label="รหัสลูกค้า" required><input className="fc" value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))} placeholder="CUS006" style={{fontFamily:'var(--font-mono)'}}/></Field>
@@ -3650,7 +3650,7 @@ function Customers({ toast }) {
           <div className="md" style={{ width:480 }}>
             <div className="md-h">
               <span className="md-t">แก้ไขลูกค้า — <span style={{ fontFamily:'var(--font-mono)', color:'var(--ac)' }}>{editModal.code}</span></span>
-              <div className="md-x" onClick={()=>setEditModal(null)}>✕</div>
+              <button type="button" className="md-x" aria-label="ปิด" onClick={()=>setEditModal(null)}>✕</button>
             </div>
             <div className="md-b">
               <div className="gr c2">
@@ -3838,7 +3838,7 @@ function IssueINVModal({ tiv, onConfirm, onClose, toast }) {
       <div className="md" style={{ width: 520 }}>
         <div className="md-h">
           <span className="md-t">ออกใบกำกับภาษีเต็มรูปแบบ</span>
-          <div className="md-x" onClick={onClose}>✕</div>
+          <button type="button" className="md-x" aria-label="ปิด" onClick={onClose}>✕</button>
         </div>
         <div className="md-b">
           {/* Header: INV number + date side by side */}
@@ -4090,7 +4090,7 @@ function AmendINVModal({ inv, onConfirm, onClose, toast }) {
       <div className="md" style={{ width:'min(600px,97vw)' }}>
         <div className="md-h">
           <span className="md-t">แก้ไขหัวใบกำกับภาษี — <span style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{inv.no}</span></span>
-          <div className="md-x" onClick={onClose}>✕</div>
+          <button type="button" className="md-x" aria-label="ปิด" onClick={onClose}>✕</button>
         </div>
 
         <div className="md-b">
@@ -4213,7 +4213,7 @@ function TIVDocModal({ tiv, onClose, toast, onVoid }) {
           <span className="md-t">{tiv.voided ? 'ใบเสร็จยกเลิก' : 'ใบเสร็จรับเงิน / ใบกำกับภาษีแบบย่อ'}</span>
           <div style={{ display:'flex', gap:8 }}>
             <Button variant={tiv.voided ? 'bg2' : 'bp'} size="sm" icon="printer" onClick={handlePrint}>พิมพ์{tiv.voided?' (สำเนายกเลิก)':''}</Button>
-            <div className="md-x" onClick={onClose}>✕</div>
+            <button type="button" className="md-x" aria-label="ปิด" onClick={onClose}>✕</button>
           </div>
         </div>
 
@@ -4388,7 +4388,7 @@ function AdjDocument({ doc, onClose, toast }) {
           </span>
           <div style={{ display:'flex', gap:8 }}>
             <Button variant="bp" size="sm" icon="printer" onClick={()=>toast('info','กำลังพิมพ์เอกสาร ADJ…')}>พิมพ์</Button>
-            <div className="md-x" onClick={onClose}>✕</div>
+            <button type="button" className="md-x" aria-label="ปิด" onClick={onClose}>✕</button>
           </div>
         </div>
 

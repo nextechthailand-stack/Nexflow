@@ -38,7 +38,7 @@ const DASH_CSS = `
   .dash-card-t { font-size:13px; font-weight:700; color:var(--t2); letter-spacing:.01em; }
   .period-tab {
     padding:4px 11px; border-radius:100px; font-size:11.5px; font-weight:700;
-    cursor:pointer; border:none; transition:all .15s; background:transparent; color:var(--t3);
+    cursor:pointer; border:none; transition:all .15s; background:transparent; color:var(--t2);
     font-family:inherit;
   }
   .period-tab.active { background:var(--ac); color:#fff; box-shadow:0 2px 8px rgba(59,91,219,.3); }

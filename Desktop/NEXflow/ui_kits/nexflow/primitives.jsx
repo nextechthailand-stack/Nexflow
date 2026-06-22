@@ -1,4 +1,4 @@
-/* StockPro UI Kit — primitives: Icon (inlined Lucide paths from source), Button, Badge, Card, Field, StatCard */
+/* NEXflow UI Kit — primitives: Icon (inlined Lucide paths from source), Button, Badge, Card, Field, StatCard */
 const { useState, useEffect, useRef } = React;
 
 // Exact Lucide paths as inlined in the source app
@@ -22,6 +22,8 @@ const ICONS = {
   printer: <g><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></g>,
   cube: <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>,
   coin: <g><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></g>,
+  sun: <g><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></g>,
+  moon: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>,
 };
 
 function Icon({ name, size = 16, className = '', style = {} }) {
@@ -32,8 +34,8 @@ function Icon({ name, size = 16, className = '', style = {} }) {
   );
 }
 
-function Button({ variant = 'bp', size, children, icon, ...rest }) {
-  const cls = ['btn', variant, size === 'sm' ? 'bsm' : size === 'lg' ? 'blg' : ''].filter(Boolean).join(' ');
+function Button({ variant = 'bp', size, children, icon, className: extraCls, ...rest }) {
+  const cls = ['btn', variant, size === 'sm' ? 'bsm' : size === 'lg' ? 'blg' : '', extraCls].filter(Boolean).join(' ');
   return <button className={cls} {...rest}>{icon && <Icon name={icon} size={15} />}{children}</button>;
 }
 
@@ -47,8 +49,8 @@ function Badge({ kind, children }) {
   return <span className={'bx ' + (m ? m.c : 'xx')}>{children || (m && m.t) || kind}</span>;
 }
 
-function StockPill({ stock, min }) {
-  let c = 'spg', t = window.fmtKg(stock);
+function StockPill({ stock, min, unitLabel }) {
+  let c = 'spg', t = window.fmtQty(stock, unitLabel);
   if (stock <= 0) { c = 'spr'; t = 'หมดสต็อก'; }
   else if (stock < min) { c = 'spa'; }
   return <span className={'sp ' + c}>{t}</span>;
@@ -75,11 +77,30 @@ function StatCard({ icon, iconTone = 'ac', label, value, valueTone, sub }) {
   );
 }
 
-function Field({ label, required, optional, children, value, ...rest }) {
+function Field({ label, required, optional, children, value, id, ...rest }) {
+  const fid = id || (label ? 'f-' + String(label).replace(/\s+/g, '-').replace(/[^\w-]/g, '').slice(0, 40) : undefined);
   return (
     <div className="fg">
-      {label && <label className="fl">{label} {required && <span className="req">*</span>}{optional && <span style={{color:'var(--t3)',fontWeight:400,fontSize:'11.5px'}}> (ไม่บังคับ)</span>}</label>}
-      {children || <input className="fc" value={value} {...rest} />}
+      {label && <label className="fl" htmlFor={fid}>{label} {required && <span className="req">*</span>}{optional && <span style={{color:'var(--t3)',fontWeight:400,fontSize:'11.5px'}}> (ไม่บังคับ)</span>}</label>}
+      {children || <input id={fid} className="fc" value={value} {...rest} />}
+    </div>
+  );
+}
+
+/* DateField — input type="date" ที่บังคับแสดงผลเป็น dd/mm/yyyy เสมอ ไม่ว่า OS/browser
+   จะตั้ง locale แบบไหน (native date input ปกติแสดงตาม OS locale เช่น mm/dd/yyyy) */
+function DateField({ value, onChange, style, className = 'fc', ...rest }) {
+  let display = '';
+  if (value) {
+    const [y, m, d] = String(value).split('-');
+    if (y && m && d) display = `${d}/${m}/${y}`;
+  }
+  return (
+    <div className="date-field" style={style}>
+      <input type="date" className={className} value={value || ''} onChange={onChange} {...rest} />
+      <span className="date-field-display" style={{ color: display ? 'var(--tx)' : 'var(--t3)' }}>
+        {display || 'dd/mm/yyyy'}
+      </span>
     </div>
   );
 }
@@ -94,4 +115,4 @@ function CompanyLogo({ size = 40, radius = 11 }) {
   );
 }
 
-Object.assign(window, { Icon, Button, Badge, StockPill, Card, StatCard, Field, CompanyLogo });
+Object.assign(window, { Icon, Button, Badge, StockPill, Card, StatCard, Field, CompanyLogo, DateField });
