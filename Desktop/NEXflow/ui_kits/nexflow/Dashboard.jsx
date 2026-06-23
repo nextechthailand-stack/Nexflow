@@ -190,6 +190,7 @@ function Dashboard({ setPage }) {
   const pd = D.revenue[period];
   const maxRev = Math.max(...pd.values);
   const totalRev = pd.values.reduce((a, b) => a + b, 0);
+  const avgRev = pd.values.length > 0 ? totalRev / pd.values.length : 0;
   const showBarLabels = pd.values.length <= 12;
   const showTopLabels = pd.values.length <= 12;
   /* For 30-bar (1m), show every 5th x-label */
@@ -335,12 +336,19 @@ function Dashboard({ setPage }) {
                   </span>
                 </div>
               ))}
+              {/* Average reference line */}
+              {maxRev > 0 && avgRev > 0 && (
+                <div style={{ position:'absolute', left:38, right:0, top:`${(100 - (avgRev/maxRev)*100).toFixed(2)}%`, borderTop:'1.5px dashed var(--am)', opacity:.6, pointerEvents:'none', zIndex:2 }}>
+                  <span style={{ position:'absolute', right:2, top:-11, fontSize:8.5, color:'var(--am)', fontWeight:800, background:'var(--ambg)', padding:'1px 6px', borderRadius:4, letterSpacing:'.04em', lineHeight:1.6 }}>AVG</span>
+                </div>
+              )}
               {/* Bar columns */}
               <div style={{ position:'absolute', inset:'0 0 0 38px', display:'flex', alignItems:'flex-end', gap: pd.values.length > 20 ? 2 : 6 }}>
                 {pd.values.map((v, i) => {
                   const pct = maxRev > 0 ? Math.round((v / maxRev) * 100) : 0;
                   const isLast = i === pd.values.length - 1;
                   const isHov  = hovBar === i;
+                  const isAboveAvg = v >= avgRev && v > 0;
                   return (
                     <div key={period+i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:0 }}
                       onMouseEnter={() => setHovBar(i)}
@@ -355,7 +363,9 @@ function Dashboard({ setPage }) {
                           ? 'linear-gradient(180deg,#0d9272,#10b894)'
                           : isHov
                             ? 'linear-gradient(180deg,#7b9cff,#2b4fd4)'
-                            : 'linear-gradient(180deg,var(--ac),#5b7cff)',
+                            : isAboveAvg
+                              ? 'linear-gradient(180deg,var(--ac),#5b7cff)'
+                              : 'linear-gradient(180deg,rgba(59,91,219,.55),rgba(91,124,255,.42))',
                         boxShadow: isHov
                           ? '0 4px 18px rgba(59,91,219,.45)'
                           : isLast ? '0 4px 14px rgba(13,146,114,.3)' : 'none',
@@ -436,12 +446,14 @@ function Dashboard({ setPage }) {
             )}
             {D.topSellers.slice().sort((a,b)=>b.revenue-a.revenue).map((s, i) => {
               const topRev = Math.max(...D.topSellers.map(x=>x.revenue), 1);
-              const colors = ['var(--gn)','var(--ac)','rgba(59,91,219,.6)','rgba(59,91,219,.35)'];
+              const colors = ['var(--gn)', '#5b7cff', 'rgba(91,124,255,.52)', 'rgba(91,124,255,.28)'];
+              const badgeBg = i===0 ? 'var(--grad-brand)' : i===1 ? 'var(--abg)' : 'var(--s2)';
+              const badgeFg = i===0 ? '#fff' : i===1 ? 'var(--ac)' : 'var(--t2)';
               return (
                 <div key={i} style={{ marginBottom:14 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                      <span style={{ width:22, height:22, borderRadius:7, background:i===0?'var(--grad-brand)':'var(--s2)', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:i===0?'#fff':'var(--t2)', flexShrink:0 }}>{i+1}</span>
+                      <span style={{ width:22, height:22, borderRadius:7, background:badgeBg, display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, color:badgeFg, flexShrink:0 }}>{i+1}</span>
                       <span style={{ fontSize:13, fontWeight:600 }}>{s.name}</span>
                     </div>
                     <div style={{ textAlign:'right' }}>
