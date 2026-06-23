@@ -251,7 +251,6 @@ function StockOut({ toast }) {
   const [billDiscType, setBillDiscType] = React.useState('amount'); // 'amount' | 'percent'
   const [billDiscVal, setBillDiscVal]   = React.useState('');
   const [saving, setSaving]             = React.useState(false);
-  const [replacesNo, setReplacesNo]     = React.useState('');
   const [qty, setQty]                   = React.useState(1);
   const inputRef = React.useRef(null);
   const seqRef = React.useRef(0);
@@ -373,7 +372,6 @@ function StockOut({ toast }) {
           vat7:            vat,
           total:           afterDisc,
           payment_method:  pay,
-          ...(replacesNo.trim() ? { replaces_no: replacesNo.trim() } : {}),
           items: items.map(it => ({
             code: it.code, name: it.name, weight: it.weight,
             price: it.price, tax: it.tax || 'vat7',
@@ -414,7 +412,6 @@ function StockOut({ toast }) {
             grossSale: subtotal, discount: discAmt, lineDiscount: lineDiscAmt, billDiscount: billDiscAmt,
             netSale: afterDisc, vatBase: afterDisc - vat, vat7: vat, total: afterDisc,
             pay, status:'paid', voided:false,
-            ...(replacesNo.trim() ? { replaces: replacesNo.trim() } : {}),
           });
         }
         /* mock mode: rebuild dashboard + reports */
@@ -571,14 +568,6 @@ function StockOut({ toast }) {
               <label className="fl">หมายเหตุ</label>
               <input type="text" className="fc" value={note} onChange={e=>setNote(e.target.value)} placeholder="หมายเหตุ…" />
             </div>
-            {typeInfo?.hasInv && (
-              <div className="fg" style={{ marginTop:8 }}>
-                <label className="fl">ออกแทนใบ <span style={{ fontWeight:400, color:'var(--t3)' }}>(กรณีออกใบทดแทน)</span></label>
-                <input type="text" className="fc" value={replacesNo} onChange={e=>setReplacesNo(e.target.value)}
-                  placeholder="เช่น TIV-202506-0001 (เว้นว่างถ้าไม่ใช่ใบทดแทน)"
-                  style={{ fontFamily:'var(--font-mono)', fontSize:12.5 }} />
-              </div>
-            )}
           </div>
         </div>
       </div>
