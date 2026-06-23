@@ -443,7 +443,7 @@ function StockOut({ toast }) {
     setReceipt(receiptData);
     toast('ok', `บันทึก ${invNo} เรียบร้อย`);
     setItems([]); setCustSearch(''); setCustId(null); setIsWalkIn(false);
-    setDiscVal(''); setShowDisc(false); setBillDiscVal(''); setReplacesNo('');
+    setDiscVal(''); setShowDisc(false); setBillDiscVal('');
     setSaving(false);
   };
 
