@@ -509,7 +509,10 @@ function StockIn({ toast, setPage }) {
               const label = isKg ? `${p.stock.toFixed(3)} KG` : `${Math.round(p.stock)} ${p.unitLabel || 'pcs'}`;
               return (
                 <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'1px solid var(--bd)' }}>
-                  <div style={{ fontSize:12, fontWeight:600, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:8, color:'var(--tx)' }}>{p.name}</div>
+                  <div style={{ flex:1, minWidth:0, paddingRight:8, overflow:'hidden' }}>
+                    <div style={{ fontSize:11, color:'var(--t3)', fontFamily:'var(--font-mono)', letterSpacing:'0.04em' }}>{p.code}</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:'var(--tx)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</div>
+                  </div>
                   <span style={{ fontSize:11.5, fontWeight:700, color:clr, flexShrink:0 }}>{label}</span>
                 </div>
               );
