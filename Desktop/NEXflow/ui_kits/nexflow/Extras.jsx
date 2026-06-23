@@ -1270,13 +1270,20 @@ function StockManage({ toast }) {
       } else if (adjType === 'decrease') {
         adj = -newScanned;                                   // − always
       } else {
-        adj = +newScanned.toFixed(4); // recount: before=0, adj = total counted
+        /* recount: kg = ห้าม merge (แต่ละชิ้นแยกแถว), non-kg = merge สะสม */
+        const isKg = window.unitOf ? window.unitOf(parsed.code).unitType === 'kg' : true;
+        if (isKg) {
+          adj = +(parsed.weight - prod.stock).toFixed(4);
+          return [...prev, { key: Date.now() + Math.random(), code: parsed.code, name: prod.name,
+                             before: prod.stock, scannedTotal: parsed.weight, adj, mode:'scan' }];
+        }
+        adj = +(newScanned - prod.stock).toFixed(4);
       }
-      if (existing) {
+      if (existing && window.unitOf(parsed.code).unitType !== 'kg') {
         return prev.map(it => it.code === parsed.code ? { ...it, scannedTotal: newScanned, adj } : it);
       }
       return [...prev, { key: Date.now(), code: parsed.code, name: prod.name,
-                         before: 0, scannedTotal: newScanned, adj, mode:'scan' }];
+                         before: prod.stock, scannedTotal: newScanned, adj, mode:'scan' }];
     });
     setAdjBc('');
     setTimeout(() => adjBcRef.current && adjBcRef.current.focus(), 0);
@@ -1289,19 +1296,18 @@ function StockManage({ toast }) {
     if (!prod || isNaN(qty)) { toast('err','กรุณาเลือกสินค้าและใส่ปริมาณ'); return; }
 
     if (adjType === 'recount') {
-      // qty = จำนวนที่นับได้จริง — เริ่มนับจาก 0
       const newCount = Math.max(0, qty);
-      if (newCount <= 0) { toast('err','กรุณาใส่จำนวนที่นับได้'); return; }
-      const adj = +newCount.toFixed(4);
+      const adj = +(newCount - prod.stock).toFixed(4);
+      if (adj === 0) { toast('err','จำนวนที่นับได้เท่ากับยอดเดิม — ไม่มีผลต่างให้ปรับ'); return; }
       setAdjItems(prev => {
         const existing = prev.find(it => it.code === prod.code);
         if (existing) {
           return prev.map(it => it.code === prod.code
-            ? { ...it, newCount, adj: +newCount.toFixed(4) }
+            ? { ...it, newCount, adj: +(newCount - it.before).toFixed(4) }
             : it);
         }
         return [...prev, { key: Date.now(), code: prod.code, name: prod.name,
-                           before: 0, scannedTotal: null, newCount, adj, mode:'search' }];
+                           before: prod.stock, scannedTotal: null, newCount, adj, mode:'search' }];
       });
     } else {
       if (qty === 0) { toast('err','กรุณาเลือกสินค้าและใส่ปริมาณ'); return; }
@@ -1342,8 +1348,29 @@ function StockManage({ toast }) {
     const st  = window.SP_STATE;
     const now = new Date();
 
+    /* For recount: aggregate kg rows by code (each barcode scan = separate row) */
+    let itemsToResolve = adjItems;
+    if (adjType === 'recount') {
+      const kgIdx = {};
+      const agg = [];
+      adjItems.forEach(it => {
+        const isKg = window.unitOf ? window.unitOf(it.code).unitType === 'kg' : true;
+        if (isKg && kgIdx[it.code] !== undefined) {
+          const prev = agg[kgIdx[it.code]];
+          const totalScanned = +((prev.scannedTotal || 0) + (it.scannedTotal || 0)).toFixed(4);
+          const prod = D.products.find(p => p.code === it.code);
+          const stock = prod ? prod.stock : it.before;
+          agg[kgIdx[it.code]] = { ...prev, scannedTotal: totalScanned, adj: +(totalScanned - stock).toFixed(4) };
+        } else {
+          if (isKg) kgIdx[it.code] = agg.length;
+          agg.push({ ...it });
+        }
+      });
+      itemsToResolve = agg;
+    }
+
     /* Resolve before/after */
-    const resolvedItems = adjItems.map(it => {
+    const resolvedItems = itemsToResolve.map(it => {
       const prod   = D.products.find(p => p.code === it.code);
       const before = prod ? prod.stock : it.before;
       const after  = Math.max(0, before + it.adj);
@@ -1953,25 +1980,31 @@ function StockManage({ toast }) {
                             <div>
                               <div style={{ fontSize:13, fontWeight:600 }}>{it.name}</div>
                               <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t3)', marginTop:1 }}>{it.code}
-                                {it.mode==='scan' && it.scannedTotal!=null && <span style={{ marginLeft:6, fontSize:10, background:'var(--abg)', color:'var(--ac)', padding:'1px 5px', borderRadius:4 }}>นับได้ {it.scannedTotal.toFixed(2)} KG</span>}
+                                {it.mode==='scan' && it.scannedTotal!=null && <span style={{ marginLeft:6, fontSize:10, background:'var(--abg)', color:'var(--ac)', padding:'1px 5px', borderRadius:4 }}>นับได้ {it.scannedTotal.toFixed(3)} KG</span>}
                               </div>
                             </div>
-                            <div style={{ padding:'4px 6px', background:'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>{it.before.toFixed(2)}</div>
+                            <div style={{ padding:'4px 6px', background:'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>{it.before.toFixed(3)}</div>
                             {/* Editable field: newCount (recount) or adj delta (inc/dec) */}
-                            {adjType === 'recount' ? (
+                            {adjType === 'recount' ? (() => {
+                              const isKgScan = it.mode === 'scan' && (window.unitOf ? window.unitOf(it.code).unitType === 'kg' : true);
+                              const displayVal = it.newCount != null ? it.newCount : +(it.before + it.adj).toFixed(3);
+                              return (
                               <div style={{ position:'relative' }}>
                                 <input type="number" min="0" step="0.001"
-                                  value={it.newCount != null ? it.newCount : Math.max(0, it.before + it.adj)}
-                                  onChange={e => {
+                                  value={displayVal}
+                                  readOnly={isKgScan}
+                                  onChange={isKgScan ? undefined : e => {
                                     const nc = parseFloat(e.target.value) || 0;
                                     const adj = +(nc - it.before).toFixed(4);
                                     setAdjItems(prev => prev.map(x => x.key===it.key ? {...x, newCount:nc, adj} : x));
                                   }}
-                                  title="ระบุจำนวนสต็อกที่นับได้จริง (KG)"
-                                  style={{ width:'100%', padding:'5px 8px', border:'1px solid var(--b2)', borderRadius:'var(--rs)', fontSize:13, fontWeight:800, color:'var(--tx)', background:'var(--s2)', textAlign:'center', outline:'none', fontFamily:'inherit' }}
-                                  onFocus={e=>{ e.target.style.borderColor='var(--ac)'; e.target.select(); }}
-                                  onBlur={e=>{ e.target.style.borderColor='var(--b2)'; }} />
+                                  title={isKgScan ? 'น้ำหนักจากบาร์โค้ด — ไม่สามารถแก้ไขได้' : 'ระบุจำนวนสต็อกที่นับได้จริง'}
+                                  style={{ width:'100%', padding:'5px 8px', border:'1px solid var(--b2)', borderRadius:'var(--rs)', fontSize:13, fontWeight:800, color:'var(--tx)', background: isKgScan ? 'var(--s3)' : 'var(--s2)', textAlign:'center', outline:'none', fontFamily:'inherit', cursor: isKgScan ? 'default' : 'text' }}
+                                  onFocus={isKgScan ? undefined : e=>{ e.target.style.borderColor='var(--ac)'; e.target.select(); }}
+                                  onBlur={isKgScan ? undefined : e=>{ e.target.style.borderColor='var(--b2)'; }} />
                               </div>
+                              );
+                            })()
                             ) : (
                               <div style={{ position:'relative' }}>
                                 <input type="number" step="0.001" value={adjType==='decrease'?Math.abs(it.adj):it.adj}
@@ -1992,7 +2025,7 @@ function StockManage({ toast }) {
                             {/* Last column: for recount = ผลต่าง colored; for +/- = สต็อกหลัง */}
                             {adjType === 'recount' ? (
                               <div style={{ padding:'4px 6px', background:isInc?'var(--gbg)':isDec?'var(--rbg)':'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:800, color:isInc?'var(--gn)':isDec?'var(--rd)':'var(--t3)', textAlign:'center', letterSpacing:'.02em' }}>
-                                {it.adj>0?'+':''}{it.adj!==0?it.adj.toFixed(2):'±0.000'}
+                                {it.adj>0?'+':''}{it.adj!==0?it.adj.toFixed(3):'±0.000'}
                               </div>
                             ) : (
                               <div style={{ padding:'4px 6px', background:isLow?'var(--ambg)':'var(--gbg)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:isLow?'var(--amt)':'var(--gt)', textAlign:'center' }}>{after.toFixed(2)}</div>
