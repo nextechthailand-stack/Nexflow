@@ -1068,9 +1068,9 @@ function InvoiceList({ toast }) {
 
 /* ── Adjustment type config ── */
 const ADJ_TYPES = [
-  { id:'recount',  label:'นับสต็อก',    icon:'🔍', desc:'เปรียบเทียบสต็อกจริงกับระบบ (ผลต่าง +/-)' },
-  { id:'increase', label:'เพิ่มสต็อก+', icon:'▲',  desc:'พบสต็อกเพิ่ม / รับคืน / แก้ไข' },
-  { id:'decrease', label:'ลดสต็อก−',   icon:'▼',  desc:'หมดอายุ / เสียหาย / สูญหาย' },
+  { id:'recount',  label:'นับสต็อก',    iconName:'search',    desc:'เปรียบเทียบสต็อกจริงกับระบบ (ผลต่าง +/-)' },
+  { id:'increase', label:'เพิ่มสต็อก+', icon:'▲',             desc:'พบสต็อกเพิ่ม / รับคืน / แก้ไข' },
+  { id:'decrease', label:'ลดสต็อก−',   icon:'▼',             desc:'หมดอายุ / เสียหาย / สูญหาย' },
 ];
 const REASON_BY_TYPE = {
   recount:  ['นับสต็อกใหม่','ตรวจนับประจำงวด','ตรวจนับประจำปี','อื่นๆ'],
@@ -2036,7 +2036,7 @@ function StockManage({ toast }) {
                     {ADJ_TYPES.map(t => (
                       <div key={t.id} onClick={() => setAdjType(t.id)}
                         style={{ padding:'8px 12px', border:`2px solid ${adjType===t.id?(t.id==='increase'?'var(--gn)':t.id==='decrease'?'var(--rd)':'var(--ac)'):'var(--bd)'}`, borderRadius:'var(--rs)', cursor:'pointer', background:adjType===t.id?(t.id==='increase'?'var(--gbg)':t.id==='decrease'?'var(--rbg)':'var(--abg)'):'var(--sur)', transition:'all .13s', display:'flex', alignItems:'center', gap:10 }}>
-                        <span style={{ fontSize:16 }}>{t.icon}</span>
+                        {t.iconName ? <Icon name={t.iconName} size={16} /> : <span style={{ fontSize:16 }}>{t.icon}</span>}
                         <div>
                           <div style={{ fontSize:13, fontWeight:700, color:adjType===t.id?(t.id==='increase'?'var(--gn)':t.id==='decrease'?'var(--rd)':'var(--ac)'):'var(--tx)' }}>{t.label}</div>
                           <div style={{ fontSize:11, color:'var(--t3)' }}>{t.desc}</div>
