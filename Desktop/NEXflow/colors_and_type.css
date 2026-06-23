@@ -85,7 +85,7 @@
      The signature mark: a blue→violet gradient used on the logo,
      active nav item icon, avatars, and primary CTA washes.       */
   --grad-brand: linear-gradient(135deg, #5b7cff, #8b5cf6);
-  --grad-login: linear-gradient(160deg, #f0f9ff 0%, #bfdbfe 45%, #e0e7ff 100%);
+  --grad-login: #e0f2fe;
   --brand-blue:   #5b7cff;
   --brand-violet: #8b5cf6;
 
