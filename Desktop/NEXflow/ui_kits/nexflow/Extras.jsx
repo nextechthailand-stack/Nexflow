@@ -1270,20 +1270,20 @@ function StockManage({ toast }) {
       } else if (adjType === 'decrease') {
         adj = -newScanned;                                   // − always
       } else {
-        /* recount: kg = ห้าม merge (แต่ละชิ้นแยกแถว), non-kg = merge สะสม */
+        /* recount: kg = ห้าม merge (แต่ละชิ้นแยกแถว), non-kg = merge สะสม, before=0 */
         const isKg = window.unitOf ? window.unitOf(parsed.code).unitType === 'kg' : true;
         if (isKg) {
-          adj = +(parsed.weight - prod.stock).toFixed(4);
+          adj = +parsed.weight.toFixed(4);
           return [...prev, { key: Date.now() + Math.random(), code: parsed.code, name: prod.name,
-                             before: prod.stock, scannedTotal: parsed.weight, adj, mode:'scan' }];
+                             before: 0, scannedTotal: parsed.weight, adj, mode:'scan' }];
         }
-        adj = +(newScanned - prod.stock).toFixed(4);
+        adj = +newScanned.toFixed(4);
       }
       if (existing && window.unitOf(parsed.code).unitType !== 'kg') {
         return prev.map(it => it.code === parsed.code ? { ...it, scannedTotal: newScanned, adj } : it);
       }
       return [...prev, { key: Date.now(), code: parsed.code, name: prod.name,
-                         before: prod.stock, scannedTotal: newScanned, adj, mode:'scan' }];
+                         before: 0, scannedTotal: newScanned, adj, mode:'scan' }];
     });
     setAdjBc('');
     setTimeout(() => adjBcRef.current && adjBcRef.current.focus(), 0);
@@ -1297,17 +1297,17 @@ function StockManage({ toast }) {
 
     if (adjType === 'recount') {
       const newCount = Math.max(0, qty);
-      const adj = +(newCount - prod.stock).toFixed(4);
-      if (adj === 0) { toast('err','จำนวนที่นับได้เท่ากับยอดเดิม — ไม่มีผลต่างให้ปรับ'); return; }
+      if (newCount <= 0) { toast('err','กรุณาใส่จำนวนที่นับได้'); return; }
+      const adj = +newCount.toFixed(4);
       setAdjItems(prev => {
         const existing = prev.find(it => it.code === prod.code);
         if (existing) {
           return prev.map(it => it.code === prod.code
-            ? { ...it, newCount, adj: +(newCount - it.before).toFixed(4) }
+            ? { ...it, newCount, adj: +newCount.toFixed(4) }
             : it);
         }
         return [...prev, { key: Date.now(), code: prod.code, name: prod.name,
-                           before: prod.stock, scannedTotal: null, newCount, adj, mode:'search' }];
+                           before: 0, scannedTotal: null, newCount, adj, mode:'search' }];
       });
     } else {
       if (qty === 0) { toast('err','กรุณาเลือกสินค้าและใส่ปริมาณ'); return; }
@@ -1958,9 +1958,8 @@ function StockManage({ toast }) {
                   </div>
                 ) : (
                   <div>
-                    <div style={{ display:'grid', gridTemplateColumns:'26px 1fr 80px 96px 80px 28px', gap:8, paddingBottom:8, fontSize:11, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'26px 1fr 96px 80px 28px', gap:8, paddingBottom:8, fontSize:11, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>
                       <div></div><div>สินค้า / รหัส</div>
-                      <div style={{textAlign:'center'}}>เดิม (KG)</div>
                       <div style={{textAlign:'center'}}>{adjType==='recount'?'นับได้ใหม่':'ปรับ ▲/▼'} (KG)</div>
                       <div style={{textAlign:'center'}}>{adjType==='recount'?'ผลต่าง':'หลังปรับ'}</div>
                       <div></div>
@@ -1976,7 +1975,7 @@ function StockManage({ toast }) {
                         const isKgScan   = it.mode === 'scan' && (window.unitOf ? window.unitOf(it.code).unitType === 'kg' : true);
                         const displayVal = it.newCount != null ? it.newCount : +(it.before + it.adj).toFixed(3);
                         return (
-                          <div key={it.key} style={{ display:'grid', gridTemplateColumns:'26px 1fr 80px 96px 80px 28px', gap:8, alignItems:'center', padding:'9px 12px', background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', marginBottom:6 }}>
+                          <div key={it.key} style={{ display:'grid', gridTemplateColumns:'26px 1fr 96px 80px 28px', gap:8, alignItems:'center', padding:'9px 12px', background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', marginBottom:6 }}>
                             <div style={{ width:24, height:24, borderRadius:5, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--t2)' }}>{i+1}</div>
                             <div>
                               <div style={{ fontSize:13, fontWeight:600 }}>{it.name}</div>
@@ -1984,7 +1983,6 @@ function StockManage({ toast }) {
                                 {it.mode==='scan' && it.scannedTotal!=null && <span style={{ marginLeft:6, fontSize:10, background:'var(--abg)', color:'var(--ac)', padding:'1px 5px', borderRadius:4 }}>นับได้ {it.scannedTotal.toFixed(3)} KG</span>}
                               </div>
                             </div>
-                            <div style={{ padding:'4px 6px', background:'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>{it.before.toFixed(3)}</div>
                             {/* Editable field: newCount (recount) or adj delta (inc/dec) */}
                             {adjType === 'recount' ? (
                               <div style={{ position:'relative' }}>
