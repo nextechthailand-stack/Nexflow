@@ -1372,9 +1372,13 @@ function StockManage({ toast }) {
     /* Resolve before/after */
     const resolvedItems = itemsToResolve.map(it => {
       const prod   = D.products.find(p => p.code === it.code);
-      const before = prod ? prod.stock : it.before;
-      const after  = Math.max(0, before + it.adj);
-      return { ...it, before, after };
+      const before = prod ? prod.stock : (it.before || 0);
+      /* recount: adj = scannedTotal (absolute count from 0), so after = scannedTotal */
+      const after  = adjType === 'recount'
+        ? Math.max(0, it.scannedTotal != null ? it.scannedTotal : Math.abs(it.adj))
+        : Math.max(0, before + it.adj);
+      const adj    = +(after - before).toFixed(4);
+      return { ...it, before, after, adj };
     });
 
     /* ── บันทึกลง DB (ถ้าไม่สำเร็จ จะ fall through ไปบันทึกแบบ local แทน ไม่ทิ้งข้อมูล) ── */
