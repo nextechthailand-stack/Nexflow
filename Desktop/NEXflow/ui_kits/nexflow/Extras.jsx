@@ -1270,13 +1270,13 @@ function StockManage({ toast }) {
       } else if (adjType === 'decrease') {
         adj = -newScanned;                                   // − always
       } else {
-        adj = +(newScanned - (existing?.before ?? prod.stock)).toFixed(4); // signed recount
+        adj = +newScanned.toFixed(4); // recount: before=0, adj = total counted
       }
       if (existing) {
         return prev.map(it => it.code === parsed.code ? { ...it, scannedTotal: newScanned, adj } : it);
       }
       return [...prev, { key: Date.now(), code: parsed.code, name: prod.name,
-                         before: prod.stock, scannedTotal: newScanned, adj, mode:'scan' }];
+                         before: 0, scannedTotal: newScanned, adj, mode:'scan' }];
     });
     setAdjBc('');
     setTimeout(() => adjBcRef.current && adjBcRef.current.focus(), 0);
@@ -1289,19 +1289,19 @@ function StockManage({ toast }) {
     if (!prod || isNaN(qty)) { toast('err','กรุณาเลือกสินค้าและใส่ปริมาณ'); return; }
 
     if (adjType === 'recount') {
-      // qty = จำนวนที่นับได้จริง (ยอดใหม่ทั้งหมด) — adj คือผลต่างที่คำนวณจากของเดิม
+      // qty = จำนวนที่นับได้จริง — เริ่มนับจาก 0
       const newCount = Math.max(0, qty);
-      const adj = +(newCount - prod.stock).toFixed(4);
-      if (adj === 0) { toast('err','จำนวนที่นับได้เท่ากับยอดเดิม — ไม่มีผลต่างให้ปรับ'); return; }
+      if (newCount <= 0) { toast('err','กรุณาใส่จำนวนที่นับได้'); return; }
+      const adj = +newCount.toFixed(4);
       setAdjItems(prev => {
         const existing = prev.find(it => it.code === prod.code);
         if (existing) {
           return prev.map(it => it.code === prod.code
-            ? { ...it, newCount, adj: +(newCount - it.before).toFixed(4) }
+            ? { ...it, newCount, adj: +newCount.toFixed(4) }
             : it);
         }
         return [...prev, { key: Date.now(), code: prod.code, name: prod.name,
-                           before: prod.stock, scannedTotal: null, newCount, adj, mode:'search' }];
+                           before: 0, scannedTotal: null, newCount, adj, mode:'search' }];
       });
     } else {
       if (qty === 0) { toast('err','กรุณาเลือกสินค้าและใส่ปริมาณ'); return; }
