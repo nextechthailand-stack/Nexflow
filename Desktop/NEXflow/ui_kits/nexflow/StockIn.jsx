@@ -547,9 +547,7 @@ function StockIn({ toast, setPage }) {
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:8 }}>
                   <span style={{ color:'var(--t2)' }}>จำนวน</span><span style={{ fontWeight:700 }}>{totalItems} รายการ</span>
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:8 }}>
-                  <span style={{ color:'var(--t2)' }}>น้ำหนักรวม</span><span style={{ fontWeight:700, color:'var(--ac)' }}>{window.fmtKg(totalW)}</span>
-                </div>
+
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:14, borderTop:'1px solid var(--bd)', paddingTop:8, fontWeight:800 }}>
                   <span>มูลค่าสินค้า</span><span style={{ color:'var(--gn)' }}>{window.fmtMoney(totalC)}</span>
                 </div>
