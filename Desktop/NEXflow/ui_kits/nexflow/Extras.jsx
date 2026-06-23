@@ -2610,7 +2610,7 @@ const SETTINGS_CSS = `
 @keyframes stgPop{0%{transform:scale(.9);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
 @keyframes stgSpin{to{transform:rotate(360deg)}}
 .stg-wrap{animation:stgFadeUp .35s ease both}
-.stg-hero{position:relative;overflow:hidden;border-radius:var(--r);padding:22px 26px;margin-bottom:18px;background:var(--grad-brand);color:#fff;box-shadow:var(--sh-brand);display:flex;align-items:center;gap:18px}
+.stg-hero{position:relative;overflow:hidden;border-radius:var(--r);padding:22px 26px;margin-bottom:18px;background:linear-gradient(135deg,#0EA5E9,#38BDF8);color:#fff;box-shadow:0 4px 20px rgba(14,165,233,.35);display:flex;align-items:center;gap:18px}
 .stg-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.16) 45%,transparent 60%);background-size:300px 100%;animation:stgShimmer 3.2s ease-in-out infinite}
 .stg-hero-ic{width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px;font-weight:800;border:1px solid rgba(255,255,255,.25)}
 .stg-hero h2{margin:0;font-size:18px;font-weight:800;letter-spacing:.2px}
@@ -2618,7 +2618,7 @@ const SETTINGS_CSS = `
 .stg-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 .stg-tab{padding:9px 18px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--b2);background:var(--sur);color:var(--t2);transition:all .16s ease;display:flex;align-items:center;gap:7px}
 .stg-tab:hover{border-color:var(--ac);color:var(--ac);transform:translateY(-1px)}
-.stg-tab.on{background:var(--grad-brand);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(91,124,255,.35)}
+.stg-tab.on{background:var(--ac);color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(14,165,233,.35)}
 .stg-pane{animation:stgFadeUp .3s ease both}
 .stg-card{transition:transform .18s ease, box-shadow .18s ease;animation:stgFadeUp .35s ease both}
 .stg-card:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
