@@ -3730,8 +3730,9 @@ function IssueINVModal({ tiv, onConfirm, onClose, toast }) {
 
   const invPfx = (st.docPrefixes?.inv) || 'INV';
   const now    = new Date();
-  const yymm   = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0');
-  const [nextNo, setNextNo] = React.useState(`${invPfx}-${yymm}-????`);
+  const yyyymm = String(now.getFullYear()) + String(now.getMonth() + 1).padStart(2, '0'); // key ใน DB
+  const yymm   = String(now.getFullYear()).slice(-2) + String(now.getMonth() + 1).padStart(2, '0'); // ใส่ในเลขเอกสาร
+  const [nextNo, setNextNo] = React.useState(`${invPfx}${yymm}???`);
 
   React.useEffect(() => {
     const compute = async () => {
@@ -3739,19 +3740,19 @@ function IssueINVModal({ tiv, onConfirm, onClose, toast }) {
       if (window.SP_API) {
         try {
           const rows = await window.SP_API.getCounters();
-          const row  = rows.find(r => r.prefix === invPfx && String(r.year_month) === yymm);
+          const row  = rows.find(r => r.prefix === invPfx && String(r.year_month) === yyyymm);
           if (row) lastSeq = Number(row.last_counter) || 0;
         } catch (e) { /* fallback */ }
       }
       if (lastSeq === 0) {
-        const pat = `${invPfx}-${yymm}-`;
+        const pat = `${invPfx}${yymm}`;
         lastSeq = (st.invoices || [])
           .filter(iv => iv.no && iv.no.startsWith(pat))
           .map(iv => parseInt(iv.no.slice(pat.length), 10))
           .filter(n => !isNaN(n))
           .reduce((m, n) => Math.max(m, n), 0);
       }
-      setNextNo(`${invPfx}-${yymm}-${String(lastSeq + 1).padStart(4, '0')}`);
+      setNextNo(`${invPfx}${yymm}${String(lastSeq + 1).padStart(3, '0')}`);
     };
     compute();
   }, []);
