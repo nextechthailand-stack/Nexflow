@@ -522,9 +522,9 @@ function Dashboard({ setPage }) {
         <div className="tw tw-fit" style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
-              <tr style={{ background:'var(--thd)' }}>
+              <tr>
                 {[t('th_no'),t('th_date'),t('th_channel'),t('th_code'),t('th_product'),t('th_weight'),t('th_value'),t('th_invoice')].map(h => (
-                  <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:13, fontWeight:700, color:'var(--thd-fg)', borderBottom:'1px solid var(--bd)', whiteSpace:'nowrap' }}>{h}</th>
+                  <th key={h} style={{ padding:'9px 14px', textAlign:'left', fontSize:11.5, fontWeight:800, color:'#0f172a', borderBottom:'2px solid #475569', background:'#f1f5f9', whiteSpace:'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>

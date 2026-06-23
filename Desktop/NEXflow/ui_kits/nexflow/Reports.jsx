@@ -204,7 +204,7 @@ function Reports() {
   );
 
   /* ── Shared styles ── */
-  const TH = { padding:'9px 14px', textAlign:'left', fontSize:11.5, fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)', background:'var(--s2)', whiteSpace:'nowrap' };
+  const TH = { padding:'9px 14px', textAlign:'left', fontSize:11.5, fontWeight:800, color:'#0f172a', borderBottom:'2px solid #475569', background:'#f1f5f9', whiteSpace:'nowrap' };
   const THR = { ...TH, textAlign:'right' };
   const TD = { padding:'11px 14px', borderBottom:'1px solid var(--bd)', verticalAlign:'middle' };
   const TDR = { ...TD, textAlign:'right' };
