@@ -15,12 +15,13 @@ function GrnDoc({ grn, onClose }) {
   const preVat    = totalValue - vat;
 
   const mergeMap = {};
-  grn.items.forEach(it => {
-    const key = it.code || it.name;
-    if (!mergeMap[key]) mergeMap[key] = { ...it, packCount:0, totalWeight:0, totalValue:0 };
+  const orderedKeys = [];
+  grn.items.forEach((it, idx) => {
     const isUnit = window.unitOf ? window.unitOf(it.code).unitType === 'unit' : false;
-    /* scanCount บันทึกไว้ใน doSave — ถ้าไม่มี (GRN เก่า) ให้ fallback:
-       unit products → ใช้ weight เป็นจำนวน, kg products → นับ 1 ต่อ entry */
+    /* KG products: show each scan as a separate row; unit products: group by code */
+    const key = isUnit ? (it.code || it.name) : `__kg_${idx}`;
+    if (!mergeMap[key]) { mergeMap[key] = { ...it, packCount:0, totalWeight:0, totalValue:0 }; orderedKeys.push(key); }
+    /* scanCount บันทึกไว้ใน doSave — ถ้าไม่มี (GRN เก่า) ให้ fallback */
     if (it.scanCount != null) {
       mergeMap[key].packCount += Number(it.scanCount);
     } else if (isUnit) {
@@ -31,7 +32,7 @@ function GrnDoc({ grn, onClose }) {
     mergeMap[key].totalWeight += Number(it.weight||0);
     mergeMap[key].totalValue  += Number(it.value||0);
   });
-  const mergedItems = Object.values(mergeMap);
+  const mergedItems = orderedKeys.map(k => mergeMap[k]);
 
   const thStyle = (extra={}) => ({
     padding:'8px 10px', background:ACC, color:'#fff', fontWeight:700,
@@ -268,19 +269,25 @@ function StockIn({ toast, setPage }) {
     setShowConfirm(false);
     const st = window.SP_STATE;
 
-    /* Group items by product code */
-    const grouped = {};
-    items.forEach((it, idx) => {
+    /* KG products: keep each scan as individual row (different weights must stay separate)
+       Unit products: group by code, accumulate count in scanCount */
+    const unitGrouped = {};
+    const grnItems = [];
+    items.forEach(it => {
       const isUnitProd = window.unitOf ? window.unitOf(it.code).unitType === 'unit' : false;
-      if (!grouped[it.code]) grouped[it.code] = { code:it.code, name:it.name,
-        pack_no:`PKG-${String(idx+1).padStart(3,'0')}`, weight:0, cost:it.cost, value:0, tax:it.tax, scanCount:0 };
-      grouped[it.code].weight    += it.weight;
-      grouped[it.code].value     += it.weight * it.cost;
-      /* scanCount = จำนวนหน่วยสำหรับ unit products, จำนวน scan (ถุง) สำหรับ kg */
-      grouped[it.code].scanCount += isUnitProd ? Number(it.weight||0) : 1;
+      if (isUnitProd) {
+        if (!unitGrouped[it.code]) unitGrouped[it.code] = { code:it.code, name:it.name,
+          weight:0, cost:it.cost, value:0, tax:it.tax, scanCount:0 };
+        unitGrouped[it.code].weight    += it.weight;
+        unitGrouped[it.code].value     += it.weight * it.cost;
+        unitGrouped[it.code].scanCount += Number(it.weight||0);
+      } else {
+        grnItems.push({ code:it.code, name:it.name, weight:it.weight,
+          cost:it.cost, value:it.weight * it.cost, tax:it.tax, scanCount:1 });
+      }
     });
-    const grnItems = Object.values(grouped).map((it, i) =>
-      ({ ...it, pack_no:`PKG-${String(i+1).padStart(3,'0')}` }));
+    Object.values(unitGrouped).forEach(it => grnItems.push(it));
+    grnItems.forEach((it, i) => { it.pack_no = `PKG-${String(i+1).padStart(3,'0')}`; });
 
     /* ── บันทึกลง DB ── */
     if (window.SP_API) {
