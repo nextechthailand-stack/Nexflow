@@ -2546,13 +2546,12 @@ function Users({ toast }) {
                 <div className="gr c2">
                   <Field label="รหัสผ่าน" optional>
                     <div style={{ position:'relative' }}>
-                      <input className="fc" type={showPw?'text':'password'} value={form.password} placeholder="ค่าเริ่มต้น 1234" onChange={e=>setForm(f=>({...f,password:e.target.value}))} style={{ paddingRight:40 }} />
+                      <input className="fc" type={showPw?'text':'password'} value={form.password} placeholder="พิมพ์รหัสผ่าน" onChange={e=>setForm(f=>({...f,password:e.target.value}))} style={{ paddingRight:40 }} />
                       <span onClick={()=>setShowPw(s=>!s)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', cursor:'pointer', color:'var(--t3)', fontSize:11.5, userSelect:'none' }}>{showPw?'ซ่อน':'แสดง'}</span>
                     </div>
                   </Field>
                   <Field label="ยืนยันรหัสผ่าน" optional><input className="fc" type={showPw?'text':'password'} value={form.confirmPw} placeholder="พิมพ์รหัสผ่านอีกครั้ง" onChange={e=>setForm(f=>({...f,confirmPw:e.target.value}))} /></Field>
                 </div>
-                <div style={{ fontSize:12, color:'var(--t3)', marginTop:8 }}>หากไม่กำหนดรหัสผ่าน ระบบจะตั้งค่าเริ่มต้นเป็น <b style={{ color:'var(--t2)' }}>1234</b> อัตโนมัติ</div>
               </div>
             </div>
             <div className="md-f">
