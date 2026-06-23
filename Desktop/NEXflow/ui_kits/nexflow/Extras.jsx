@@ -2473,16 +2473,19 @@ function Users({ toast }) {
 
   const doDelete = async () => {
     const u = deleteConfirm; if (!u) return;
+    /* id > INT4 max = local-only record (Date.now() fallback) — no DB row exists */
+    const isLocalOnly = typeof u.id === 'number' && u.id > 2147483647;
     try {
-      if (window.SP_API && typeof window.SP_API.deleteUser === 'function') {
+      if (!isLocalOnly && window.SP_API && typeof window.SP_API.deleteUser === 'function') {
         await window.SP_API.deleteUser(u.id);
       }
       const idx = D.users.findIndex(x => x.id === u.id);
-      if (idx >= 0) D.users[idx].status = 'inactive';
+      if (idx >= 0) isLocalOnly ? D.users.splice(idx, 1) : (D.users[idx].status = 'inactive');
       refreshUsers(); setDeleteConfirm(null);
       toast('ok', `ลบผู้ใช้ ${u.name} เรียบร้อย`);
     } catch (err) {
       toast('err', 'ลบไม่สำเร็จ: ' + err.message);
+      setDeleteConfirm(null);
     }
   };
 
