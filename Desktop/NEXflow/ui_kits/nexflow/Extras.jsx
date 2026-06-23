@@ -1484,8 +1484,8 @@ function StockManage({ toast }) {
       <span style={{ fontSize:12, color:'var(--t3)' }}>ถึง</span>
       <DateField style={{ width:140 }} value={mvTo} onChange={e=>setMvTo(e.target.value)} />
       {(mvFrom||mvTo||mvSearch||mvType!=='all') && <button className="btn bg2 bsm" onClick={()=>{setMvFrom(window.toLocalISODate());setMvTo(window.toLocalISODate());setMvSearch('');setMvType('all');}}>รีเซ็ต</button>}
-      <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('movement.csv',['วันที่','เวลา','เอกสาร','ประเภทรายการ','สินค้า','รหัส','เพิ่ม KG','ลด KG','คงเหลือ'],ledger.map(l=>[l.date,l.time||'',l.ref,l.refType||'',l.prod,l.code,l.type==='in'?l.w.toFixed(4):'',l.type!=='in'?l.w.toFixed(4):'',l.bal.toFixed(4)]))}>CSV</Button>
-      <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานความเคลื่อนไหวสต็อก',['วันที่','เวลา','เอกสาร','ประเภทรายการ','สินค้า','รหัส','เพิ่ม KG','ลด KG','คงเหลือ'],ledger.map(l=>[l.date,l.time||'',l.ref,l.refType||'',l.prod,l.code,l.type==='in'?l.w.toFixed(4):'',l.type!=='in'?l.w.toFixed(4):'',l.bal.toFixed(4)]))}>PDF</Button>
+      <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('movement.csv',['วันที่','เวลา','เอกสาร','ประเภทรายการ','สินค้า','รหัส','เพิ่ม','ลด','คงเหลือ'],ledger.map(l=>[l.date,l.time||'',l.ref,l.refType||'',l.prod,l.code,l.type==='in'?window.fmtItemQty(l.w,l.code):'',l.type!=='in'?window.fmtItemQty(l.w,l.code):'',window.fmtItemQty(l.bal,l.code)]))}>CSV</Button>
+      <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานความเคลื่อนไหวสต็อก',['วันที่','เวลา','เอกสาร','ประเภทรายการ','สินค้า','รหัส','เพิ่ม','ลด','คงเหลือ'],ledger.map(l=>[l.date,l.time||'',l.ref,l.refType||'',l.prod,l.code,l.type==='in'?window.fmtItemQty(l.w,l.code):'',l.type!=='in'?window.fmtItemQty(l.w,l.code):'',window.fmtItemQty(l.bal,l.code)]))}>PDF</Button>
     </div>
   );
 
@@ -1498,12 +1498,12 @@ function StockManage({ toast }) {
       </div>
       <div className="card" style={{ padding:'16px 18px' }}>
         <div style={{ fontSize:12, color:'var(--t2)', marginBottom:6 }}>รับเข้ารวม</div>
-        <div style={{ fontSize:26, fontWeight:800, color:'var(--gn)' }}>{totalIn.toFixed(2)} <span style={{ fontSize:13 }}>KG</span></div>
+        <div style={{ fontSize:26, fontWeight:800, color:'var(--gn)' }}>{ledger.filter(l=>l.type==='in').length} <span style={{ fontSize:13, fontWeight:600 }}>รายการ</span></div>
         <div style={{ fontSize:11, color:'var(--t3)', marginTop:3 }}>incl. Void return</div>
       </div>
       <div className="card" style={{ padding:'16px 18px' }}>
         <div style={{ fontSize:12, color:'var(--t2)', marginBottom:6 }}>ตัดออกรวม</div>
-        <div style={{ fontSize:26, fontWeight:800, color:'var(--rd)' }}>{totalOut.toFixed(2)} <span style={{ fontSize:13 }}>KG</span></div>
+        <div style={{ fontSize:26, fontWeight:800, color:'var(--rd)' }}>{ledger.filter(l=>l.type==='out').length} <span style={{ fontSize:13, fontWeight:600 }}>รายการ</span></div>
       </div>
     </div>
   );
@@ -1649,8 +1649,8 @@ function StockManage({ toast }) {
               <div className="tw"><table>
                 <thead><tr>
                   <th style={TH}>วันที่</th><th style={TH}>เวลา</th><th style={TH}>เอกสาร</th>
-                  <th style={TH}>สินค้า</th><th style={THR}>เพิ่ม (KG)</th>
-                  <th style={THR}>ลด (KG)</th><th style={THR}>จำนวน (KG)</th><th style={THR}>คงเหลือ</th>
+                  <th style={TH}>สินค้า</th><th style={THR}>เพิ่ม</th>
+                  <th style={THR}>ลด</th><th style={THR}>จำนวน</th><th style={THR}>คงเหลือ</th>
                 </tr></thead>
                 <tbody>
                   {ledger.length===0
@@ -1665,11 +1665,11 @@ function StockManage({ toast }) {
                         <div style={{ fontSize:10.5, fontWeight:700, color:l.type==='in'?'var(--gn)':'var(--rd)', marginTop:1 }}>{l.refType}</div>
                       </td>
                       <td style={{ ...TD, fontWeight:600 }}>{l.prod}<br/><span className="mono" style={{ fontSize:10.5, color:'var(--t3)' }}>{l.code}</span></td>
-                      <td style={{ ...TDR, color:'var(--gn)', fontWeight:700 }}>{l.type==='in'?l.w.toFixed(4):'—'}</td>
-                      <td style={{ ...TDR, color:'var(--rd)', fontWeight:700 }}>{l.type==='out'?l.w.toFixed(4):'—'}</td>
-                      <td style={{ ...TDR, fontWeight:700 }}>{l.w.toFixed(4)}</td>
+                      <td style={{ ...TDR, color:'var(--gn)', fontWeight:700 }}>{l.type==='in'?window.fmtItemQty(l.w,l.code):'—'}</td>
+                      <td style={{ ...TDR, color:'var(--rd)', fontWeight:700 }}>{l.type==='out'?window.fmtItemQty(l.w,l.code):'—'}</td>
+                      <td style={{ ...TDR, fontWeight:700 }}>{window.fmtItemQty(l.w,l.code)}</td>
                       <td style={TDR}>
-                        <span style={{ padding:'3px 9px', borderRadius:100, fontSize:12, fontWeight:700, background:l.bal < (D.products.find(p=>p.code===l.code)?.min||0) ? 'var(--ambg)':'var(--gbg)', color:l.bal < (D.products.find(p=>p.code===l.code)?.min||0)?'var(--amt)':'var(--gt)' }}>{l.bal.toFixed(4)}</span>
+                        <span style={{ padding:'3px 9px', borderRadius:100, fontSize:12, fontWeight:700, background:l.bal < (D.products.find(p=>p.code===l.code)?.min||0) ? 'var(--ambg)':'var(--gbg)', color:l.bal < (D.products.find(p=>p.code===l.code)?.min||0)?'var(--amt)':'var(--gt)' }}>{window.fmtItemQty(l.bal,l.code)}</span>
                       </td>
                     </tr>
                   ))}
@@ -1690,8 +1690,8 @@ function StockManage({ toast }) {
                     <th style={TH}>เลขที่เอกสาร</th>
                     <th style={TH}>ประเภทรายการ</th>
                     <th style={{ ...TH, textAlign:'center', width:88 }}>รายการ</th>
-                    <th style={{ ...THR, width:118 }}>รับเข้า (KG)</th>
-                    <th style={{ ...THR, width:118 }}>ตัดออก (KG)</th>
+                    <th style={{ ...THR, width:118 }}>รับเข้า</th>
+                    <th style={{ ...THR, width:118 }}>ตัดออก</th>
                     <th style={{ ...THR, width:128 }}>คงเหลือ</th>
                   </tr>
                 </thead>
@@ -1748,15 +1748,15 @@ function StockManage({ toast }) {
                           </td>
                           <td style={{ padding:'10px 12px', textAlign:'right' }}>
                             <div style={{ fontSize:11, color:'var(--t3)', marginBottom:2 }}>รับเข้ารวม</div>
-                            <div style={{ fontWeight:700, color:'var(--gn)', fontSize:13 }}>{pg.totalIn.toFixed(2)}</div>
+                            <div style={{ fontWeight:700, color:'var(--gn)', fontSize:13 }}>{window.fmtItemQty(pg.totalIn,pg.code)}</div>
                           </td>
                           <td style={{ padding:'10px 12px', textAlign:'right' }}>
                             <div style={{ fontSize:11, color:'var(--t3)', marginBottom:2 }}>ตัดออกรวม</div>
-                            <div style={{ fontWeight:700, color:'var(--rd)', fontSize:13 }}>{pg.totalOut.toFixed(2)}</div>
+                            <div style={{ fontWeight:700, color:'var(--rd)', fontSize:13 }}>{window.fmtItemQty(pg.totalOut,pg.code)}</div>
                           </td>
                           <td style={{ padding:'10px 14px', textAlign:'right' }}>
                             <span style={{ padding:'5px 12px', borderRadius:100, fontSize:13, fontWeight:800, background:isLow?'var(--ambg)':'var(--gbg)', color:isLow?'var(--amt)':'var(--gt)' }}>
-                              {currentBal.toFixed(2)} KG
+                              {window.fmtItemQty(currentBal,pg.code)}
                             </span>
                           </td>
                         </tr>
@@ -1785,14 +1785,14 @@ function StockManage({ toast }) {
                               }
                             </td>
                             <td style={{ padding:'9px 14px', textAlign:'right', color:'var(--gn)', fontWeight:700, whiteSpace:'nowrap' }}>
-                              {doc.type==='in'||doc.type==='adj'?doc.totalW.toFixed(2):'—'}
+                              {doc.type==='in'||doc.type==='adj'?window.fmtItemQty(doc.totalW,pg.code):'—'}
                             </td>
                             <td style={{ padding:'9px 14px', textAlign:'right', color:'var(--rd)', fontWeight:700, whiteSpace:'nowrap' }}>
-                              {doc.type==='out'?doc.totalW.toFixed(2):'—'}
+                              {doc.type==='out'?window.fmtItemQty(doc.totalW,pg.code):'—'}
                             </td>
                             <td style={{ padding:'9px 16px', textAlign:'right', whiteSpace:'nowrap' }}>
                               <span style={{ fontFamily:'var(--font-mono)', fontSize:12.5, fontWeight:700, color:doc.dispBal<(prod?.min||0)?'var(--am)':'var(--tx)' }}>
-                                {doc.dispBal.toFixed(2)}
+                                {window.fmtItemQty(doc.dispBal,pg.code)}
                               </span>
                             </td>
                           </tr>
@@ -1964,7 +1964,7 @@ function StockManage({ toast }) {
                   <div>
                     <div style={{ display:'grid', gridTemplateColumns:'26px 1fr 96px 80px 28px', gap:8, paddingBottom:8, fontSize:11, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>
                       <div></div><div>สินค้า / รหัส</div>
-                      <div style={{textAlign:'center'}}>{adjType==='recount'?'นับได้ใหม่':'ปรับ ▲/▼'} (KG)</div>
+                      <div style={{textAlign:'center'}}>{adjType==='recount'?'นับได้ใหม่':'ปรับ ▲/▼'}</div>
                       <div style={{textAlign:'center'}}>{adjType==='recount'?'ผลต่าง':'หลังปรับ'}</div>
                       <div></div>
                     </div>
@@ -1984,7 +1984,7 @@ function StockManage({ toast }) {
                             <div>
                               <div style={{ fontSize:13, fontWeight:600 }}>{it.name}</div>
                               <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t3)', marginTop:1 }}>{it.code}
-                                {it.mode==='scan' && it.scannedTotal!=null && <span style={{ marginLeft:6, fontSize:10, background:'var(--abg)', color:'var(--ac)', padding:'1px 5px', borderRadius:4 }}>นับได้ {it.scannedTotal.toFixed(3)} KG</span>}
+                                {it.mode==='scan' && it.scannedTotal!=null && <span style={{ marginLeft:6, fontSize:10, background:'var(--abg)', color:'var(--ac)', padding:'1px 5px', borderRadius:4 }}>นับได้ {window.fmtItemQty(it.scannedTotal, it.code)}</span>}
                               </div>
                             </div>
                             {/* Editable field: newCount (recount) or adj delta (inc/dec) */}
@@ -2023,10 +2023,12 @@ function StockManage({ toast }) {
                             {/* Last column: for recount = ผลต่าง colored; for +/- = สต็อกหลัง */}
                             {adjType === 'recount' ? (
                               <div style={{ padding:'4px 6px', background:isInc?'var(--gbg)':isDec?'var(--rbg)':'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:800, color:isInc?'var(--gn)':isDec?'var(--rd)':'var(--t3)', textAlign:'center', letterSpacing:'.02em' }}>
-                                {it.adj>0?'+':''}{it.adj!==0?it.adj.toFixed(3):'±0.000'}
+                                {it.adj!==0
+                                  ? `${it.adj>0?'+':'-'}${window.fmtItemQty(Math.abs(it.adj),it.code)}`
+                                  : `±${window.fmtItemQty(0,it.code)}`}
                               </div>
                             ) : (
-                              <div style={{ padding:'4px 6px', background:isLow?'var(--ambg)':'var(--gbg)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:isLow?'var(--amt)':'var(--gt)', textAlign:'center' }}>{after.toFixed(2)}</div>
+                              <div style={{ padding:'4px 6px', background:isLow?'var(--ambg)':'var(--gbg)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:isLow?'var(--amt)':'var(--gt)', textAlign:'center' }}>{window.fmtItemQty(after,it.code)}</div>
                             )}
                             <div onClick={() => setAdjItems(prev => prev.filter(x => x.key !== it.key))}
                               style={{ width:24, height:24, borderRadius:5, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--t3)', cursor:'pointer', fontSize:14, transition:'all .12s' }}
