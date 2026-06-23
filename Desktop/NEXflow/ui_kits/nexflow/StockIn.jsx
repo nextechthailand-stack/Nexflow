@@ -503,18 +503,28 @@ function StockIn({ toast, setPage }) {
             </button>
           </div>
           <div style={{ padding:'8px 16px 4px' }}>
-            {(showAllStock
-              ? D.products.slice().sort((a,b)=>b.stock-a.stock)
-              : D.products.slice().sort((a,b)=>b.stock-a.stock).slice(0,5)
-            ).map(p => (
-              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 0', borderBottom:'1px solid var(--bd)' }}>
-                <div>
-                  <div style={{ fontSize:12.5, fontWeight:600 }}>{p.name}</div>
-                  <div style={{ fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--t3)' }}>{p.code}</div>
-                </div>
-                <StockPill stock={p.stock} min={p.min} unitLabel={p.unitLabel} />
-              </div>
-            ))}
+            {(() => {
+              const sorted = D.products.slice().sort((a,b) => b.stock - a.stock);
+              const list   = showAllStock ? sorted : sorted.slice(0, 5);
+              const maxSt  = sorted[0]?.stock || 1;
+              return list.map(p => {
+                const isKg   = window.unitOf ? window.unitOf(p.code).unitType === 'kg' : true;
+                const pct    = Math.max(2, Math.min(100, (p.stock / maxSt) * 100));
+                const clr    = p.stock <= 0 ? 'var(--rd)' : p.stock <= (p.min || 0) ? 'var(--am)' : 'var(--gn)';
+                const label  = isKg ? `${p.stock.toFixed(3)} KG` : `${Math.round(p.stock)} ${p.unitLabel || 'pcs'}`;
+                return (
+                  <div key={p.id} style={{ padding:'7px 0', borderBottom:'1px solid var(--bd)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:4 }}>
+                      <div style={{ fontSize:12, fontWeight:600, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:8 }}>{p.name}</div>
+                      <span style={{ fontSize:11.5, fontWeight:700, color:clr, flexShrink:0 }}>{label}</span>
+                    </div>
+                    <div style={{ height:5, background:'var(--s3)', borderRadius:3, overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${pct}%`, background:clr, borderRadius:3, transition:'width .3s ease' }} />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
           {/* Expand bar */}
           {D.products.length > 5 && (
