@@ -36,12 +36,12 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-
 .ni{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:var(--rs);font-size:13.5px;font-weight:600;color:var(--nav-fg);cursor:pointer;margin-bottom:2px;transition:background .15s,color .15s;user-select:none;width:100%;text-align:left}
 .ni:hover{background:var(--nav-hover);color:var(--nav-fg-on)}
 .ni.on{background:var(--nav-active);color:var(--nav-active-fg);font-weight:700}
-.ni.on .ni-ic{background:var(--grad-brand);color:#fff;box-shadow:0 3px 10px rgba(91,124,255,.4)}
+.ni.on .ni-ic{background:var(--ac);color:#fff;box-shadow:0 3px 10px rgba(14,165,233,.35)}
 .ni-ic{width:30px;height:30px;border-radius:8px;background:var(--nav-ic);color:var(--nav-fg);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
 .ni-ic svg{width:16px;height:16px}
 .ni-badge{min-width:18px;height:18px;border-radius:100px;background:var(--rd);color:#fff;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;margin-left:auto}
 .sb-user{padding:12px 14px;border-top:1px solid var(--nav-line);display:flex;align-items:center;gap:10px}
-.av{width:32px;height:32px;border-radius:50%;background:var(--grad-brand);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.av{width:32px;height:32px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
 .sb-user-name{font-size:12.5px;font-weight:700;color:var(--nav-fg-on);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sb-user-role{font-size:10.5px;color:var(--nav-muted)}
 .sb-out{color:var(--nav-muted);font-size:11px;font-weight:700;transition:color .13s}
@@ -85,7 +85,7 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-
 .fl{display:block;font-size:13px;font-weight:700;color:var(--t2);margin-bottom:5px}
 .req{color:var(--rd)}
 .fc{width:100%;padding:9px 12px;border:1px solid var(--b2);border-radius:var(--rs);font-size:14px;color:var(--tx);background:var(--sur);outline:none;transition:border .13s}
-.fc:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(59,91,219,.12)}
+.fc:focus{border-color:var(--ac);box-shadow:0 0 0 3px rgba(14,165,233,.15)}
 
 /* DateField — บังคับให้แสดงผลเป็น dd/mm/yyyy ทั้งระบบ (input type=date แสดงผลตาม OS locale ปกติ) */
 .date-field{ position:relative; display:inline-block; }
@@ -113,7 +113,7 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-
 .tw-fit{overflow-y:auto;max-height:440px}
 .tw-fit thead th{position:sticky;top:0;z-index:1}
 table{width:100%;border-collapse:collapse;font-size:14px;color:var(--tx)}
-th{text-align:left;padding:9px 14px;font-size:13px;font-weight:700;color:var(--thd-fg);border-bottom:1px solid var(--bd);background:var(--thd);white-space:nowrap}
+th{text-align:left;padding:9px 14px;font-size:11.5px;font-weight:800;color:#0f172a;border-bottom:2px solid #475569;background:#f1f5f9;white-space:nowrap}
 td{padding:9px 14px;border-bottom:1px solid var(--bd);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:var(--s2)}

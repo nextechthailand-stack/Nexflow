@@ -221,7 +221,7 @@ function Dashboard({ setPage }) {
       {/* KPI row */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
         <KpiCard label={t('kpi_today_sales')}   rawValue={S.today}  displayFn={v=>'฿'+v.toLocaleString('en-US')} sub={t('kpi_today_sales_sub',{pct:S.todayDelta})}      gradient="linear-gradient(135deg,#0d9272,#10b894)" solidColor="#0d9272" icon="coin"       delay={.05} started={mounted} />
-        <KpiCard label={t('kpi_month_sales')} rawValue={S.month}  displayFn={v=>'฿'+v.toLocaleString('en-US')} sub={t('kpi_month_sales_sub',{pct:monthPct,target:k(S.monthTarget)})} gradient="linear-gradient(135deg,#3b5bdb,#5b7cff)" solidColor="#3b5bdb" icon="bar-chart"  delay={.12} started={mounted} />
+        <KpiCard label={t('kpi_month_sales')} rawValue={S.month}  displayFn={v=>'฿'+v.toLocaleString('en-US')} sub={t('kpi_month_sales_sub',{pct:monthPct,target:k(S.monthTarget)})} gradient="linear-gradient(135deg,#0EA5E9,#38BDF8)" solidColor="#0EA5E9" icon="bar-chart"  delay={.12} started={mounted} />
         <KpiCard label={t('kpi_bills_today')}       rawValue={S.bills}  displayFn={v=>v+' '+t('kpi_bills_unit')}                       sub={t('kpi_bills_sub',{avg:k(S.avgPerBill)})}          gradient="linear-gradient(135deg,#c47b00,#e09b20)" solidColor="#c47b00" icon="file-text"  delay={.19} started={mounted} />
       </div>
 

@@ -49,10 +49,10 @@
   /* ─── COLOR — neutrals / surfaces ─────────────────────────────
      Cool, airy teal/mint/white theme matching the brand mark —
      light cards on a faint cyan-tinted canvas, soft shadows.    */
-  --bg:  #f0efe9;  /* app canvas — warm paper            */
+  --bg:  #f8fafc;  /* app canvas — cool white            */
   --sur: #ffffff;  /* card / panel surface               */
-  --s2:  #f7f6f2;  /* subtle fill, hover, table stripe   */
-  --s3:  #eeecea;  /* deeper fill                        */
+  --s2:  #f1f5f9;  /* subtle fill, hover, table stripe   */
+  --s3:  #e2e8f0;  /* deeper fill                        */
   --bd:  rgba(0,0,0,.08);  /* hairline border            */
   --b2:  rgba(0,0,0,.14);  /* stronger border / inputs   */
 
@@ -78,8 +78,8 @@
   --nav-muted:    #9492a0;        /* version / section / role    */
   --nav-hover:    #f1f0f6;        /* row hover fill              */
   --nav-ic:       #f0eff5;        /* icon tile (resting)         */
-  --nav-active:   #edf2ff;        /* active row fill — indigo tint */
-  --nav-active-fg:#2c44a8;        /* active label — indigo       */
+  --nav-active:   #f0f9ff;        /* active row fill — sky blue tint */
+  --nav-active-fg:#0369a1;        /* active label — sky blue         */
 
   /* ─── COLOR — brand gradient ──────────────────────────────────
      The signature mark: a blue→violet gradient used on the logo,
@@ -93,7 +93,7 @@
      Each role = a strong tone + a tinted background + a dark text
      tone, used together for badges, pills, notices.              */
   /* Accent / primary action (indigo-blue) */
-  --ac:  #3b5bdb;  --abg: #edf2ff;  --at: #2c44a8;
+  --ac:  #0EA5E9;  --abg: #f0f9ff;  --at: #0369a1;
   /* Success / stock-in / money (green) */
   --gn:  #0d9272;  --gbg: #e6f6f2;  --gt: #075c48;
   /* Warning / low-stock / discount (amber) */
