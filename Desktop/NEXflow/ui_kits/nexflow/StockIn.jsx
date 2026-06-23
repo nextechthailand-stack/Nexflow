@@ -141,7 +141,7 @@ function GrnDoc({ grn, onClose }) {
                       <div style={{ fontSize:12.5, fontWeight:600, color:'#111' }}>{window.bahtText ? window.bahtText(totalValue) : ''}</div>
                     </div>
                   </div>
-                  <div style={{ minWidth:280 }}>
+                  <div style={{ width:250, flexShrink:0 }}>
                     <table style={{ width:'100%', borderCollapse:'collapse' }}>
                       <tbody>
                         <tr>
