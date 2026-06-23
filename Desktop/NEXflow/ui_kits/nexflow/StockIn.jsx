@@ -502,38 +502,19 @@ function StockIn({ toast, setPage }) {
               <Icon name="dashboard" size={13} style={{ color:'var(--ac)' }} /> ดูรายงานทั้งหมด
             </button>
           </div>
-          <div style={{ padding:'8px 16px 4px' }}>
-            {(() => {
-              const sorted = D.products.slice().sort((a,b) => b.stock - a.stock);
-              const list   = showAllStock ? sorted : sorted.slice(0, 5);
-              const maxSt  = sorted[0]?.stock || 1;
-              return list.map(p => {
-                const isKg   = window.unitOf ? window.unitOf(p.code).unitType === 'kg' : true;
-                const pct    = Math.max(2, Math.min(100, (p.stock / maxSt) * 100));
-                const clr    = p.stock <= 0 ? 'var(--rd)' : p.stock <= (p.min || 0) ? 'var(--am)' : 'var(--gn)';
-                const label  = isKg ? `${p.stock.toFixed(3)} KG` : `${Math.round(p.stock)} ${p.unitLabel || 'pcs'}`;
-                return (
-                  <div key={p.id} style={{ padding:'7px 0', borderBottom:'1px solid var(--bd)' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:4 }}>
-                      <div style={{ fontSize:12, fontWeight:600, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:8 }}>{p.name}</div>
-                      <span style={{ fontSize:11.5, fontWeight:700, color:clr, flexShrink:0 }}>{label}</span>
-                    </div>
-                    <div style={{ height:5, background:'var(--s3)', borderRadius:3, overflow:'hidden' }}>
-                      <div style={{ height:'100%', width:`${pct}%`, background:clr, borderRadius:3, transition:'width .3s ease' }} />
-                    </div>
-                  </div>
-                );
-              });
-            })()}
+          <div style={{ overflowY:'auto', maxHeight:260, padding:'4px 16px 8px' }}>
+            {D.products.slice().sort((a,b) => b.stock - a.stock).map(p => {
+              const isKg = window.unitOf ? window.unitOf(p.code).unitType === 'kg' : true;
+              const clr  = p.stock <= 0 ? 'var(--rd)' : p.stock <= (p.min || 0) ? 'var(--am)' : 'var(--gn)';
+              const label = isKg ? `${p.stock.toFixed(3)} KG` : `${Math.round(p.stock)} ${p.unitLabel || 'pcs'}`;
+              return (
+                <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'1px solid var(--bd)' }}>
+                  <div style={{ fontSize:12, fontWeight:600, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:8, color:'var(--tx)' }}>{p.name}</div>
+                  <span style={{ fontSize:11.5, fontWeight:700, color:clr, flexShrink:0 }}>{label}</span>
+                </div>
+              );
+            })}
           </div>
-          {/* Expand bar */}
-          {D.products.length > 5 && (
-            <button onClick={() => setShowAllStock(v => !v)}
-              style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:7, width:'100%', padding:'11px', background:'var(--s2)', border:'none', borderTop:'1px solid var(--bd)', borderRadius:'0 0 var(--r) var(--r)', cursor:'pointer', fontSize:12.5, fontWeight:600, color:'var(--ac)', fontFamily:'inherit', transition:'all .13s' }}>
-              <span style={{ transform: showAllStock ? 'rotate(180deg)' : 'none', transition:'transform .18s', display:'inline-flex' }}><Icon name="chevron-down" size={14} style={{ color:'var(--ac)' }} /></span>
-              {showAllStock ? 'แสดงน้อยลง' : `ดูสินค้าทั้งหมด (${D.products.length - 5} รายการ)`}
-            </button>
-          )}
         </div>
       </div>
 
