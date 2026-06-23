@@ -1967,13 +1967,14 @@ function StockManage({ toast }) {
                     </div>
                     <div style={{ maxHeight:'calc(8 * 72px)', overflowY:'auto' }}>
                       {adjItems.map((it, i) => {
-                        const after  = Math.max(0, it.before + it.adj);  // adj is signed
-                        const minQ   = D.products.find(p=>p.code===it.code)?.min || 0;
-                        const isInc  = it.adj > 0;   // positive = increase
-                        const isDec  = it.adj < 0;   // negative = decrease
-                        const isLow  = after < minQ;
-                        const adjDisplay = it.adj >= 0
-                          ? `+${it.adj.toFixed(2)}` : it.adj.toFixed(2);
+                        const after      = Math.max(0, it.before + it.adj);
+                        const minQ       = D.products.find(p=>p.code===it.code)?.min || 0;
+                        const isInc      = it.adj > 0;
+                        const isDec      = it.adj < 0;
+                        const isLow      = after < minQ;
+                        const adjDisplay = it.adj >= 0 ? `+${it.adj.toFixed(2)}` : it.adj.toFixed(2);
+                        const isKgScan   = it.mode === 'scan' && (window.unitOf ? window.unitOf(it.code).unitType === 'kg' : true);
+                        const displayVal = it.newCount != null ? it.newCount : +(it.before + it.adj).toFixed(3);
                         return (
                           <div key={it.key} style={{ display:'grid', gridTemplateColumns:'26px 1fr 80px 96px 80px 28px', gap:8, alignItems:'center', padding:'9px 12px', background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', marginBottom:6 }}>
                             <div style={{ width:24, height:24, borderRadius:5, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'var(--t2)' }}>{i+1}</div>
@@ -1985,10 +1986,7 @@ function StockManage({ toast }) {
                             </div>
                             <div style={{ padding:'4px 6px', background:'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:700, color:'var(--t2)', textAlign:'center' }}>{it.before.toFixed(3)}</div>
                             {/* Editable field: newCount (recount) or adj delta (inc/dec) */}
-                            {adjType === 'recount' ? (() => {
-                              const isKgScan = it.mode === 'scan' && (window.unitOf ? window.unitOf(it.code).unitType === 'kg' : true);
-                              const displayVal = it.newCount != null ? it.newCount : +(it.before + it.adj).toFixed(3);
-                              return (
+                            {adjType === 'recount' ? (
                               <div style={{ position:'relative' }}>
                                 <input type="number" min="0" step="0.001"
                                   value={displayVal}
@@ -2003,8 +2001,6 @@ function StockManage({ toast }) {
                                   onFocus={isKgScan ? undefined : e=>{ e.target.style.borderColor='var(--ac)'; e.target.select(); }}
                                   onBlur={isKgScan ? undefined : e=>{ e.target.style.borderColor='var(--b2)'; }} />
                               </div>
-                              );
-                            })()
                             ) : (
                               <div style={{ position:'relative' }}>
                                 <input type="number" step="0.001" value={adjType==='decrease'?Math.abs(it.adj):it.adj}
