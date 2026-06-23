@@ -2610,11 +2610,11 @@ const SETTINGS_CSS = `
 @keyframes stgPop{0%{transform:scale(.9);opacity:0}60%{transform:scale(1.04)}100%{transform:scale(1);opacity:1}}
 @keyframes stgSpin{to{transform:rotate(360deg)}}
 .stg-wrap{animation:stgFadeUp .35s ease both}
-.stg-hero{position:relative;overflow:hidden;border-radius:var(--r);padding:22px 26px;margin-bottom:18px;background:linear-gradient(135deg,#0EA5E9,#38BDF8);color:#fff;box-shadow:0 4px 20px rgba(14,165,233,.35);display:flex;align-items:center;gap:18px}
-.stg-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.16) 45%,transparent 60%);background-size:300px 100%;animation:stgShimmer 3.2s ease-in-out infinite}
-.stg-hero-ic{width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px;font-weight:800;border:1px solid rgba(255,255,255,.25)}
-.stg-hero h2{margin:0;font-size:18px;font-weight:800;letter-spacing:.2px}
-.stg-hero p{margin:4px 0 0;font-size:12.5px;opacity:.88}
+.stg-hero{position:relative;border-radius:var(--r);padding:18px 24px;margin-bottom:18px;background:#fff;border:0.5px solid #e5e7eb;border-top:3px solid #0EA5E9;display:flex;align-items:center;gap:16px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.stg-hero::after{display:none}
+.stg-hero-ic{width:40px;height:40px;border-radius:11px;background:#f0f9ff;color:#0EA5E9;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid #bae6fd}
+.stg-hero h2{margin:0;font-size:16px;font-weight:800;color:#0f172a;letter-spacing:.1px}
+.stg-hero p{margin:3px 0 0;font-size:12px;color:#64748b;opacity:1}
 .stg-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 .stg-tab{padding:9px 18px;border-radius:100px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--b2);background:var(--sur);color:var(--t2);transition:all .16s ease;display:flex;align-items:center;gap:7px}
 .stg-tab:hover{border-color:var(--ac);color:var(--ac);transform:translateY(-1px)}
@@ -2780,12 +2780,12 @@ function Settings({ toast }) {
   return (
     <div style={{ maxWidth:1180 }} className="stg-wrap">
       <div className="stg-hero">
-        <div className="stg-hero-ic"><Icon name="settings" size={26} /></div>
-        <div style={{ position:'relative', zIndex:1 }}>
+        <div className="stg-hero-ic"><Icon name="settings" size={20} /></div>
+        <div>
           <h2>ตั้งค่าระบบ</h2>
           <p>กำหนดข้อมูลบริษัท รูปแบบเอกสาร และค่าพื้นฐานของระบบ — การเปลี่ยนแปลงมีผลทันทีกับทุกฟังก์ชัน</p>
         </div>
-        <div style={{ marginLeft:'auto', position:'relative', zIndex:1, display:'flex', alignItems:'center', gap:7, fontSize:11.5, background:'rgba(255,255,255,.16)', border:'1px solid rgba(255,255,255,.25)', padding:'6px 13px', borderRadius:100, fontWeight:600 }}>
+        <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:6, fontSize:11.5, background:'#ecfdf5', border:'1px solid #a7f3d0', padding:'5px 12px', borderRadius:100, fontWeight:700, color:'#059669', flexShrink:0 }}>
           <span className="stg-glow-dot"></span> เชื่อมต่อระบบอยู่
         </div>
       </div>
