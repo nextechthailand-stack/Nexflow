@@ -1787,7 +1787,7 @@ function StockManage({ toast }) {
               <div className="ch">
                 <span className="ct-t">เพิ่มรายการปรับสต็อก</span>
                 <div style={{ display:'flex', gap:0, background:'var(--s2)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', overflow:'hidden', padding:2 }}>
-                  {[['scan','🔍 สแกน Barcode'],['search','📋 ค้นหารายการ']].map(([m,l]) => (
+                  {[['scan','สแกน Barcode'],['search','ค้นหารายการ']].map(([m,l]) => (
                     <button key={m} onClick={() => { setAdjMode(m); setAdjBcStatus(''); }}
                       style={{ padding:'5px 14px', border:'none', borderRadius:6, cursor:'pointer', fontSize:12.5, fontWeight:700, fontFamily:'inherit', transition:'all .13s', background:adjMode===m?'var(--ac)':'transparent', color:adjMode===m?'#fff':'var(--t2)' }}>
                       {l}
