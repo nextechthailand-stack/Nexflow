@@ -97,6 +97,7 @@ function Reports() {
   const totGross = sum('grossSale'), totDisc = sum('discount'),
         totNet   = sum('netSale'),  totVat  = sum('vat'),
         totTotal = sum('total'),    totW    = sum('w');
+  const totKgW = rows.filter(r => (window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true)).reduce((s,r) => s+(r.w||0), 0);
   const billSet  = new Set(rows.map(r=>r.inv));
   const billCount = billSet.size;
 
@@ -139,8 +140,12 @@ function Reports() {
   const byCust = {};
   rows.forEach(r => {
     const cust = D.customers.find(c=>c.id===r.custId) || { id:0, code:'—', name:'ไม่ระบุ', type:'other', tax:'', tel:'', addr:'' };
-    if (!byCust[cust.id]) byCust[cust.id] = { ...cust, cnt:0, _bills:new Set(), w:0, disc:0, total:0, txns:[] };
-    byCust[cust.id]._bills.add(r.inv); byCust[cust.id].w+=r.w; byCust[cust.id].disc+=r.discount; byCust[cust.id].total+=r.total;
+    if (!byCust[cust.id]) byCust[cust.id] = { ...cust, cnt:0, _bills:new Set(), w:0, kgW:0, unitQ:0, disc:0, total:0, txns:[] };
+    const isKgRow = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
+    byCust[cust.id]._bills.add(r.inv); byCust[cust.id].w+=r.w;
+    if (isKgRow) byCust[cust.id].kgW += (r.w||0);
+    else         byCust[cust.id].unitQ += (r.w||0);
+    byCust[cust.id].disc+=r.discount; byCust[cust.id].total+=r.total;
     byCust[cust.id].txns.push(r);
   });
   const custRows = Object.values(byCust).map(c => ({ ...c, cnt: c._bills.size })).sort((a,b)=>b.total-a.total);
@@ -238,24 +243,26 @@ function Reports() {
           </div>
 
           <FilterBar
-            onExport={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,r.w.toFixed(2),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total]))}
-            onPdf={()=>window.exportPDF('รายงานรายการสินค้า',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก KG','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,r.w.toFixed(2),r.total]),`${rows.length} รายการ | รวม ${totW.toFixed(2)} KG | ยอดรวม ${$(totTotal)}`)}
+            onExport={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','จำนวน','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>{const isKg=window.unitOf?window.unitOf(r.code).unitType==='kg':true;return[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,isKg?r.w.toFixed(3):'',isKg?'':window.fmtItemQty(r.w,r.code),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total];}))}
+            onPdf={()=>window.exportPDF('รายงานรายการสินค้า',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก/จำนวน','ยอดรวม'],rows.map(r=>{const isKg=window.unitOf?window.unitOf(r.code).unitType==='kg':true;return[r.date,r.inv,r.code,r.prod,r.channel,isKg?r.w.toFixed(3)+' KG':window.fmtItemQty(r.w,r.code),r.total];}),`${rows.length} รายการ | รวม ${totKgW.toFixed(3)} KG | ยอดรวม ${$(totTotal)}`)}
           />
           {prodSub==='flat' && (
           <Card title={`รายการสินค้าทั้งหมด · ${rows.length} รายการ`} actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,r.w.toFixed(2),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total]))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้าทั้งหมด',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก KG','ยอดรวม'],rows.map(r=>[r.date,r.inv,r.code,r.prod,r.channel,r.w.toFixed(2),r.total]))}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products.csv',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','ชำระ','น้ำหนัก KG','จำนวน','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],rows.map(r=>{const isKg=window.unitOf?window.unitOf(r.code).unitType==='kg':true;return[r.date,r.inv,r.code,r.prod,r.channel,PAY_LABELS[r.pay]||r.pay,isKg?r.w.toFixed(3):'',isKg?'':window.fmtItemQty(r.w,r.code),r.grossSale,r.discount||0,r.netSale,r.vat.toFixed(2),r.total];}))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้าทั้งหมด',['วันที่','เลขที่บิล','รหัส','สินค้า','ช่องทาง','น้ำหนัก/จำนวน','ยอดรวม'],rows.map(r=>{const isKg=window.unitOf?window.unitOf(r.code).unitType==='kg':true;return[r.date,r.inv,r.code,r.prod,r.channel,isKg?r.w.toFixed(3)+' KG':window.fmtItemQty(r.w,r.code),r.total];}))}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>วันที่</th><th style={TH}>เลขที่บิล</th><th style={TH}>รหัส</th><th style={TH}>สินค้า</th>
-                <th style={TH}>ช่องทาง</th><th style={TH}>ชำระ</th><th style={THR}>น้ำหนัก</th>
+                <th style={TH}>ช่องทาง</th><th style={TH}>ชำระ</th><th style={THR}>น้ำหนัก</th><th style={THR}>จำนวน</th>
                 <th style={THR}>Gross Sale</th><th style={THR}>Discount</th><th style={THR}>Net Sale</th>
                 <th style={THR}>VAT 7%</th><th style={THR}>ยอดรวม</th>
               </tr></thead>
               <tbody>
-                {rows.length===0 ? <tr><td colSpan="12" style={{ padding:'32px', textAlign:'center', color:'var(--t3)' }}>ไม่พบรายการ</td></tr>
-                : flatPag.slice.map((r,i) => (
+                {rows.length===0 ? <tr><td colSpan="13" style={{ padding:'32px', textAlign:'center', color:'var(--t3)' }}>ไม่พบรายการ</td></tr>
+                : flatPag.slice.map((r,i) => {
+                  const isKg = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
+                  return (
                   <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span style={{ fontSize:12.5, color:'var(--t2)' }}>{r.date}</span></td>
                     <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{r.inv}</span></td>
@@ -263,18 +270,21 @@ function Reports() {
                     <td style={TD}><span style={{ fontWeight:600 }}>{r.prod}</span></td>
                     <td style={TD}><Badge kind={r.channel}/></td>
                     <td style={TD}><span style={{ fontSize:12.5 }}>{PAY_LABELS[r.pay]||r.pay}</span></td>
-                    <td style={TDR}>{r.w.toFixed(2)}</td>
+                    <td style={TDR}>{isKg ? r.w.toFixed(3)+' KG' : '—'}</td>
+                    <td style={TDR}>{isKg ? '—' : window.fmtItemQty(r.w, r.code)}</td>
                     <td style={TDR}>{$(r.grossSale)}</td>
                     <td style={{ ...TDR, color:'var(--am)' }}>{r.discount>0?'-'+$(r.discount):'—'}</td>
                     <td style={{ ...TDR, fontWeight:700 }}>{$(r.netSale)}</td>
                     <td style={{ ...TDR, color:'var(--pu)' }}>{$(r.vat)}</td>
                     <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(r.total)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot><tr>
                 <td colSpan="6" style={TF}>รวม {rows.length} รายการ · {billCount} บิล</td>
-                <td style={TFR}>{totW.toFixed(2)}</td>
+                <td style={TFR}>{totKgW > 0 ? totKgW.toFixed(3)+' KG' : '—'}</td>
+                <td style={TF}>—</td>
                 <td style={TFR}>{$(totGross)}</td>
                 <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
                 <td style={TFR}>{$(totNet)}</td>
@@ -288,35 +298,41 @@ function Reports() {
 
           {prodSub==='byproduct' && (
           <Card title={`สรุปยอดขายแยกตามสินค้า · ${productRows.length} รายการสินค้า`} actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products_byproduct.csv',['รหัส','สินค้า','จำนวนรายการ','น้ำหนักรวม KG','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],productRows.map(p=>[p.code,p.prod,p.cnt,p.w.toFixed(2),p.gross,p.disc,p.net,p.vat.toFixed(2),p.total]))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดขายแยกตามสินค้า',['รหัส','สินค้า','จำนวนรายการ','น้ำหนักรวม KG','ยอดรวม'],productRows.map(p=>[p.code,p.prod,p.cnt,p.w.toFixed(2),p.total]),`${productRows.length} รายการสินค้า | รวม ${totW.toFixed(2)} KG | ยอดรวม ${$(totTotal)}`)}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('report_products_byproduct.csv',['รหัส','สินค้า','จำนวนรายการ','น้ำหนักรวม KG','จำนวน','Gross Sale','Discount','Net Sale','VAT 7%','ยอดรวม'],productRows.map(p=>{const isKg=window.unitOf?window.unitOf(p.code).unitType==='kg':true;return[p.code,p.prod,p.cnt,isKg?p.w.toFixed(3):'',isKg?'':window.fmtItemQty(p.w,p.code),p.gross,p.disc,p.net,p.vat.toFixed(2),p.total];}))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดขายแยกตามสินค้า',['รหัส','สินค้า','จำนวนรายการ','น้ำหนัก/จำนวน','ยอดรวม'],productRows.map(p=>{const isKg=window.unitOf?window.unitOf(p.code).unitType==='kg':true;return[p.code,p.prod,p.cnt,isKg?p.w.toFixed(3)+' KG':window.fmtItemQty(p.w,p.code),p.total];}),`${productRows.length} รายการสินค้า | รวม ${totKgW.toFixed(3)} KG | ยอดรวม ${$(totTotal)}`)}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
-                <th style={TH}>รหัส</th><th style={TH}>สินค้า</th><th style={THR}>จำนวนรายการ</th><th style={THR}>น้ำหนักรวม</th>
+                <th style={TH}>รหัส</th><th style={TH}>สินค้า</th><th style={THR}>จำนวนรายการ</th>
+                <th style={THR}>น้ำหนักรวม</th><th style={THR}>จำนวน</th>
                 <th style={THR}>Gross Sale</th><th style={THR}>Discount</th><th style={THR}>Net Sale</th>
                 <th style={THR}>VAT 7%</th><th style={THR}>ยอดรวม</th>
               </tr></thead>
               <tbody>
-                {productRows.length===0 ? <tr><td colSpan="9" style={{ padding:'32px', textAlign:'center', color:'var(--t3)' }}>ไม่พบรายการ</td></tr>
-                : byProdPag.slice.map((p,i) => (
+                {productRows.length===0 ? <tr><td colSpan="10" style={{ padding:'32px', textAlign:'center', color:'var(--t3)' }}>ไม่พบรายการ</td></tr>
+                : byProdPag.slice.map((p,i) => {
+                  const isKg = window.unitOf ? window.unitOf(p.code).unitType === 'kg' : true;
+                  return (
                   <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span className="mono">{p.code}</span></td>
                     <td style={TD}><span style={{ fontWeight:600 }}>{p.prod}</span></td>
                     <td style={TDR}>{p.cnt}</td>
-                    <td style={TDR}>{p.w.toFixed(2)}</td>
+                    <td style={TDR}>{isKg ? p.w.toFixed(3)+' KG' : '—'}</td>
+                    <td style={TDR}>{isKg ? '—' : window.fmtItemQty(p.w, p.code)}</td>
                     <td style={TDR}>{$(p.gross)}</td>
                     <td style={{ ...TDR, color:'var(--am)' }}>{p.disc>0?'-'+$(p.disc):'—'}</td>
                     <td style={{ ...TDR, fontWeight:700 }}>{$(p.net)}</td>
                     <td style={{ ...TDR, color:'var(--pu)' }}>{$(p.vat)}</td>
                     <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(p.total)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot><tr>
                 <td colSpan="2" style={TF}>รวม {productRows.length} รายการสินค้า</td>
                 <td style={TFR}>{rows.length}</td>
-                <td style={TFR}>{totW.toFixed(2)}</td>
+                <td style={TFR}>{totKgW > 0 ? totKgW.toFixed(3)+' KG' : '—'}</td>
+                <td style={TF}>—</td>
                 <td style={TFR}>{$(totGross)}</td>
                 <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
                 <td style={TFR}>{$(totNet)}</td>
@@ -838,25 +854,27 @@ function Reports() {
       {tab==='customer' && (
         <div>
           <FilterBar
-            onExport={()=>window.exportCSV('report_customers.csv',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.w.toFixed(2),c.disc,$(c.total)]))}
-            onPdf={()=>window.exportPDF('รายงานยอดขายรายลูกค้า',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.w.toFixed(2),c.disc,$(c.total)]),`${custRows.length} ราย | รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
+            onExport={()=>window.exportCSV('report_customers.csv',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','จำนวน','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.kgW>0?c.kgW.toFixed(3):'',c.unitQ>0?Math.round(c.unitQ):'',c.disc,$(c.total)]))}
+            onPdf={()=>window.exportPDF('รายงานยอดขายรายลูกค้า',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.kgW>0?c.kgW.toFixed(3)+' KG':'—',c.disc,$(c.total)]),`${custRows.length} ราย | รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
           />
           <Card title="ยอดขายรายลูกค้า">
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>รหัส</th><th style={TH}>ชื่อลูกค้า</th><th style={TH}>ประเภท</th>
-                <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th><th style={THR}>น้ำหนักรวม</th>
+                <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th>
+                <th style={THR}>น้ำหนักรวม</th><th style={THR}>จำนวน</th>
                 <th style={THR}>ส่วนลดรวม</th><th style={THR}>ยอดรวมสุทธิ</th><th style={TH}></th>
               </tr></thead>
               <tbody>
-                {custRows.length===0 ? <tr><td colSpan="8" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>ไม่พบข้อมูล</td></tr>
+                {custRows.length===0 ? <tr><td colSpan="9" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>ไม่พบข้อมูล</td></tr>
                 : custPag.slice.map((c,i)=>(
                   <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span className="mono" style={{ color:'var(--t2)' }}>{c.code}</span></td>
                     <td style={{ ...TD, fontWeight:600 }}>{c.name}</td>
                     <td style={TD}><Badge kind={c.type}/></td>
                     <td style={{ ...TD, textAlign:'center' }}>{c.cnt} บิล</td>
-                    <td style={TDR}>{c.w.toFixed(2)} KG</td>
+                    <td style={TDR}>{c.kgW > 0 ? c.kgW.toFixed(3)+' KG' : '—'}</td>
+                    <td style={TDR}>{c.unitQ > 0 ? Math.round(c.unitQ) : '—'}</td>
                     <td style={{ ...TDR, color:'var(--am)' }}>{c.disc>0?'-'+$(c.disc):'—'}</td>
                     <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(c.total)}</td>
                     <td style={TD}>
@@ -870,7 +888,8 @@ function Reports() {
               {custRows.length>0 && <tfoot><tr>
                 <td colSpan="3" style={TF}>รวม {custRows.length} ราย</td>
                 <td style={{ ...TF, textAlign:'center' }}>{billCount} บิล</td>
-                <td style={TFR}>{totW.toFixed(2)} KG</td>
+                <td style={TFR}>{totKgW > 0 ? totKgW.toFixed(3)+' KG' : '—'}</td>
+                <td style={TF}>—</td>
                 <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
                 <td style={TF}></td>
@@ -908,25 +927,30 @@ function Reports() {
               <div className="tw"><table>
                 <thead><tr>
                   <th style={TH}>เลขที่กำกับ</th><th style={TH}>วันที่</th><th style={TH}>รายการ</th>
-                  <th style={THR}>น้ำหนัก</th><th style={THR}>ส่วนลด</th><th style={THR}>ยอดรวม</th>
+                  <th style={THR}>น้ำหนัก</th><th style={THR}>จำนวน</th><th style={THR}>ส่วนลด</th><th style={THR}>ยอดรวม</th>
                   <th style={TH}>ช่าว</th>
                 </tr></thead>
                 <tbody>
-                  {(custModal.txns||[]).map((r,i)=>(
+                  {(custModal.txns||[]).map((r,i)=>{
+                    const isKg = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
+                    return (
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                       <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{r.inv}</span></td>
                       <td style={TD}><span style={{ fontSize:12.5, color:'var(--t2)' }}>{r.date}</span></td>
                       <td style={{ ...TD, fontWeight:600, fontSize:12.5 }}>{r.prod}</td>
-                      <td style={TDR}>{r.w.toFixed(2)} KG</td>
+                      <td style={TDR}>{isKg ? r.w.toFixed(3)+' KG' : '—'}</td>
+                      <td style={TDR}>{isKg ? '—' : window.fmtItemQty(r.w, r.code)}</td>
                       <td style={{ ...TDR, color:'var(--am)' }}>{r.discount>0?$(r.discount):'—'}</td>
                       <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(r.total)}</td>
                       <td style={TD}><Badge kind={r.channel}/></td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
                 <tfoot><tr>
                   <td colSpan="3" style={TF}>รวม {custModal.txns?.length||0} รายการ</td>
-                  <td style={TFR}>{(custModal.txns||[]).reduce((s,r)=>s+r.w,0).toFixed(2)} KG</td>
+                  <td style={TFR}>{(custModal.txns||[]).filter(r=>window.unitOf?window.unitOf(r.code).unitType==='kg':true).reduce((s,r)=>s+(r.w||0),0).toFixed(3)} KG</td>
+                  <td style={TF}>—</td>
                   <td style={{ ...TFR, color:'var(--am)' }}>{custModal.disc>0?$(custModal.disc):'—'}</td>
                   <td style={{ ...TFR, color:'var(--gn)' }}>{$(custModal.total)}</td>
                   <td style={TF}></td>
