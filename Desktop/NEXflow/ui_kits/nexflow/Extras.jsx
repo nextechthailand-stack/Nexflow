@@ -2494,7 +2494,7 @@ function Users({ toast }) {
     <div>
       <Card title="จัดการผู้ใช้งาน" actions={<Button variant="bp" size="sm" onClick={()=>setShowModal(true)}>+ เพิ่มผู้ใช้</Button>}>
         <div className="tw"><table>
-          <thead><tr><th>ชื่อ</th><th>Username</th><th>อีเมล</th><th>สิทธิ์</th><th>สถานะ</th><th>เข้าใช้ล่าสุด</th><th></th></tr></thead>
+          <thead><tr><th>ชื่อ</th><th>Username</th><th>อีเมล</th><th>สิทธิ์</th><th>สถานะ</th><th></th></tr></thead>
           <tbody>{users.map(u=>(
             <tr key={u.id} style={{ borderBottom:'1px solid var(--bd)' }}>
               <td style={{ padding:'11px 14px' }}>
@@ -2507,7 +2507,6 @@ function Users({ toast }) {
               <td style={{ padding:'11px 14px', fontSize:12.5, color: u.email ? 'var(--t2)' : 'var(--t3)' }}>{u.email || '—'}</td>
               <td style={{ padding:'11px 14px' }}><span className={'bx '+(u.role==='Administrator'?'xb':'xx')}>{u.role}</span></td>
               <td style={{ padding:'11px 14px' }}><span className={'bx '+(u.status==='active'?'xg':'xr')}>{u.status==='active'?'ใช้งาน':'ระงับ'}</span></td>
-              <td style={{ fontSize:12, color:'var(--t3)', padding:'11px 14px' }}>{u.last}</td>
               <td style={{ padding:'11px 14px' }}>
                 <div style={{ display:'flex', gap:5 }}>
                   <button style={BTN} onClick={()=>setUsers(p=>p.map(x=>x.id===u.id?{...x,status:x.status==='active'?'inactive':'active'}:x))}>{u.status==='active'?'ระงับ':'เปิดใช้'}</button>
