@@ -375,7 +375,6 @@ function Reports() {
                 <th style={TH}>เลขที่ TIV (อย่างย่อ)</th>
                 <th style={TH}>เลขที่ INV (เต็มรูปแบบ)</th>
                 <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th>
-                <th style={THR}>น้ำหนักรวม (KG)</th>
                 <th style={THR}>ยอดรวม (฿)</th>
               </tr></thead>
               <tbody>
@@ -384,14 +383,12 @@ function Reports() {
                   const tivs = dayRows.map(r => r.thermalInv).filter(Boolean).sort();
                   const invs = dayRows.filter(r => r.channel==='wholesale').map(r => r.inv).filter(x=>x&&x.startsWith('INV')).sort();
                   const rng = arr => arr.length > 1 ? `${arr[0]} – ${arr[arr.length-1]}` : (arr[0]||'—');
-                  const kgDay = dayRows.reduce((s,r)=>s+r.w,0);
                   return (
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                       <td style={{ ...TD, fontWeight:700 }}>{d.date}</td>
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{rng(tivs)}</td>
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{rng(invs)}</td>
                       <td style={{ ...TD, textAlign:'center', fontWeight:700 }}>{dayRows.length} บิล</td>
-                      <td style={TDR}>{kgDay.toFixed(2)}</td>
                       <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(d.total)}</td>
                     </tr>
                   );
@@ -399,12 +396,8 @@ function Reports() {
               </tbody>
               <tfoot><tr>
                 <td style={TF}>รวมทั้งหมด</td>
-                <td colSpan="2" style={{ ...TF, fontSize:11.5, color:'var(--t3)' }}>
-                  TIV ต่อไป: <span style={{ fontFamily:'var(--font-mono)', color:'var(--t2)' }}>…-{String(window.SP_STATE.invCounterThermal).padStart(4,'0')}</span>
-                  &nbsp;&nbsp; INV ต่อไป: <span style={{ fontFamily:'var(--font-mono)', color:'var(--ac)' }}>…-{String(window.SP_STATE.invCounterA4).padStart(4,'0')}</span>
-                </td>
+                <td colSpan="2" style={TF}></td>
                 <td style={{ ...TF, textAlign:'center' }}>{rows.length} บิล</td>
-                <td style={TFR}>{totW.toFixed(2)}</td>
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
               </tr></tfoot>
             </table></div>
