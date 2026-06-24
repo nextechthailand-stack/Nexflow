@@ -610,10 +610,12 @@ function Reports() {
                 const sorted = [...payRows].sort((a,b)=>b.total-a.total);
                 /* donut via SVG */
                 const SZ = 180, CX = 90, CY = 90, R = 72, RI = 44;
+                const isSingle = sorted.length === 1;
                 let angle = -Math.PI / 2;
                 const slices = sorted.map(p => {
                   const pct = p.total / payTotal;
                   const sweep = pct * 2 * Math.PI;
+                  /* SVG arc ไม่รองรับ sweep=2π (จุดเริ่ม=จุดสิ้นสุด) — ใช้ circle แทนเมื่อ slice เดียว */
                   const x1 = CX + R*Math.cos(angle),  y1 = CY + R*Math.sin(angle);
                   const xi1= CX + RI*Math.cos(angle), yi1= CY + RI*Math.sin(angle);
                   angle += sweep;
@@ -640,7 +642,12 @@ function Reports() {
                             </radialGradient>
                           ))}
                         </defs>
-                        {slices.map((s,i)=>(
+                        {isSingle ? (
+                          <>
+                            <circle cx={CX} cy={CY} r={R}  fill={`url(#pg0)`} stroke="var(--bg)" strokeWidth="2" />
+                            <circle cx={CX} cy={CY} r={RI} fill="var(--bg)" />
+                          </>
+                        ) : slices.map((s,i)=>(
                           <path key={i} d={s.d} fill={`url(#pg${i})`}
                             stroke="var(--bg)" strokeWidth="2" />
                         ))}
