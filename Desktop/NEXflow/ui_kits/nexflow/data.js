@@ -383,6 +383,9 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
   const co = (window.SP_DATA && window.SP_DATA.company) || {};
   const n2 = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
+  /* คอลัมน์รหัส/ID ไม่ต้อง format เป็น numeric */
+  const CODE_HDRS = /^(รหัส|รหัสสินค้า|เลขที่|เลข|code|id)$/i;
+
   /* ── วิเคราะห์ค่าในเซลล์: ตัวเลข + หน่วย (฿ / KG / %) ── */
   const parseCell = (v) => {
     if (v == null) return null;
@@ -406,6 +409,7 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
 
   /* ── คอลัมน์ตัวเลข → จัดทศนิยม 2 ตำแหน่งเสมอ + รวมยอด ── */
   const colIsNumeric = headers.map((h,ci) => {
+    if (CODE_HDRS.test(h.trim())) return false;
     const cells = dataRows.map(r => r[ci]);
     const nonEmpty = cells.filter(c => c != null && String(c).trim() !== '' && String(c).trim() !== '—');
     if (nonEmpty.length === 0) return false;
@@ -425,36 +429,46 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
     return fmtBySuffix(p.num, p.suffix);
   };
 
+  const coInitial = (co.name||'SP').replace(/[^A-Za-zก-๙]/g,'').slice(0,2).toUpperCase()||'SP';
+  const hdrHtml = `
+  <div style="display:flex;align-items:center;gap:10px">
+    <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#5b7cff,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px">${coInitial}</div>
+    <div><div class="co-name">${esc(co.name||'NEXflow')}</div>
+    <div class="co-info">${esc(co.addr||'')}${co.addr?'<br>':''}โทร: ${esc(co.tel||'—')} · เลขผู้เสียภาษี: ${esc(co.tax||'—')}</div></div>
+  </div>
+  <div><div class="doc-title">${esc(title)}</div>
+  <div class="sub" style="margin:4px 0 0;text-align:right">${subtitle ? esc(subtitle)+'&ensp;·&ensp;' : ''}พิมพ์เมื่อ ${esc(now)}</div></div>`;
+
   const html = `<!DOCTYPE html><html lang="th"><head>
 <meta charset="UTF-8"><title>${esc(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Sarabun',sans-serif;font-size:12px;color:#18171a;padding:24px 28px}
-  .hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a1826;padding-bottom:14px;margin-bottom:16px}
+  body{font-family:'Sarabun',sans-serif;font-size:12px;color:#18171a;padding:0 28px 24px}
+  .page-hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a1826;padding:18px 0 14px;margin-bottom:16px;background:#fff}
   .co-name{font-size:15px;font-weight:800;color:#3b5bdb;margin-bottom:3px}
   .co-info{font-size:10.5px;color:#555;line-height:1.6}
   .doc-title{font-size:19px;font-weight:800;text-align:right}
-  .sub{font-size:11px;color:#666;margin-bottom:14px}
+  .sub{font-size:11px;color:#666}
   table{width:100%;border-collapse:collapse;margin-top:4px}
+  thead{display:table-header-group}
   th{background:#1a1826;color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;white-space:nowrap}
   td{padding:7px 10px;border-bottom:1px solid #eee;font-size:11.5px;vertical-align:middle}
   td.num,th.num{text-align:right;font-family:monospace}
-  tr:last-child td{border:none}
   tfoot td{background:#f5f4f0;font-weight:800;border-top:2px solid #1a1826;border-bottom:none;font-family:monospace}
   tfoot td.lbl{font-family:'Sarabun',sans-serif;text-align:left}
   .footer{margin-top:16px;font-size:10.5px;color:#999;border-top:1px solid #ddd;padding-top:8px}
-  @media print{@page{margin:1.5cm}}
+  @media print{
+    @page{size:A4 portrait;margin:1.2cm 1.5cm}
+    @page{@bottom-right{content:"หน้า " counter(page) " / " counter(pages);font-size:10px;color:#aaa;font-family:'Sarabun',sans-serif}}
+    body{padding:0 0 16px}
+    .page-hdr{position:fixed;top:0;left:0;right:0;padding:12px 1.5cm 10px;border-bottom:2px solid #1a1826;z-index:10}
+    .content{margin-top:90px}
+    .footer{position:fixed;bottom:0;left:0;right:0;padding:6px 1.5cm;background:#fff;border-top:1px solid #ddd}
+  }
 </style></head><body>
-<div class="hdr">
-  <div style="display:flex;align-items:center;gap:10px">
-    <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#5b7cff,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px">SP</div>
-    <div><div class="co-name">${esc(co.name||'StockPro')}</div>
-    <div class="co-info">${esc(co.addr||'')}${co.addr?'<br>':''}โทร: ${esc(co.tel||'—')} · เลขผู้เสียภาษี: ${esc(co.tax||'—')}</div></div>
-  </div>
-  <div><div class="doc-title">${esc(title)}</div>
-  <div class="sub" style="margin:4px 0 0;text-align:right">${subtitle ? esc(subtitle)+'&ensp;·&ensp;' : ''}พิมพ์เมื่อ ${esc(now)}</div></div>
-</div>
+<div class="page-hdr">${hdrHtml}</div>
+<div class="content">
 <table>
   <thead><tr>${headers.map((h,ci)=>`<th class="${colIsNumeric[ci]?'num':''}">${esc(h)}</th>`).join('')}</tr></thead>
   <tbody>${dataRows.map(r=>`<tr>${r.map((c,ci)=>`<td class="${colIsNumeric[ci]?'num':''}">${fmtCell(c,ci)}</td>`).join('')}</tr>`).join('')}</tbody>
@@ -465,7 +479,8 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
     return `<td></td>`;
   }).join('')}</tr></tfoot>` : ''}
 </table>
-<div class="footer">StockPro &mdash; รวม ${dataRows.length} รายการ</div>
+</div>
+<div class="footer">${esc(co.name||'NEXflow')} &mdash; รวม ${dataRows.length} รายการ</div>
 </body></html>`;
   window._printHtml(html, 'a4');
 };

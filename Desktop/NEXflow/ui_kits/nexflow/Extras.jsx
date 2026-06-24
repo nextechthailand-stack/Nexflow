@@ -3285,7 +3285,7 @@ function Products({ toast }) {
             <input ref={csvRef} type="file" accept=".csv,text/csv" style={{ display:'none' }} onChange={importCSV} />
           </label>
           <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('products.csv',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย','ราคาทุน','สต็อก (KG)','ขั้นต่ำ (KG)','ภาษี'],products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(2),p.min,p.tax]))}>CSV</Button>
-          <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้า',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย','ราคาทุน','สต็อก KG','ขั้นต่ำ KG','ภาษี'],products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(2),p.min,p.tax]))}>PDF</Button>
+          <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้า',['รหัส','ชื่อสินค้า','หมวด','หน่วย','ราคาขาย','ราคาทุน','คงเหลือ','ขั้นต่ำ','ภาษี'],products.map(p=>{const uLabel=p.unitLabel||'KG';const isKg=window.unitOf?window.unitOf(p.code).unitType==='kg':true;const fmtQ=(n,dp)=>isKg?Number(n).toFixed(dp||2)+' KG':Math.round(n)+' '+uLabel;const taxLbl=p.tax==='vat7'?'Incl VAT':p.tax==='vat7_excl'?'Exclude VAT':p.tax==='nonvat'?'Non VAT':'—';return[p.code,p.name,p.cat||'—',uLabel,'฿'+Number(p.sell).toFixed(2),'฿'+Number(p.cost).toFixed(2),fmtQ(p.stock,3),fmtQ(p.min,2),taxLbl];}))}>PDF</Button>
           <Button variant="bp" size="sm" onClick={()=>setShowAdd(true)}>+ เพิ่มสินค้า</Button>
         </div>
       }>
