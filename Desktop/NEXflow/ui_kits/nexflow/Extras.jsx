@@ -749,6 +749,31 @@ function InvoiceList({ toast }) {
                     <div><span style={{ color:'var(--t2)' }}>ลูกค้า:</span> <b>{voidPreview.custName}</b></div>
                     <div><span style={{ color:'var(--t2)' }}>ยอดรวม:</span> <b style={{ color:'var(--gn)' }}>{$(voidPreview.total)}</b></div>
                   </div>
+                  {(voidPreview.items||[]).length > 0 && (
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11.5, fontWeight:700, color:'var(--t2)', marginBottom:5 }}>รายการสินค้า ({(voidPreview.items||[]).length} รายการ)</div>
+                      <div className="tw">
+                        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11.5 }}>
+                          <thead><tr style={{ background:'var(--s2)' }}>
+                            {['รหัส','สินค้า','จำนวน','ราคา','รวม'].map(h=>(
+                              <th key={h} style={{ padding:'4px 7px', textAlign:['จำนวน','ราคา','รวม'].includes(h)?'right':'left', fontSize:10.5, fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)' }}>{h}</th>
+                            ))}
+                          </tr></thead>
+                          <tbody>
+                            {(voidPreview.items||[]).map((it,i)=>(
+                              <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
+                                <td style={{ padding:'4px 7px', fontFamily:'var(--font-mono)', fontSize:10.5, color:'var(--t2)' }}>{it.code}</td>
+                                <td style={{ padding:'4px 7px', fontWeight:600 }}>{it.name}</td>
+                                <td style={{ padding:'4px 7px', textAlign:'right' }}>{window.fmtItemQty?window.fmtItemQty(Number(it.weight),it.code):Number(it.weight).toFixed(3)+' KG'}</td>
+                                <td style={{ padding:'4px 7px', textAlign:'right', color:'var(--t2)' }}>฿{it.price}</td>
+                                <td style={{ padding:'4px 7px', textAlign:'right', fontWeight:700 }}>{window.fmtMoney(it.weight*it.price)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                   <div className="fg" style={{ margin:0 }}>
                     <label className="fl">เหตุผลการยกเลิก <span className="req">*</span></label>
                     <select className="fc" value={voidReason} onChange={e=>setVoidReason(e.target.value)}>
@@ -1024,14 +1049,19 @@ function InvoiceList({ toast }) {
       )}
 
       {voidModal && (
-        <div className="ov">
-          <div className="md" style={{ width:420 }}>
-            <div style={{ padding:'20px 22px 0', textAlign:'center' }}>
-              <div style={{ width:52, height:52, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={24}/></div>
-              <div style={{ fontSize:17, fontWeight:800, color:'var(--rd)', marginBottom:4 }}>ยกเลิกใบกำกับภาษี</div>
-              <div style={{ fontSize:13, color:'var(--t2)', marginBottom:16 }}>ระบบจะคืนสต็อกอัตโนมัติ</div>
-              <div style={{ background:'var(--rbg)', borderRadius:'var(--rs)', padding:'14px 16px', fontSize:13, textAlign:'left', marginBottom:12 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
+        <div className="ov" onClick={e=>e.target===e.currentTarget&&(setVoidModal(null),setVoidReason(''))}>
+          <div className="md" style={{ width:520 }}>
+            <div className="md-h">
+              <span className="md-t" style={{ color:'var(--rd)' }}>
+                <Icon name="x-circle" size={14} style={{ marginRight:6, verticalAlign:'middle' }}/>
+                {voidModal.type==='A4'||voidModal.fullInvNo ? 'ยกเลิกใบกำกับภาษี' : 'ยกเลิกใบเสร็จ'}
+              </span>
+              <div className="md-x" onClick={()=>{setVoidModal(null);setVoidReason('');}}>✕</div>
+            </div>
+            <div className="md-b" style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {/* Header summary */}
+              <div style={{ background:'var(--rbg)', border:'1px solid rgba(208,48,48,.15)', borderRadius:'var(--rs)', padding:'12px 14px', fontSize:13 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                   <span style={{ color:'var(--t2)' }}>เลขที่</span>
                   <div style={{ textAlign:'right' }}>
                     <b style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{voidModal.no}</b>
@@ -1039,10 +1069,41 @@ function InvoiceList({ toast }) {
                     {voidModal.type==='A4' && voidModal.thermalNo && <div style={{ fontSize:10.5, color:'var(--t3)', marginTop:1 }}>+ TIV: {voidModal.thermalNo}</div>}
                   </div>
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}><span style={{ color:'var(--t2)' }}>ลูกค้า</span><b>{voidModal.custName}</b></div>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}><span style={{ color:'var(--t2)' }}>ลูกค้า</span><b>{voidModal.custName}</b></div>
                 <div style={{ display:'flex', justifyContent:'space-between' }}><span style={{ color:'var(--t2)' }}>ยอดรวม</span><b style={{ color:'var(--gn)' }}>{$(voidModal.total)}</b></div>
               </div>
-              <div style={{ textAlign:'left', marginBottom:4 }}>
+              {/* Items table */}
+              {(voidModal.items||[]).length > 0 && (
+                <div>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--t2)', marginBottom:6 }}>รายการสินค้า ({(voidModal.items||[]).length} รายการ)</div>
+                  <div className="tw">
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                      <thead><tr style={{ background:'var(--s2)' }}>
+                        {['รหัส','สินค้า','จำนวน','ราคา','รวม'].map(h=>(
+                          <th key={h} style={{ padding:'5px 8px', textAlign:['จำนวน','ราคา','รวม'].includes(h)?'right':'left', fontSize:11, fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)' }}>{h}</th>
+                        ))}
+                      </tr></thead>
+                      <tbody>
+                        {(voidModal.items||[]).map((it,i)=>(
+                          <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
+                            <td style={{ padding:'5px 8px', fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t2)' }}>{it.code}</td>
+                            <td style={{ padding:'5px 8px', fontWeight:600 }}>{it.name}</td>
+                            <td style={{ padding:'5px 8px', textAlign:'right' }}>{window.fmtItemQty?window.fmtItemQty(Number(it.weight),it.code):Number(it.weight).toFixed(3)+' KG'}</td>
+                            <td style={{ padding:'5px 8px', textAlign:'right', color:'var(--t2)' }}>฿{it.price}</td>
+                            <td style={{ padding:'5px 8px', textAlign:'right', fontWeight:700 }}>{window.fmtMoney(it.weight*it.price)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot><tr style={{ background:'var(--s2)' }}>
+                        <td colSpan="4" style={{ padding:'6px 8px', textAlign:'right', fontSize:12, fontWeight:700 }}>ยอดรวม</td>
+                        <td style={{ padding:'6px 8px', textAlign:'right', fontWeight:800, color:'var(--gn)' }}>{$(voidModal.total)}</td>
+                      </tr></tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+              {/* Reason */}
+              <div>
                 <label className="fl">เหตุผลการยกเลิก <span className="req">*</span></label>
                 <select className="fc" value={voidReason} onChange={e=>setVoidReason(e.target.value)}>
                   <option value="">-- เลือกเหตุผล --</option>
@@ -1056,7 +1117,8 @@ function InvoiceList({ toast }) {
             <div className="md-f">
               <Button variant="bg2" onClick={()=>{setVoidModal(null);setVoidReason('');}}>ยกเลิก</Button>
               <button onClick={doVoid} style={{ display:'flex', alignItems:'center', gap:7, padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>
-                <Icon name="x-circle" size={15} style={{ color:'#fff' }}/> ยืนยันยกเลิกทั้งใบ
+                <Icon name="x-circle" size={15} style={{ color:'#fff' }}/>
+                {voidModal.type==='A4'||voidModal.fullInvNo ? 'ยืนยันยกเลิกใบกำกับภาษี' : 'ยืนยันยกเลิกใบเสร็จ'}
               </button>
             </div>
           </div>
