@@ -71,6 +71,7 @@ function Reports() {
   const D = window.SP_DATA;
   const [tab, setTab]           = React.useState('product');
   const [prodSub, setProdSub]   = React.useState('flat'); /* flat | byproduct */
+  const [taxSub, setTaxSub]     = React.useState('sale'); /* sale | buy */
   const [dateFrom, setDateFrom] = React.useState(() => window.toLocalISODate());
   const [dateTo, setDateTo]     = React.useState(() => window.toLocalISODate());
   const [search, setSearch]         = React.useState('');
@@ -352,129 +353,160 @@ function Reports() {
       )}
 
       {/* ── TAB 2: ภาษีซื้อ-ขาย ── */}
-      {tab==='tax' && (
+      {tab==='tax' && (() => {
+        /* ── ภาษีขาย: group rows by TIV invoice ── */
+        const saleByInv = {};
+        rows.forEach(r => {
+          const key = r.thermalInv || r.inv;
+          if (!saleByInv[key]) saleByInv[key] = {
+            dateISO:r.dateISO, date:r.date, no:key, custId:r.custId, netSale:0, vat:0
+          };
+          saleByInv[key].netSale += r.netSale||0;
+          saleByInv[key].vat     += r.vat||0;
+        });
+        const taxSaleRows = Object.values(saleByInv)
+          .sort((a,b)=>a.dateISO.localeCompare(b.dateISO)||a.no.localeCompare(b.no));
+        const taxSaleTotBase = taxSaleRows.reduce((s,r)=>s+(r.netSale-r.vat),0);
+        const taxSaleTotVat  = taxSaleRows.reduce((s,r)=>s+r.vat,0);
+
+        /* ── ภาษีซื้อ: from GRN logs (vat7 items only) ── */
+        const grnAll = window.SP_STATE?.grnLogs || window.SP_DATA?.grnLogs || [];
+        const taxBuyRows = grnAll
+          .filter(g => {
+            const d = g.date||'';
+            if (dateFrom && d < dateFrom) return false;
+            if (dateTo   && d > dateTo)   return false;
+            return (g.items||[]).some(it=>it.tax==='vat7');
+          })
+          .map(g => {
+            const vatItems = (g.items||[]).filter(it=>it.tax==='vat7');
+            const inclVat  = vatItems.reduce((s,it)=>s+Number(it.value||0),0);
+            const vatAmt   = inclVat * 7/107;
+            const baseAmt  = inclVat - vatAmt;
+            return { ...g, inclVat, vatAmt, baseAmt };
+          })
+          .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+        const taxBuyTotBase = taxBuyRows.reduce((s,r)=>s+r.baseAmt,0);
+        const taxBuyTotVat  = taxBuyRows.reduce((s,r)=>s+r.vatAmt,0);
+
+        const THSUB = { fontSize:12, fontWeight:700, padding:'5px 12px', borderRadius:6, border:'none', cursor:'pointer', fontFamily:'inherit' };
+        return (
         <div>
           <FilterBar showSearch={false}
-            onExport={()=>window.exportCSV('report_tax.csv',['วันที่','จำนวนรายการ','Gross Sale','Discount','Net Sale','VAT 7%','เงินสด','โอนเงิน','เครดิต','รวม'],dateRows.map(d=>[d.date,d.cnt,d.gross,d.disc||0,d.net,d.vat,(d.cash||0),(d.transfer||0),(d.credit||0),d.total]))}
-            onPdf={()=>window.exportPDF('รายงานภาษีซื้อ-ขาย',['วันที่','จำนวนรายการ','Gross Sale','Discount','Net Sale','VAT 7%','รวม'],dateRows.map(d=>[d.date,d.cnt,d.gross,d.disc||0,d.net,d.vat,d.total]),`รวม ${rows.length} รายการ | VAT ${$(totVat)} | ยอดรวม ${$(totTotal)}`)}
+            onExport={taxSub==='sale'
+              ? ()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.netSale-r.vat),$(r.vat)];}))
+              : ()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.baseAmt),$(r.vatAmt)]))}
+            onPdf={taxSub==='sale'
+              ? ()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.netSale-r.vat),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotBase)}`)
+              : ()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.baseAmt),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotBase)}`)}
           />
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
-            <KPI label="จำนวนบิลทั้งหมด" value={billCount+' ใบ'} color="var(--ac)" />
-            <KPI label="Gross Sale" sub="แยกรายการสินค้า" value={$(totGross)} color="var(--gn)" />
-            <KPI label="Discount" sub="ส่วนลดทั้งหมด" value={totDisc>0?'-'+$(totDisc):'฿0.00'} color="var(--am)" />
-            <KPI label="Net Sale" sub="หลังลดส่วนลด" value={$(totNet)} color="var(--ac)" />
-            <KPI label="VAT 7%" sub="ภาษีมูลค่าเพิ่ม" value={$(totVat)} color="var(--pu)" />
-            <KPI label="Sale incl. VAT" sub="ยอดรวมทั้งสิ้น" value={$(totTotal)} color="var(--tx)" />
+
+          {/* Sub-tabs */}
+          <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+            <button style={{ ...THSUB, background:taxSub==='sale'?'var(--ac)':'var(--s2)', color:taxSub==='sale'?'#fff':'var(--t2)' }} onClick={()=>setTaxSub('sale')}>
+              📤 รายงานภาษีขาย
+            </button>
+            <button style={{ ...THSUB, background:taxSub==='buy'?'var(--pu)':'var(--s2)', color:taxSub==='buy'?'#fff':'var(--t2)' }} onClick={()=>setTaxSub('buy')}>
+              📥 รายงานภาษีซื้อ
+            </button>
           </div>
 
-          {/* ── สรุปยอดประจำวัน — compact invoice range view ── */}
-          <Card title="สรุปยอดประจำวัน" style={{ marginBottom:14 }}>
-            <div className="tw"><table>
-              <thead><tr>
-                <th style={TH}>วันที่</th>
-                <th style={TH}>เลขที่ TIV (อย่างย่อ)</th>
-                <th style={TH}>เลขที่ INV (เต็มรูปแบบ)</th>
-                <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th>
-                <th style={THR}>ยอดรวม (฿)</th>
-              </tr></thead>
-              <tbody>
-                {dateRows.map((d,i) => {
-                  const dayRows = rows.filter(r => r.date === d.date);
-                  const tivs = dayRows.map(r => r.thermalInv).filter(Boolean).sort();
-                  const invs = dayRows.filter(r => r.channel==='wholesale').map(r => r.inv).filter(x=>x&&x.startsWith('INV')).sort();
-                  const rng = arr => arr.length > 1 ? `${arr[0]} – ${arr[arr.length-1]}` : (arr[0]||'—');
-                  return (
-                    <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
-                      <td style={{ ...TD, fontWeight:700 }}>{d.date}</td>
-                      <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{rng(tivs)}</td>
-                      <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{rng(invs)}</td>
-                      <td style={{ ...TD, textAlign:'center', fontWeight:700 }}>{dayRows.length} บิล</td>
-                      <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(d.total)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot><tr>
-                <td style={TF}>รวมทั้งหมด</td>
-                <td colSpan="2" style={TF}></td>
-                <td style={{ ...TF, textAlign:'center' }}>{rows.length} บิล</td>
-                <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
-              </tr></tfoot>
-            </table></div>
-          </Card>
+          {/* ── ภาษีขาย ── */}
+          {taxSub==='sale' && (
+            <div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
+                <KPI label="จำนวนใบกำกับ" value={taxSaleRows.length+' ใบ'} color="var(--ac)" />
+                <KPI label="มูลค่าสินค้ารวม" sub="ไม่รวม VAT" value={$(taxSaleTotBase)} color="var(--gn)" />
+                <KPI label="ภาษีขาย (VAT 7%)" value={$(taxSaleTotVat)} color="var(--pu)" />
+              </div>
+              <Card title={`รายงานภาษีขาย — ${taxSaleRows.length} รายการ`}>
+                <div className="tw"><table>
+                  <thead><tr>
+                    <th style={{ ...TH, textAlign:'center', width:50 }}>ลำดับ</th>
+                    <th style={TH}>วันที่</th>
+                    <th style={TH}>เลขที่เอกสาร</th>
+                    <th style={TH}>ชื่อผู้ซื้อสินค้า</th>
+                    <th style={{ ...TH, textAlign:'center' }}>สาขาที่</th>
+                    <th style={THR}>มูลค่าสินค้า (฿)</th>
+                    <th style={THR}>จำนวนเงินภาษี (฿)</th>
+                  </tr></thead>
+                  <tbody>
+                    {taxSaleRows.length===0
+                      ? <tr><td colSpan="7" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการในช่วงวันที่เลือก</td></tr>
+                      : taxSaleRows.map((r,i) => {
+                          const cust = D.customers.find(c=>c.id===r.custId);
+                          const base = r.netSale - r.vat;
+                          return (
+                            <tr key={r.no} style={{ borderBottom:'1px solid var(--bd)' }}>
+                              <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
+                              <td style={{ ...TD, fontWeight:600 }}>{r.date}</td>
+                              <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--ac)' }}>{r.no}</td>
+                              <td style={TD}>{cust?.name||'ลูกค้าทั่วไป'}</td>
+                              <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
+                              <td style={{ ...TDR, fontWeight:700 }}>{$(base)}</td>
+                              <td style={{ ...TDR, color:'var(--pu)', fontWeight:700 }}>{$(r.vat)}</td>
+                            </tr>
+                          );
+                        })
+                    }
+                  </tbody>
+                  <tfoot><tr>
+                    <td colSpan="5" style={{ ...TF }}>รวมทั้งหมด ({taxSaleRows.length} รายการ)</td>
+                    <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxSaleTotBase)}</td>
+                    <td style={{ ...TFR, color:'var(--pu)' }}>{$(taxSaleTotVat)}</td>
+                  </tr></tfoot>
+                </table></div>
+              </Card>
+            </div>
+          )}
 
-          <Card title="สรุปเอกสารแยกตามวันที่ (ภาษีซื้อ-ขาย)" style={{ marginBottom:14 }}>
-            <div className="tw"><table>
-              <thead><tr>
-                <th style={TH}>วันที่</th><th style={{ ...TH, textAlign:'center' }}>จำนวนรายการ</th>
-                <th style={THR}>Gross Sale</th><th style={THR}>Discount</th><th style={THR}>Net Sale</th>
-                <th style={THR}>VAT 7%</th><th style={THR}>เงินสด</th><th style={THR}>โอนเงิน</th><th style={THR}>เครดิต</th><th style={THR}>รวม</th>
-              </tr></thead>
-              <tbody>
-                {dateRows.map((d,i)=>(
-                  <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
-                    <td style={{ ...TD, fontWeight:600 }}>{d.date}</td>
-                    <td style={{ ...TD, textAlign:'center' }}>{d.cnt} รายการ</td>
-                    <td style={TDR}>{$(d.gross)}</td>
-                    <td style={{ ...TDR, color:'var(--am)' }}>{d.disc>0?'-'+$(d.disc):'—'}</td>
-                    <td style={{ ...TDR, fontWeight:700 }}>{$(d.net)}</td>
-                    <td style={{ ...TDR, color:'var(--pu)' }}>{$(d.vat)}</td>
-                    <td style={TDR}>{d.cash?$(d.cash):'—'}</td>
-                    <td style={TDR}>{d.transfer?$(d.transfer):'—'}</td>
-                    <td style={TDR}>{d.credit?$(d.credit):'—'}</td>
-                    <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(d.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot><tr>
-                <td style={TF}>รวม {dateRows.length} วัน</td>
-                <td style={{ ...TF, textAlign:'center' }}>{rows.length} รายการ</td>
-                <td style={TFR}>{$(totGross)}</td>
-                <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
-                <td style={TFR}>{$(totNet)}</td>
-                <td style={{ ...TFR, color:'var(--pu)' }}>{$(totVat)}</td>
-                <td style={TFR}>{$(rows.filter(r=>r.pay==='cash').reduce((s,r)=>s+r.total,0))}</td>
-                <td style={TFR}>{$(rows.filter(r=>r.pay==='transfer').reduce((s,r)=>s+r.total,0))}</td>
-                <td style={TFR}>{$(rows.filter(r=>r.pay==='credit').reduce((s,r)=>s+r.total,0))}</td>
-                <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
-              </tr></tfoot>
-            </table></div>
-          </Card>
-          <Card title="สรุปประเภทตามประเภท">
-            <div className="tw"><table>
-              <thead><tr>
-                <th style={TH}>วันที่</th>
-                <th style={{ ...THR, color:'var(--ac)' }}>Wholesale</th>
-                <th style={{ ...THR, color:'var(--pu)' }}>Online</th>
-                <th style={THR}>Sample</th>
-                <th style={{ ...THR, color:'var(--rd)' }}>Expired</th>
-                <th style={THR}>Other</th>
-                <th style={{ ...THR, fontWeight:800 }}>รวมทุกประเภท</th>
-              </tr></thead>
-              <tbody>
-                {dateRows.map((d,i)=>(
-                  <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
-                    <td style={{ ...TD, fontWeight:600 }}>{d.date}</td>
-                    <td style={{ ...TDR, color:'var(--ac)' }}>{d.wholesale?$(d.wholesale):'—'}</td>
-                    <td style={{ ...TDR, color:'var(--pu)' }}>{d.online?$(d.online):'—'}</td>
-                    <td style={TDR}>{d.sample?$(d.sample):'—'}</td>
-                    <td style={{ ...TDR, color:'var(--rd)' }}>{d.expired?$(d.expired):'—'}</td>
-                    <td style={TDR}>{d.other?$(d.other):'—'}</td>
-                    <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(d.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot><tr>
-                <td style={TF}>รวม {dateRows.length} วัน</td>
-                {['wholesale','online','sample','expired','other'].map(ch=>(
-                  <td key={ch} style={TFR}>{$(rows.filter(r=>r.channel===ch).reduce((s,r)=>s+r.total,0))}</td>
-                ))}
-                <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
-              </tr></tfoot>
-            </table></div>
-          </Card>
+          {/* ── ภาษีซื้อ ── */}
+          {taxSub==='buy' && (
+            <div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
+                <KPI label="จำนวนใบรับสินค้า (GRN)" value={taxBuyRows.length+' ใบ'} color="var(--pu)" />
+                <KPI label="มูลค่าสินค้ารวม" sub="ไม่รวม VAT" value={$(taxBuyTotBase)} color="var(--gn)" />
+                <KPI label="ภาษีซื้อ (VAT 7%)" value={$(taxBuyTotVat)} color="var(--ac)" />
+              </div>
+              <Card title={`รายงานภาษีซื้อ — ${taxBuyRows.length} รายการ`}>
+                <div className="tw"><table>
+                  <thead><tr>
+                    <th style={{ ...TH, textAlign:'center', width:50 }}>ลำดับ</th>
+                    <th style={TH}>วันที่</th>
+                    <th style={TH}>เลขที่เอกสาร</th>
+                    <th style={TH}>ชื่อผู้รับสินค้า</th>
+                    <th style={{ ...TH, textAlign:'center' }}>สาขาที่</th>
+                    <th style={THR}>มูลค่าสินค้า (฿)</th>
+                    <th style={THR}>จำนวนเงินภาษี (฿)</th>
+                  </tr></thead>
+                  <tbody>
+                    {taxBuyRows.length===0
+                      ? <tr><td colSpan="7" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการในช่วงวันที่เลือก</td></tr>
+                      : taxBuyRows.map((r,i) => (
+                          <tr key={r.id} style={{ borderBottom:'1px solid var(--bd)' }}>
+                            <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
+                            <td style={{ ...TD, fontWeight:600 }}>{r.dateDisplay||r.date}</td>
+                            <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--pu)' }}>{r.id}</td>
+                            <td style={TD}>{r.receiver||'—'}</td>
+                            <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
+                            <td style={{ ...TDR, fontWeight:700 }}>{$(r.baseAmt)}</td>
+                            <td style={{ ...TDR, color:'var(--ac)', fontWeight:700 }}>{$(r.vatAmt)}</td>
+                          </tr>
+                        ))
+                    }
+                  </tbody>
+                  <tfoot><tr>
+                    <td colSpan="5" style={{ ...TF }}>รวมทั้งหมด ({taxBuyRows.length} รายการ)</td>
+                    <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxBuyTotBase)}</td>
+                    <td style={{ ...TFR, color:'var(--ac)' }}>{$(taxBuyTotVat)}</td>
+                  </tr></tfoot>
+                </table></div>
+              </Card>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {/* ── TAB 3: Daily Sale ── */}
       {tab==='daily' && (
