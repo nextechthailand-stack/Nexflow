@@ -86,8 +86,12 @@ function InvoiceList({ toast }) {
   const [tivPage,   setTivPage]   = React.useState(1);
   const [voidPage,  setVoidPage]  = React.useState(1);
   const [auditPage, setAuditPage] = React.useState(1);
+  const [dailyFrom, setDailyFrom] = React.useState('');
+  const [dailyTo,   setDailyTo]   = React.useState('');
+  const [auditFrom, setAuditFrom] = React.useState('');
+  const [auditTo,   setAuditTo]   = React.useState('');
   React.useEffect(() => { setTivPage(1); }, [search, dateFrom, dateTo]);
-  React.useEffect(() => { setAuditPage(1); }, [tab]);
+  React.useEffect(() => { setAuditPage(1); }, [tab, auditFrom, auditTo]);
 
   const refresh = () => setInvs([...window.SP_STATE.invoices]);
 
@@ -450,26 +454,42 @@ function InvoiceList({ toast }) {
       </div>
 
       {/* ── Daily summary tab ── */}
-      {tab==='daily' && (
+      {tab==='daily' && (() => {
+        const filteredDaily = dailyGroups.filter(d => {
+          if (dailyFrom && d.dateISO < dailyFrom) return false;
+          if (dailyTo   && d.dateISO > dailyTo)   return false;
+          return true;
+        });
+        const dailyTivCnt = filteredDaily.reduce((s,d)=>s+d.tivNos.length,0);
+        const dailyInvCnt = filteredDaily.reduce((s,d)=>s+d.invNos.length,0);
+        const dailyBillCnt = filteredDaily.reduce((s,d)=>s+d.cnt,0);
+        const dailyTotal = filteredDaily.reduce((s,d)=>s+Number(d.total||0),0);
+        return (
         <div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
             <div className="card" style={{ padding:'14px 18px' }}>
               <div style={{ fontSize:12, color:'var(--t2)', marginBottom:5 }}>ใบกำกับทั้งหมด (ไม่รวมยกเลิก)</div>
-              <div style={{ fontSize:22, fontWeight:800, color:'var(--ac)' }}>{invs.filter(iv=>!iv.voided).length} <span style={{ fontSize:13, fontWeight:600 }}>ใบ</span></div>
+              <div style={{ fontSize:22, fontWeight:800, color:'var(--ac)' }}>{dailyBillCnt} <span style={{ fontSize:13, fontWeight:600 }}>บิล</span></div>
             </div>
             <div className="card" style={{ padding:'14px 18px' }}>
               <div style={{ fontSize:12, color:'var(--t2)', marginBottom:5 }}>TIV (อย่างย่อ)</div>
-              <div style={{ fontSize:22, fontWeight:800, color:'var(--t2)' }}>{invs.filter(iv=>!iv.voided).length} <span style={{ fontSize:13, fontWeight:600 }}>ฉบับ</span></div>
+              <div style={{ fontSize:22, fontWeight:800, color:'var(--t2)' }}>{dailyTivCnt} <span style={{ fontSize:13, fontWeight:600 }}>ฉบับ</span></div>
             </div>
             <div className="card" style={{ padding:'14px 18px' }}>
               <div style={{ fontSize:12, color:'var(--t2)', marginBottom:5 }}>INV (เต็มรูปแบบ)</div>
-              <div style={{ fontSize:22, fontWeight:800, color:'var(--gn)' }}>{invs.filter(iv=>!iv.voided&&iv.type==='A4').length} <span style={{ fontSize:13, fontWeight:600 }}>ฉบับ</span></div>
+              <div style={{ fontSize:22, fontWeight:800, color:'var(--gn)' }}>{dailyInvCnt} <span style={{ fontSize:13, fontWeight:600 }}>ฉบับ</span></div>
             </div>
           </div>
-          <Card title="สรุปยอดประจำวัน — ใบกำกับภาษี" actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoice_daily.csv',['วันที่','TIV range','INV range','จำนวนบิล','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.total>0?$(d.total):'']))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดประจำวัน — ใบกำกับภาษี',['วันที่','TIV range','INV range','จำนวนบิล','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.total>0?$(d.total):'']))}>PDF</Button>
-          </div>}>
+          <Card title={`สรุปยอดประจำวัน — ใบกำกับภาษี${filteredDaily.length !== dailyGroups.length ? ` (${filteredDaily.length} วัน)` : ''}`} actions={
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+              <DateField style={{ width:140 }} value={dailyFrom} onChange={e=>setDailyFrom(e.target.value)} />
+              <span style={{ fontSize:12, color:'var(--t3)' }}>–</span>
+              <DateField style={{ width:140 }} value={dailyTo}   onChange={e=>setDailyTo(e.target.value)} />
+              {(dailyFrom||dailyTo) && <button className="btn bg2 bsm" onClick={()=>{setDailyFrom('');setDailyTo('');}}>ล้าง</button>}
+              <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoice_daily.csv',['วันที่','TIV range','INV range','จำนวนบิล','ยอดรวม'],filteredDaily.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.total>0?$(d.total):'']))}>CSV</Button>
+              <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดประจำวัน — ใบกำกับภาษี',['วันที่','TIV range','INV range','จำนวนบิล','ยอดรวม'],filteredDaily.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.total>0?$(d.total):'']))}>PDF</Button>
+            </div>
+          }>
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>วันที่</th>
@@ -479,9 +499,9 @@ function InvoiceList({ toast }) {
                 <th style={{ ...TH, textAlign:'right' }}>ยอดรวม (฿)</th>
               </tr></thead>
               <tbody>
-                {dailyGroups.length===0
-                  ? <tr><td colSpan="5" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ยังไม่มีรายการ</td></tr>
-                  : dailyGroups.map((d,i)=>(
+                {filteredDaily.length===0
+                  ? <tr><td colSpan="5" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>{dailyGroups.length===0 ? 'ยังไม่มีรายการ' : 'ไม่มีข้อมูลในช่วงวันที่เลือก'}</td></tr>
+                  : filteredDaily.map((d,i)=>(
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                       <td style={{ ...TD, fontWeight:700 }}>{d.date}</td>
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{tivRange(d.tivNos)}</td>
@@ -493,15 +513,16 @@ function InvoiceList({ toast }) {
                 }
               </tbody>
               <tfoot><tr>
-                <td style={{ padding:'9px 14px', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>รวมทั้งหมด</td>
+                <td style={{ padding:'9px 14px', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>รวม{dailyFrom||dailyTo ? 'ช่วงเวลาที่เลือก' : 'ทั้งหมด'}</td>
                 <td colSpan="2" style={{ padding:'9px 14px', background:'var(--s2)', borderTop:'2px solid var(--bd)' }}></td>
-                <td style={{ padding:'9px 14px', textAlign:'center', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{invs.filter(iv=>!iv.voided).length} บิล</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:800, color:'var(--gn)', background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{$(dailyGroups.reduce((s,d)=>s+Number(d.total||0),0))}</td>
+                <td style={{ padding:'9px 14px', textAlign:'center', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{dailyBillCnt} บิล</td>
+                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:800, color:'var(--gn)', background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{$(dailyTotal)}</td>
               </tr></tfoot>
             </table></div>
           </Card>
         </div>
-      )}
+        );
+      })()}
 
       {tab==='list' && (() => {
         /* TIV-centric list: each row = 1 sale (TIV primary, INV/CN/DN linked) */
@@ -861,24 +882,37 @@ function InvoiceList({ toast }) {
           CREATE_DEBIT_NOTE:  { label:'ออกใบเพิ่มหนี้ (DN)',       color:'var(--rd)',  bg:'var(--rbg)' },
           PRINT_INVOICE:      { label:'พิมพ์เอกสาร',               color:'var(--t2)', bg:'var(--s2)' },
         };
+        const filteredAudit = auditLog.filter(l => {
+          const d = (l.timestamp || '').slice(0, 10);
+          if (auditFrom && d < auditFrom) return false;
+          if (auditTo   && d > auditTo)   return false;
+          return true;
+        });
+        const auditTotalPgs = Math.max(1, Math.ceil(filteredAudit.length / INV_PAGE_SIZE));
+        const auditSafePg   = Math.min(auditPage, auditTotalPgs);
+        const auditSlice    = filteredAudit.slice((auditSafePg-1)*INV_PAGE_SIZE, auditSafePg*INV_PAGE_SIZE);
         return (
           <div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:18 }}>
-              <StatCard icon="file-text" iconTone="ac" label="รายการทั้งหมด" value={auditLog.length+' รายการ'} />
-              <StatCard icon="check"    iconTone="gn" label="ออก INV"       value={auditLog.filter(l=>l.actionType==='ISSUE_INVOICE').length+' ครั้ง'} />
-              <StatCard icon="x-circle" iconTone="rd" label="ยกเลิก"        value={auditLog.filter(l=>l.actionType==='CANCEL_INVOICE').length+' ครั้ง'} valueTone="rd"/>
-              <StatCard icon="coin"     iconTone="am" label="CN/DN"          value={auditLog.filter(l=>l.actionType.includes('NOTE')).length+' ฉบับ'} valueTone="am"/>
+              <StatCard icon="file-text" iconTone="ac" label="รายการ (ช่วงเวลา)" value={filteredAudit.length+' รายการ'} />
+              <StatCard icon="check"    iconTone="gn" label="ออก INV"            value={filteredAudit.filter(l=>l.actionType==='ISSUE_INVOICE').length+' ครั้ง'} />
+              <StatCard icon="x-circle" iconTone="rd" label="ยกเลิก"             value={filteredAudit.filter(l=>l.actionType==='CANCEL_INVOICE').length+' ครั้ง'} valueTone="rd"/>
+              <StatCard icon="coin"     iconTone="am" label="CN/DN"               value={filteredAudit.filter(l=>l.actionType.includes('NOTE')).length+' ฉบับ'} valueTone="am"/>
             </div>
-            <Card title="Audit Trail — บันทึกการดำเนินการทั้งหมด" actions={
-              <div style={{ display:'flex', gap:6 }}>
+            <Card title={`Audit Trail — บันทึกการดำเนินการ${auditFrom||auditTo ? ` (${filteredAudit.length} รายการ)` : 'ทั้งหมด'}`} actions={
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+                <DateField style={{ width:140 }} value={auditFrom} onChange={e=>setAuditFrom(e.target.value)} />
+                <span style={{ fontSize:12, color:'var(--t3)' }}>–</span>
+                <DateField style={{ width:140 }} value={auditTo}   onChange={e=>setAuditTo(e.target.value)} />
+                {(auditFrom||auditTo) && <button className="btn bg2 bsm" onClick={()=>{setAuditFrom('');setAuditTo('');}}>ล้าง</button>}
                 <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('audit_trail.csv',
                   ['วันเวลา','ประเภท','เลขที่เอกสาร','อ้างอิง','ผู้ดำเนินการ','สิทธิ์','เหตุผล'],
-                  auditLog.map(l=>[l.timestampDisplay,l.actionType,l.docNo,l.refDocNo||'',l.username,l.userRole,l.reason])
+                  filteredAudit.map(l=>[l.timestampDisplay,l.actionType,l.docNo,l.refDocNo||'',l.username,l.userRole,l.reason])
                 )}>CSV</Button>
                 <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('Audit Trail — บันทึกการดำเนินการ',
                   ['วันเวลา','ประเภท','เลขที่เอกสาร','อ้างอิง','ผู้ดำเนินการ','เหตุผล'],
-                  auditLog.map(l=>[l.timestampDisplay,ACTION_LABELS[l.actionType]?.label||l.actionType,l.docNo,l.refDocNo||'—',l.username,l.reason||'—']),
-                  `รวม ${auditLog.length} รายการ`
+                  filteredAudit.map(l=>[l.timestampDisplay,ACTION_LABELS[l.actionType]?.label||l.actionType,l.docNo,l.refDocNo||'—',l.username,l.reason||'—']),
+                  `รวม ${filteredAudit.length} รายการ`
                 )}>PDF</Button>
               </div>
             }>
@@ -893,15 +927,11 @@ function InvoiceList({ toast }) {
                   <th style={TH}>เหตุผล</th>
                 </tr></thead>
                 <tbody>
-                  {auditLog.length===0 ? (
+                  {filteredAudit.length===0 ? (
                     <tr><td colSpan="7" style={{ padding:'32px', textAlign:'center', color:'var(--t3)' }}>
-                      ยังไม่มีรายการ — ระบบจะบันทึกทุก action อัตโนมัติ
+                      {auditLog.length===0 ? 'ยังไม่มีรายการ — ระบบจะบันทึกทุก action อัตโนมัติ' : 'ไม่มีข้อมูลในช่วงวันที่เลือก'}
                     </td></tr>
-                  ) : (() => {
-                    const auditTotalPgs = Math.max(1, Math.ceil(auditLog.length / INV_PAGE_SIZE));
-                    const auditSafePg   = Math.min(auditPage, auditTotalPgs);
-                    const auditSlice    = auditLog.slice((auditSafePg-1)*INV_PAGE_SIZE, auditSafePg*INV_PAGE_SIZE);
-                    return auditSlice.map((log, i) => {
+                  ) : auditSlice.map((log, i) => {
                     const meta = ACTION_LABELS[log.actionType] || { label:log.actionType, color:'var(--t2)', bg:'var(--s2)' };
                     return (
                       <tr key={log.id || i} style={{ borderBottom:'1px solid var(--bd)' }}>
@@ -918,15 +948,10 @@ function InvoiceList({ toast }) {
                         <td style={{ ...TD, fontSize:12, color:'var(--t2)', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.reason||'—'}</td>
                       </tr>
                     );
-                  });
-                  })()}
+                  })}
                 </tbody>
               </table></div>
-              {(() => {
-                const auditTotalPgs = Math.max(1, Math.ceil(auditLog.length / INV_PAGE_SIZE));
-                const auditSafePg   = Math.min(auditPage, auditTotalPgs);
-                return <Paginator page={auditSafePg} totalPages={auditTotalPgs} setPage={setAuditPage} total={auditLog.length} pageSize={INV_PAGE_SIZE} noun="รายการ" />;
-              })()}
+              <Paginator page={auditSafePg} totalPages={auditTotalPgs} setPage={setAuditPage} total={filteredAudit.length} pageSize={INV_PAGE_SIZE} noun="รายการ" />
             </Card>
           </div>
         );
