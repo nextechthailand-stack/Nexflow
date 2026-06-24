@@ -115,4 +115,23 @@ function CompanyLogo({ size = 40, radius = 11 }) {
   );
 }
 
-Object.assign(window, { Icon, Button, Badge, StockPill, Card, StatCard, Field, CompanyLogo, DateField });
+function Overlay({ children, onClick }) {
+  const [portalEl] = React.useState(() => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    return el;
+  });
+  React.useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      if (portalEl.parentNode) portalEl.parentNode.removeChild(portalEl);
+      if (!document.body.querySelector('.ov')) document.body.style.overflow = '';
+    };
+  }, []);
+  return ReactDOM.createPortal(
+    <div className="ov" onClick={onClick}>{children}</div>,
+    portalEl
+  );
+}
+
+Object.assign(window, { Icon, Button, Badge, StockPill, Card, StatCard, Field, CompanyLogo, DateField, Overlay });

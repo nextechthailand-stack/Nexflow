@@ -1,4 +1,4 @@
-/* StockPro UI Kit — Thai tax invoice (A4) shown in a modal */
+/* NEXflow UI Kit — Thai tax invoice (A4) shown in a modal */
 function Invoice({ invoice, onClose, toast }) {
   if (!invoice) return null;
   const D = window.SP_DATA;
@@ -7,7 +7,7 @@ function Invoice({ invoice, onClose, toast }) {
     const d = new Date(iso); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${(d.getFullYear()+543)%100}`;
   };
   return (
-    <div className="ov" onClick={e => e.target === e.currentTarget && onClose()}>
+    <Overlay onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="md" style={{ width:720 }}>
         <div className="md-h">
           <span className="md-t">ใบกำกับภาษี · {invoice.no}</span>
@@ -43,10 +43,10 @@ function Invoice({ invoice, onClose, toast }) {
               </div>
             </div>
             <table className="inv-tbl">
-              <thead><tr><th style={{ width:30 }}>#</th><th>รายการ</th><th style={{ textAlign:'right' }}>น้ำหนัก</th><th style={{ textAlign:'right' }}>ราคา/KG</th><th style={{ textAlign:'right' }}>จำนวนเงิน</th></tr></thead>
+              <thead><tr><th style={{ width:30 }}>#</th><th>รายการ</th><th style={{ textAlign:'right' }}>น้ำหนัก/จำนวน</th><th style={{ textAlign:'right' }}>ราคา/หน่วย</th><th style={{ textAlign:'right' }}>จำนวนเงิน</th></tr></thead>
               <tbody>
                 {invoice.items.map((it, i) => (
-                  <tr key={i}><td>{i+1}</td><td>{it.name} <span className="mono" style={{ color:'var(--t3)' }}>({it.code})</span></td><td style={{ textAlign:'right' }}>{it.weight.toFixed(3)}</td><td style={{ textAlign:'right' }}>฿{it.price}</td><td style={{ textAlign:'right' }}>{window.fmtMoney(it.weight*it.price)}</td></tr>
+                  <tr key={i}><td>{i+1}</td><td>{it.name} <span className="mono" style={{ color:'var(--t3)' }}>({it.code})</span></td><td style={{ textAlign:'right' }}>{window.fmtItemQty(it.weight, it.code)}</td><td style={{ textAlign:'right' }}>฿{it.price}</td><td style={{ textAlign:'right' }}>{window.fmtMoney(it.weight*it.price)}</td></tr>
                 ))}
               </tbody>
               <tfoot>
@@ -67,7 +67,7 @@ function Invoice({ invoice, onClose, toast }) {
           <Button variant="bs" icon="check" onClick={() => { toast('ok', 'บันทึกใบกำกับเรียบร้อย'); onClose(); }}>เสร็จสิ้น</Button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 window.Invoice = Invoice;

@@ -43,7 +43,7 @@ function GrnDoc({ grn, onClose }) {
   });
 
   return (
-    <div className="ov" onClick={e => e.target === e.currentTarget && onClose()}>
+    <Overlay onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="md" style={{ width:900, maxHeight:'92vh' }}>
         <div className="md-h">
           <span className="md-t">เอกสารรับสินค้า (GRN) · {grn.id}</span>
@@ -193,7 +193,7 @@ function GrnDoc({ grn, onClose }) {
           <Button variant="bs" icon="check" onClick={onClose}>✓ บันทึกเสร็จสิ้น</Button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 
@@ -546,7 +546,7 @@ function StockIn({ toast, setPage }) {
 
       {/* Confirmation popup */}
       {showConfirm && (
-        <div className="ov" onClick={e => e.target===e.currentTarget && setShowConfirm(false)}>
+        <Overlay onClick={e => e.target===e.currentTarget && setShowConfirm(false)}>
           <div className="md" style={{ width:420 }}>
             <div style={{ padding:'20px 22px 0' }}>
               <div style={{ textAlign:'center', marginBottom:16 }}>
@@ -578,7 +578,7 @@ function StockIn({ toast, setPage }) {
               </button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {/* GRN document popup */}

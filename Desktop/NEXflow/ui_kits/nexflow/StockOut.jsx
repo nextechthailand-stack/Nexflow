@@ -51,7 +51,7 @@ function ThermalReceipt({ data, onClose, onDone, toast }) {
   };
 
   return (
-    <div className="ov" onClick={e => e.target===e.currentTarget && onClose()}>
+    <Overlay onClick={e => e.target===e.currentTarget && onClose()}>
       <div className="md" style={{ width:500 }}>
         <div className="md-h">
           <span className="md-t">ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ</span>
@@ -177,7 +177,7 @@ function ThermalReceipt({ data, onClose, onDone, toast }) {
           </button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 
@@ -186,7 +186,7 @@ function ConfirmSO({ data, onCancel, onConfirm, saving }) {
   if (!data) return null;
   const typeInfo = SALE_TYPES.find(t => t.id === data.type);
   return (
-    <div className="ov">
+    <Overlay>
       <div className="md" style={{ width:400 }}>
         <div style={{ padding:'20px 22px 0' }}>
           <div style={{ textAlign:'center', marginBottom:16 }}>
@@ -225,7 +225,7 @@ function ConfirmSO({ data, onCancel, onConfirm, saving }) {
           </button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 

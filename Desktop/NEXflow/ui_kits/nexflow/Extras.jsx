@@ -661,7 +661,7 @@ function InvoiceList({ toast }) {
       })()}
 
       {a4Modal && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setA4Modal(null)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setA4Modal(null)}>
           <div className="md" style={{ width:'min(860px,96vw)' }}>
             <div className="md-h">
               <span className="md-t">
@@ -705,7 +705,7 @@ function InvoiceList({ toast }) {
               )}
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {tab==='void' && (
@@ -958,7 +958,7 @@ function InvoiceList({ toast }) {
 
       {/* ── Void Invoice Detail Modal ── */}
       {voidDetail && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setVoidDetail(null)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setVoidDetail(null)}>
           <div className="md" style={{ width:640 }}>
             <div className="md-h">
               <span className="md-t">รายละเอียดใบกำกับที่ยกเลิก · <span style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{voidDetail.no}</span></span>
@@ -1032,11 +1032,11 @@ function InvoiceList({ toast }) {
               }}>ดูเอกสาร</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {voidModal && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&(setVoidModal(null),setVoidReason(''))}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&(setVoidModal(null),setVoidReason(''))}>
           <div className="md" style={{ width:520 }}>
             <div className="md-h">
               <span className="md-t" style={{ color:'var(--rd)' }}>
@@ -1109,7 +1109,7 @@ function InvoiceList({ toast }) {
               </button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
     </div>
   );
@@ -2382,7 +2382,7 @@ function StockManage({ toast }) {
 
       {/* ── Adjust confirm popup ── */}
       {adjConfirm && (
-        <div className="ov">
+        <Overlay>
           <div className="md" style={{ width:420 }}>
             <div style={{ padding:'20px 22px 0', textAlign:'center' }}>
               <div style={{ width:52, height:52, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="warehouse" size={24}/></div>
@@ -2408,7 +2408,7 @@ function StockManage({ toast }) {
               </button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {/* ── A4 ADJ Document modal ── */}
@@ -2419,7 +2419,7 @@ function StockManage({ toast }) {
 
       {/* Doc detail modal (inv type only) */}
       {docModal && docModal.type==='inv' && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setDocModal(null)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setDocModal(null)}>
           <div className="md" style={{ width:600 }}>
             <div className="md-h">
               <span className="md-t">ใบกำกับภาษี · {docModal.data?.no}</span>
@@ -2480,7 +2480,7 @@ function StockManage({ toast }) {
               )}>พิมพ์</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
     </div>
   );
@@ -2602,7 +2602,7 @@ function Users({ toast }) {
 
       {/* ── Add modal ── */}
       {showModal && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setShowModal(false)}>
           <div className="md" style={{ width:500 }}>
             <div className="md-h"><span className="md-t">เพิ่มผู้ใช้งานใหม่</span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setShowModal(false)}>✕</button></div>
             <div className="md-b" style={{ display:'flex', flexDirection:'column', gap:0 }}>
@@ -2640,12 +2640,12 @@ function Users({ toast }) {
               <Button variant="bp" icon="check" onClick={addUser} disabled={saving}>{saving?'กำลังบันทึก...':'บันทึก'}</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {/* ── Edit modal ── */}
       {editModal && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditModal(null)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setEditModal(null)}>
           <div className="md" style={{ width:500 }}>
             <div className="md-h">
               <span className="md-t">แก้ไขผู้ใช้งาน</span>
@@ -2696,11 +2696,11 @@ function Users({ toast }) {
               <Button variant="bp" icon="check" onClick={saveEdit} disabled={saving}>{saving?'กำลังบันทึก...':'บันทึก'}</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {/* ── Delete confirm ── */}
-      {deleteConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+      {deleteConfirm && <Overlay><div className="md" style={{ width:380 }}>
         <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
           <div style={{ width:48, height:48, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={22}/></div>
           <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ลบผู้ใช้งาน?</div>
@@ -2711,7 +2711,7 @@ function Users({ toast }) {
           <Button variant="bg2" onClick={()=>setDeleteConfirm(null)}>ยกเลิก</Button>
           <button onClick={doDelete} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันลบ</button>
         </div>
-      </div></div>}
+      </div></Overlay>}
     </div>
   );
 }
@@ -3337,7 +3337,7 @@ function Products({ toast }) {
       {importResult && <ImportResultModal result={importResult} entityLabel="สินค้า" onClose={()=>setImportResult(null)} />}
 
       {/* Deactivate product confirm */}
-      {deactivateConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+      {deactivateConfirm && <Overlay><div className="md" style={{ width:380 }}>
         <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
           <div style={{ width:48, height:48, borderRadius:14, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--t2)' }}><Icon name="x-circle" size={22}/></div>
           <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ปิดการใช้งานสินค้า?</div>
@@ -3348,10 +3348,10 @@ function Products({ toast }) {
           <Button variant="bg2" onClick={()=>setDeactivateConfirm(null)}>ยกเลิก</Button>
           <button onClick={doDeactivateProduct} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--t2)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันปิดใช้งาน</button>
         </div>
-      </div></div>}
+      </div></Overlay>}
 
       {/* Delete product confirm */}
-      {deleteConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+      {deleteConfirm && <Overlay><div className="md" style={{ width:380 }}>
         <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
           <div style={{ width:48, height:48, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={22}/></div>
           <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ลบสินค้า?</div>
@@ -3362,11 +3362,11 @@ function Products({ toast }) {
           <Button variant="bg2" onClick={()=>setDeleteConfirm(null)}>ยกเลิก</Button>
           <button onClick={doDeleteProduct} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันลบ</button>
         </div>
-      </div></div>}
+      </div></Overlay>}
 
       {/* Edit product modal */}
       {editProd && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditProd(null)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setEditProd(null)}>
           <div className="md" style={{ width:500 }}>
             <div className="md-h"><span className="md-t">แก้ไขสินค้า <span style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--t2)' }}>{editProd.code}</span></span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setEditProd(null)}>✕</button></div>
             <div className="md-b">
@@ -3415,12 +3415,12 @@ function Products({ toast }) {
               <Button variant="bp" icon="check" onClick={saveEdit}>บันทึก</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {/* Add product modal */}
       {showAdd && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
           <div className="md" style={{ width:500 }}>
             <div className="md-h"><span className="md-t">เพิ่มสินค้าใหม่</span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setShowAdd(false)}>✕</button></div>
             <div className="md-b">
@@ -3471,7 +3471,7 @@ function Products({ toast }) {
               <Button variant="bp" icon="check" onClick={addProduct}>บันทึกสินค้า</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
     </div>
   );
@@ -3482,7 +3482,7 @@ function ImportResultModal({ result, entityLabel, onClose }) {
   if (!result) return null;
   const { rows=[], added=0, updated=0, skipped=0, errors=0 } = result;
   return (
-    <div className="ov" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <Overlay onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="md" style={{ width:620 }}>
         <div className="md-h">
           <span className="md-t">ผลการ Import {entityLabel}</span>
@@ -3533,7 +3533,7 @@ function ImportResultModal({ result, entityLabel, onClose }) {
           <Button variant="bg2" onClick={onClose}>ปิด</Button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 
@@ -3729,7 +3729,7 @@ function Customers({ toast }) {
 
       {/* ── Add modal ── */}
       {showAdd && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setShowAdd(false)}>
           <div className="md" style={{ width:480 }}>
             <div className="md-h"><span className="md-t">เพิ่มลูกค้าใหม่</span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setShowAdd(false)}>✕</button></div>
             <div className="md-b">
@@ -3754,12 +3754,12 @@ function Customers({ toast }) {
             </div>
             <div className="md-f"><Button variant="bg2" onClick={()=>setShowAdd(false)}>ยกเลิก</Button><Button variant="bp" icon="check" onClick={addCustomer}>บันทึก</Button></div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {/* ── Edit modal ── */}
       {editModal && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setEditModal(null)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setEditModal(null)}>
           <div className="md" style={{ width:480 }}>
             <div className="md-h">
               <span className="md-t">แก้ไขลูกค้า — <span style={{ fontFamily:'var(--font-mono)', color:'var(--ac)' }}>{editModal.code}</span></span>
@@ -3786,11 +3786,11 @@ function Customers({ toast }) {
             </div>
             <div className="md-f"><Button variant="bg2" onClick={()=>setEditModal(null)}>ยกเลิก</Button><Button variant="bp" icon="check" onClick={saveEditCust}>บันทึก</Button></div>
           </div>
-        </div>
+        </Overlay>
       )}
 
       {/* ── Deactivate confirm ── */}
-      {deactivateConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+      {deactivateConfirm && <Overlay><div className="md" style={{ width:380 }}>
         <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
           <div style={{ width:48, height:48, borderRadius:14, background:'var(--s2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--t2)' }}><Icon name="x-circle" size={22}/></div>
           <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ปิดการใช้งานลูกค้า?</div>
@@ -3801,10 +3801,10 @@ function Customers({ toast }) {
           <Button variant="bg2" onClick={()=>setDeactivateConfirm(null)}>ยกเลิก</Button>
           <button onClick={doDeactivateCust} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--t2)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันปิดใช้งาน</button>
         </div>
-      </div></div>}
+      </div></Overlay>}
 
       {/* ── Delete confirm ── */}
-      {deleteConfirm && <div className="ov"><div className="md" style={{ width:380 }}>
+      {deleteConfirm && <Overlay><div className="md" style={{ width:380 }}>
         <div style={{ padding:'24px 24px 0', textAlign:'center' }}>
           <div style={{ width:48, height:48, borderRadius:14, background:'var(--rbg)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', color:'var(--rd)' }}><Icon name="x-circle" size={22}/></div>
           <div style={{ fontSize:16, fontWeight:800, marginBottom:6 }}>ลบลูกค้า?</div>
@@ -3815,7 +3815,7 @@ function Customers({ toast }) {
           <Button variant="bg2" onClick={()=>setDeleteConfirm(null)}>ยกเลิก</Button>
           <button onClick={doDeleteCust} style={{ padding:'9px 20px', borderRadius:'var(--rs)', background:'var(--rd)', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer', border:'none', fontFamily:'inherit' }}>ยืนยันลบ</button>
         </div>
-      </div></div>}
+      </div></Overlay>}
     </div>
   );
 }
@@ -3948,7 +3948,7 @@ function IssueINVModal({ tiv, onConfirm, onClose, toast }) {
   };
 
   return (
-    <div className="ov" onClick={e => e.target === e.currentTarget && onClose()}>
+    <Overlay onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="md" style={{ width: 520 }}>
         <div className="md-h">
           <span className="md-t">ออกใบกำกับภาษีเต็มรูปแบบ</span>
@@ -4040,7 +4040,7 @@ function IssueINVModal({ tiv, onConfirm, onClose, toast }) {
           </Button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 window.IssueINVModal = IssueINVModal;
@@ -4200,7 +4200,7 @@ function AmendINVModal({ inv, onConfirm, onClose, toast }) {
   };
 
   return (
-    <div className="ov" onClick={e => e.target===e.currentTarget && onClose()}>
+    <Overlay onClick={e => e.target===e.currentTarget && onClose()}>
       <div className="md" style={{ width:'min(600px,97vw)' }}>
         <div className="md-h">
           <span className="md-t">แก้ไขหัวใบกำกับภาษี — <span style={{ fontFamily:'var(--font-mono)', color:'var(--rd)' }}>{inv.no}</span></span>
@@ -4285,7 +4285,7 @@ function AmendINVModal({ inv, onConfirm, onClose, toast }) {
           </button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 window.AmendINVModal = AmendINVModal;
@@ -4321,7 +4321,7 @@ function TIVDocModal({ tiv, onClose, toast, onVoid }) {
   };
 
   return (
-    <div className="ov" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <Overlay onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="md" style={{ width:480 }}>
         <div className="md-h">
           <span className="md-t">{tiv.voided ? 'ใบเสร็จยกเลิก' : 'ใบเสร็จรับเงิน / ใบกำกับภาษีแบบย่อ'}</span>
@@ -4473,7 +4473,7 @@ function TIVDocModal({ tiv, onClose, toast, onVoid }) {
           <Button variant="bp" icon="printer" onClick={handlePrint}>พิมพ์</Button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 
@@ -4513,7 +4513,7 @@ function AdjDocument({ doc, onClose, toast }) {
   const fmtFt = (val, lbl, isKg) => isKg ? Math.abs(val).toFixed(3)+' KG' : String(Math.round(Math.abs(val)))+' '+lbl;
 
   return (
-    <div className="ov" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <Overlay onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="md" style={{ width:'min(860px,96vw)' }}>
         <div className="md-h">
           <span className="md-t" style={{ color:ACC }}>
@@ -4644,7 +4644,7 @@ function AdjDocument({ doc, onClose, toast }) {
           <Button variant="bp" icon="printer" onClick={()=>toast('info','กำลังพิมพ์เอกสาร ADJ…')}>พิมพ์ A4</Button>
         </div>
       </div>
-    </div>
+    </Overlay>
   );
 }
 

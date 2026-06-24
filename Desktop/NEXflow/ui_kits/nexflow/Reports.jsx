@@ -905,7 +905,7 @@ function Reports() {
 
       {/* ── Customer detail modal ── */}
       {custModal && (
-        <div className="ov" onClick={e=>e.target===e.currentTarget&&setCustModal(null)}>
+        <Overlay onClick={e=>e.target===e.currentTarget&&setCustModal(null)}>
           <div className="md" style={{ width:660 }}>
             <div className="md-h">
               <span className="md-t">ประวัติการซื้อ: {custModal.name}</span>
@@ -965,7 +965,7 @@ function Reports() {
               <Button variant="bg2" onClick={()=>setCustModal(null)}>ปิด</Button>
             </div>
           </div>
-        </div>
+        </Overlay>
       )}
     </div>
   );
