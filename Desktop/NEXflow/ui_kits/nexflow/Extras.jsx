@@ -421,7 +421,7 @@ function InvoiceList({ toast }) {
       const g = byDate[d];
       g.cnt++;
       g.w += (iv.items||[]).reduce((s,it)=>s+Number(it.weight||0),0);
-      g.total += iv.total||0;
+      g.total += Number(iv.total||0);
       if (iv.thermalNo) g.tivNos.push(iv.thermalNo);
       if (iv.type==='A4') g.invNos.push(iv.no);
     });
@@ -467,8 +467,8 @@ function InvoiceList({ toast }) {
             </div>
           </div>
           <Card title="สรุปยอดประจำวัน — ใบกำกับภาษี" actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoice_daily.csv',['วันที่','TIV range','INV range','จำนวนบิล','น้ำหนัก KG','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.w.toFixed(2),$(d.total)]))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดประจำวัน — ใบกำกับภาษี',['วันที่','TIV range','INV range','จำนวนบิล','น้ำหนัก KG','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.w.toFixed(2),$(d.total)]))}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoice_daily.csv',['วันที่','TIV range','INV range','จำนวนบิล','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.total>0?$(d.total):'']))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('สรุปยอดประจำวัน — ใบกำกับภาษี',['วันที่','TIV range','INV range','จำนวนบิล','ยอดรวม'],dailyGroups.map(d=>[d.date,tivRange(d.tivNos),tivRange(d.invNos),d.cnt,d.total>0?$(d.total):'']))}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
@@ -476,40 +476,27 @@ function InvoiceList({ toast }) {
                 <th style={TH}>เลขที่ TIV (อย่างย่อ)</th>
                 <th style={TH}>เลขที่ INV (เต็มรูปแบบ)</th>
                 <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th>
-                <th style={{ ...TH, textAlign:'right' }}>น้ำหนักรวม (KG)</th>
                 <th style={{ ...TH, textAlign:'right' }}>ยอดรวม (฿)</th>
               </tr></thead>
               <tbody>
                 {dailyGroups.length===0
-                  ? <tr><td colSpan="6" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ยังไม่มีรายการ</td></tr>
+                  ? <tr><td colSpan="5" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ยังไม่มีรายการ</td></tr>
                   : dailyGroups.map((d,i)=>(
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                       <td style={{ ...TD, fontWeight:700 }}>{d.date}</td>
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--t2)' }}>{tivRange(d.tivNos)}</td>
                       <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{tivRange(d.invNos)}</td>
                       <td style={{ ...TD, textAlign:'center', fontWeight:700 }}>{d.cnt} บิล</td>
-                      <td style={{ ...TD, textAlign:'right', fontWeight:700 }}>{d.w.toFixed(2)}</td>
-                      <td style={{ ...TD, textAlign:'right', fontWeight:800, color:'var(--gn)' }}>{$(d.total)}</td>
+                      <td style={{ ...TD, textAlign:'right', fontWeight:800, color:'var(--gn)' }}>{d.total > 0 ? $(d.total) : ''}</td>
                     </tr>
                   ))
                 }
               </tbody>
               <tfoot><tr>
                 <td style={{ padding:'9px 14px', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>รวมทั้งหมด</td>
-                <td colSpan="2" style={{ padding:'9px 14px', background:'var(--s2)', borderTop:'2px solid var(--bd)', fontSize:12, color:'var(--t3)' }}>
-                  {(()=>{
-                    const d=new Date(); const yymm=String(d.getFullYear())+String(d.getMonth()+1).padStart(2,'0');
-                    const st=window.SP_STATE;
-                    const tPfx=(st.docPrefixes?.tiv)||'TIV'; const iPfx=(st.docPrefixes?.inv)||'INV';
-                    return <>
-                      TIV ต่อไป: <span style={{ fontFamily:'var(--font-mono)', color:'var(--t2)' }}>{tPfx}-{yymm}-{String(st.invCounterThermal).padStart(4,'0')}</span>
-                      &nbsp;&nbsp; INV ต่อไป: <span style={{ fontFamily:'var(--font-mono)', color:'var(--ac)' }}>{iPfx}-{yymm}-{String(st.invCounterA4).padStart(4,'0')}</span>
-                    </>;
-                  })()}
-                </td>
+                <td colSpan="2" style={{ padding:'9px 14px', background:'var(--s2)', borderTop:'2px solid var(--bd)' }}></td>
                 <td style={{ padding:'9px 14px', textAlign:'center', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{invs.filter(iv=>!iv.voided).length} บิล</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:700, background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{dailyGroups.reduce((s,d)=>s+d.w,0).toFixed(2)}</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:800, color:'var(--gn)', background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{$(dailyGroups.reduce((s,d)=>s+d.total,0))}</td>
+                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:800, color:'var(--gn)', background:'var(--s2)', borderTop:'2px solid var(--bd)' }}>{$(dailyGroups.reduce((s,d)=>s+Number(d.total||0),0))}</td>
               </tr></tfoot>
             </table></div>
           </Card>
