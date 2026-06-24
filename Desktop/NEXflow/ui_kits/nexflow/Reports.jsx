@@ -354,39 +354,64 @@ function Reports() {
 
       {/* ── TAB 2: ภาษีซื้อ-ขาย ── */}
       {tab==='tax' && (() => {
-        /* ── ภาษีขาย: group rows by TIV invoice ── */
-        const saleByInv = {};
-        rows.forEach(r => {
-          const key = r.thermalInv || r.inv;
-          if (!saleByInv[key]) saleByInv[key] = {
-            dateISO:r.dateISO, date:r.date, no:key, custId:r.custId, netSale:0, vat:0
-          };
-          saleByInv[key].netSale += r.netSale||0;
-          saleByInv[key].vat     += r.vat||0;
-        });
-        const taxSaleRows = Object.values(saleByInv)
+        /* ── ภาษีขาย: from invoices directly (incl vat7 + vat7_excl) ── */
+        const allInvs = window.SP_STATE?.invoices || window.SP_DATA?.invoices || [];
+        const taxSaleRows = allInvs
+          .filter(iv => {
+            if (iv.voided || iv.is_voided || iv.status==='voided') return false;
+            const t = iv.type||'';
+            if (t==='A4'||t==='INV') return false;
+            const d = (iv.date||'').slice(0,10);
+            if (dateFrom && d < dateFrom) return false;
+            if (dateTo   && d > dateTo)   return false;
+            return true;
+          })
+          .map(iv => {
+            const items = iv.items||[];
+            const disc  = Number(iv.discount||0);
+            const totalGross = items.reduce((s,it)=>s+Number(it.weight||0)*Number(it.price||0),0);
+            let inclTotal=0, vatAmt=0;
+            items.forEach(it => {
+              const gross    = Number(it.weight||0)*Number(it.price||0);
+              const lineDisc = totalGross>0 ? disc*(gross/totalGross) : 0;
+              const lineNet  = gross - lineDisc;
+              if (it.tax==='vat7')      { inclTotal+=lineNet;        vatAmt+=lineNet*7/107; }
+              else if (it.tax==='vat7_excl') { inclTotal+=lineNet*1.07; vatAmt+=lineNet*0.07; }
+              else                        { inclTotal+=lineNet; }
+            });
+            if (!items.length) { inclTotal=Number(iv.total||0); vatAmt=Number(iv.vat7||0); }
+            return {
+              dateISO: (iv.date||'').slice(0,10),
+              date: iv.dateDisplay||iv.date||'—',
+              no: iv.thermalNo||iv.no||iv.invoice_no||'—',
+              custId: iv.custId||iv.customer_id,
+              inclTotal, vat: vatAmt,
+            };
+          })
           .sort((a,b)=>a.dateISO.localeCompare(b.dateISO)||a.no.localeCompare(b.no));
-        const taxSaleTotBase = taxSaleRows.reduce((s,r)=>s+(r.netSale-r.vat),0);
+        const taxSaleTotIncl = taxSaleRows.reduce((s,r)=>s+r.inclTotal,0);
         const taxSaleTotVat  = taxSaleRows.reduce((s,r)=>s+r.vat,0);
 
-        /* ── ภาษีซื้อ: from GRN logs (vat7 items only) ── */
+        /* ── ภาษีซื้อ: from GRN logs (vat7 + vat7_excl) ── */
         const grnAll = window.SP_STATE?.grnLogs || window.SP_DATA?.grnLogs || [];
         const taxBuyRows = grnAll
           .filter(g => {
             const d = g.date||'';
             if (dateFrom && d < dateFrom) return false;
             if (dateTo   && d > dateTo)   return false;
-            return (g.items||[]).some(it=>it.tax==='vat7');
+            return (g.items||[]).some(it=>it.tax==='vat7'||it.tax==='vat7_excl');
           })
           .map(g => {
-            const vatItems = (g.items||[]).filter(it=>it.tax==='vat7');
-            const inclVat  = vatItems.reduce((s,it)=>s+Number(it.value||0),0);
-            const vatAmt   = inclVat * 7/107;
-            const baseAmt  = inclVat - vatAmt;
-            return { ...g, inclVat, vatAmt, baseAmt };
+            let inclTotal=0, vatAmt=0;
+            (g.items||[]).forEach(it => {
+              const v = Number(it.value||0);
+              if (it.tax==='vat7')      { inclTotal+=v;        vatAmt+=v*7/107; }
+              else if (it.tax==='vat7_excl') { inclTotal+=v*1.07; vatAmt+=v*0.07; }
+            });
+            return { ...g, inclTotal, vatAmt };
           })
           .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-        const taxBuyTotBase = taxBuyRows.reduce((s,r)=>s+r.baseAmt,0);
+        const taxBuyTotIncl = taxBuyRows.reduce((s,r)=>s+r.inclTotal,0);
         const taxBuyTotVat  = taxBuyRows.reduce((s,r)=>s+r.vatAmt,0);
 
         const THSUB = { fontSize:12, fontWeight:700, padding:'5px 12px', borderRadius:6, border:'none', cursor:'pointer', fontFamily:'inherit' };
@@ -394,11 +419,11 @@ function Reports() {
         <div>
           <FilterBar showSearch={false}
             onExport={taxSub==='sale'
-              ? ()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.netSale-r.vat),$(r.vat)];}))
-              : ()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.baseAmt),$(r.vatAmt)]))}
+              ? ()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}))
+              : ()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}
             onPdf={taxSub==='sale'
-              ? ()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.netSale-r.vat),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotBase)}`)
-              : ()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.baseAmt),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotBase)}`)}
+              ? ()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)
+              : ()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}
           />
 
           {/* Sub-tabs */}
@@ -416,7 +441,7 @@ function Reports() {
             <div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
                 <KPI label="จำนวนใบกำกับ" value={taxSaleRows.length+' ใบ'} color="var(--ac)" />
-                <KPI label="มูลค่าสินค้ารวม" sub="ไม่รวม VAT" value={$(taxSaleTotBase)} color="var(--gn)" />
+                <KPI label="มูลค่าสินค้ารวม" sub="รวม VAT" value={$(taxSaleTotIncl)} color="var(--gn)" />
                 <KPI label="ภาษีขาย (VAT 7%)" value={$(taxSaleTotVat)} color="var(--pu)" />
               </div>
               <Card title={`รายงานภาษีขาย — ${taxSaleRows.length} รายการ`}>
@@ -435,7 +460,6 @@ function Reports() {
                       ? <tr><td colSpan="7" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการในช่วงวันที่เลือก</td></tr>
                       : taxSaleRows.map((r,i) => {
                           const cust = D.customers.find(c=>c.id===r.custId);
-                          const base = r.netSale - r.vat;
                           return (
                             <tr key={r.no} style={{ borderBottom:'1px solid var(--bd)' }}>
                               <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
@@ -443,7 +467,7 @@ function Reports() {
                               <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--ac)' }}>{r.no}</td>
                               <td style={TD}>{cust?.name||'ลูกค้าทั่วไป'}</td>
                               <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
-                              <td style={{ ...TDR, fontWeight:700 }}>{$(base)}</td>
+                              <td style={{ ...TDR, fontWeight:700 }}>{$(r.inclTotal)}</td>
                               <td style={{ ...TDR, color:'var(--pu)', fontWeight:700 }}>{$(r.vat)}</td>
                             </tr>
                           );
@@ -452,7 +476,7 @@ function Reports() {
                   </tbody>
                   <tfoot><tr>
                     <td colSpan="5" style={{ ...TF }}>รวมทั้งหมด ({taxSaleRows.length} รายการ)</td>
-                    <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxSaleTotBase)}</td>
+                    <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxSaleTotIncl)}</td>
                     <td style={{ ...TFR, color:'var(--pu)' }}>{$(taxSaleTotVat)}</td>
                   </tr></tfoot>
                 </table></div>
@@ -465,7 +489,7 @@ function Reports() {
             <div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
                 <KPI label="จำนวนใบรับสินค้า (GRN)" value={taxBuyRows.length+' ใบ'} color="var(--pu)" />
-                <KPI label="มูลค่าสินค้ารวม" sub="ไม่รวม VAT" value={$(taxBuyTotBase)} color="var(--gn)" />
+                <KPI label="มูลค่าสินค้ารวม" sub="รวม VAT" value={$(taxBuyTotIncl)} color="var(--gn)" />
                 <KPI label="ภาษีซื้อ (VAT 7%)" value={$(taxBuyTotVat)} color="var(--ac)" />
               </div>
               <Card title={`รายงานภาษีซื้อ — ${taxBuyRows.length} รายการ`}>
@@ -489,7 +513,7 @@ function Reports() {
                             <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--pu)' }}>{r.id}</td>
                             <td style={TD}>{r.receiver||'—'}</td>
                             <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
-                            <td style={{ ...TDR, fontWeight:700 }}>{$(r.baseAmt)}</td>
+                            <td style={{ ...TDR, fontWeight:700 }}>{$(r.inclTotal)}</td>
                             <td style={{ ...TDR, color:'var(--ac)', fontWeight:700 }}>{$(r.vatAmt)}</td>
                           </tr>
                         ))
@@ -497,7 +521,7 @@ function Reports() {
                   </tbody>
                   <tfoot><tr>
                     <td colSpan="5" style={{ ...TF }}>รวมทั้งหมด ({taxBuyRows.length} รายการ)</td>
-                    <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxBuyTotBase)}</td>
+                    <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxBuyTotIncl)}</td>
                     <td style={{ ...TFR, color:'var(--ac)' }}>{$(taxBuyTotVat)}</td>
                   </tr></tfoot>
                 </table></div>
