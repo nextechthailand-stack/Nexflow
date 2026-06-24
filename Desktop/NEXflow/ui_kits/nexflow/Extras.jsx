@@ -2271,16 +2271,24 @@ function StockManage({ toast }) {
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>เลขที่ GRN</th><th style={TH}>วันที่รับ</th><th style={TH}>เลขที่ PO</th>
-                <th style={{ ...TH, textAlign:'center' }}>รายการ</th><th style={THR}>น้ำหนักรวม</th>
+                <th style={{ ...TH, textAlign:'center' }}>รายการ</th><th style={THR}>จำนวน</th>
                 <th style={THR}>มูลค่า</th><th style={TH}>ผู้รับ</th><th style={TH}></th>
               </tr></thead>
-              <tbody>{grnFiltered.map(g=>(
+              <tbody>{grnFiltered.map(g=>{
+                /* คำนวณ KG รวม และ unit รวมแยกกัน */
+                const gKgW  = (g.items||[]).filter(it=>window.unitOf?window.unitOf(it.code).unitType==='kg':true).reduce((s,it)=>s+Number(it.weight||0),0);
+                const gUniQ = (g.items||[]).filter(it=>window.unitOf?window.unitOf(it.code).unitType!=='kg':false).reduce((s,it)=>s+Number(it.weight||0),0);
+                const gQtyDisplay = gKgW>0 && gUniQ>0
+                  ? gKgW.toFixed(3)+' KG / '+Math.round(gUniQ)+' units'
+                  : gKgW>0 ? gKgW.toFixed(3)+' KG'
+                  : Math.round(gUniQ)+' units';
+                return (
                 <tr key={g.id} style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--tx)' }}>{g.id}</td>
                   <td style={{ ...TD, fontSize:12.5, color:'var(--t2)' }}>{g.dateDisplay}</td>
                   <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12 }}>{g.poNo||'—'}</td>
                   <td style={{ ...TD, textAlign:'center', fontWeight:700 }}>{g.totalPacks}</td>
-                  <td style={{ ...TDR, fontWeight:700, color:'var(--ac)' }}>{window.fmtKg(g.totalWeight)}</td>
+                  <td style={{ ...TDR, fontWeight:700, color:'var(--ac)' }}>{gQtyDisplay}</td>
                   <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(g.totalValue)}</td>
                   <td style={{ ...TD, fontSize:13 }}>{g.receiver}</td>
                   <td style={TD}>
@@ -2290,31 +2298,28 @@ function StockManage({ toast }) {
                     </button>
                   </td>
                 </tr>
-              ))}</tbody>
+                );
+              })}</tbody>
             </table></div>
           </Card>
           <Card title="รายละเอียดสินค้าในเอกสาร GRN">
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>เลขที่ GRN</th><th style={TH}>วันที่</th><th style={TH}>รหัส</th><th style={TH}>สินค้า</th>
-                <th style={TH}>รายการ</th><th style={THR}>น้ำหนัก</th><th style={THR}>ราคาทุน/KG</th>
+                <th style={{ ...THR }}>จำนวน</th><th style={{ ...TH, textAlign:'center' }}>ราคาทุน</th>
                 <th style={TH}>ภาษี</th><th style={THR}>มูลค่า</th>
               </tr></thead>
               <tbody>{grnFiltered.flatMap(g=>g.items.map((it,i)=>({...it,grnId:g.id,date:g.dateDisplay,key:`${g.id}-${i}`}))).map(r=>{
                 const isKgItem = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
+                const qtyStr = isKgItem ? window.fmtKg(r.weight) : window.fmtItemQty(Number(r.weight), r.code);
                 return (
                 <tr key={r.key} style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)', fontWeight:700 }}>{r.grnId}</span></td>
                   <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{r.date}</td>
                   <td style={TD}><span className="mono">{r.code}</span></td>
                   <td style={{ ...TD, fontWeight:600 }}>{r.name}</td>
-                  <td style={{ ...TD, fontWeight:600 }}>
-                    {isKgItem ? '—' : window.fmtItemQty(Number(r.weight), r.code)}
-                  </td>
-                  <td style={{ ...TDR, fontWeight:700 }}>
-                    {isKgItem ? window.fmtKg(r.weight) : '—'}
-                  </td>
-                  <td style={{ ...TDR, color:'var(--t2)' }}>{$(r.cost)}</td>
+                  <td style={{ ...TDR, fontWeight:700 }}>{qtyStr}</td>
+                  <td style={{ ...TD, textAlign:'center', color:'var(--t2)' }}>{$(r.cost)}</td>
                   <td style={TD}><span className={'bx '+(r.tax==='vat7'?'xb':'xx')} style={{ fontSize:10.5 }}>{r.tax==='vat7'?'VAT 7%':'Non VAT'}</span></td>
                   <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(r.value)}</td>
                 </tr>

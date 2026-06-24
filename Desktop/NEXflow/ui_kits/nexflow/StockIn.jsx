@@ -402,9 +402,13 @@ function StockIn({ toast, setPage }) {
               </div>
               <div>
                 <label className="fl">ผู้รับสินค้า</label>
-                <select className="fc" value={receiver} onChange={e=>setReceiver(e.target.value)}>
-                  <option>{window.SP_DATA?.user?.name || 'Admin'}</option><option>สมชาย ใจดี</option>
-                </select>
+                <input type="text" className="fc" value={receiver} onChange={e=>setReceiver(e.target.value)}
+                  list="grn-receiver-list" placeholder="ค้นหาหรือพิมพ์ชื่อ…" autoComplete="off" />
+                <datalist id="grn-receiver-list">
+                  {(window.SP_DATA?.users || []).filter(u=>u.status==='active').map(u=>(
+                    <option key={u.id} value={u.name} />
+                  ))}
+                </datalist>
               </div>
             </div>
             <div>
