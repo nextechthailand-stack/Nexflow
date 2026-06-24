@@ -2137,7 +2137,7 @@ function StockManage({ toast }) {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
             <StatCard icon="file-text" iconTone="rd" label="เอกสาร ADJ ทั้งหมด" value={filteredAdjLogs.length+' ฉบับ'} />
             <StatCard icon="package"  iconTone="am" label="รายการรวม" value={filteredAdjLogs.reduce((s,d)=>s+d.totalItems,0)+' รายการ'} />
-            <StatCard icon="warehouse" iconTone="rd" label="ปรับลดรวม (KG)" value={filteredAdjLogs.reduce((s,d)=>s+d.totalAdj,0).toFixed(2)+' KG'} valueTone="rd" />
+            <StatCard icon="warehouse" iconTone="rd" label="ปรับลดรวม" value={filteredAdjLogs.reduce((s,d)=>s+d.totalAdj,0).toFixed(2)} valueTone="rd" />
           </div>
 
           {/* ── Filter bar: เลขที่ / ช่วงวันที่ / ประเภท / เหตุผล ── */}
@@ -2163,8 +2163,8 @@ function StockManage({ toast }) {
           </div>
 
           <Card title="ประวัติเอกสารปรับปรุงสต็อก" actions={<div style={{display:'flex',gap:6}}>
-            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('adj_logs.csv',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ KG','หลังปรับ KG','ผลต่าง KG','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานการปรับปรุงสต็อก',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ KG','หลังปรับ KG','ผลต่าง KG','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>PDF</Button>
+            <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('adj_logs.csv',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ','หลังปรับ','ผลต่าง','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>CSV</Button>
+            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานการปรับปรุงสต็อก',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ','หลังปรับ','ผลต่าง','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>
@@ -2173,9 +2173,9 @@ function StockManage({ toast }) {
                 <th style={TH}>ประเภท</th>
                 <th style={TH}>เหตุผล</th>
                 <th style={{...TH,textAlign:'center'}}>รายการ</th>
-                <th style={THR}>ก่อนปรับ (KG)</th>
-                <th style={THR}>หลังปรับ (KG)</th>
-                <th style={THR}>ผลต่าง (KG)</th>
+                <th style={THR}>ก่อนปรับ</th>
+                <th style={THR}>หลังปรับ</th>
+                <th style={THR}>ผลต่าง</th>
                 <th style={TH}>ผู้รับผิดชอบ</th>
                 <th style={TH}>เอกสาร</th>
               </tr></thead>
@@ -2186,6 +2186,18 @@ function StockManage({ toast }) {
                     const netPos = doc.totalAdj >= 0;
                     const totBefore = doc.totalBefore ?? doc.items.reduce((s,it)=>s+it.before,0);
                     const totAfter  = doc.totalAfter  ?? doc.items.reduce((s,it)=>s+it.after,0);
+                    /* per-unit aggregates — group doc.items by unit type */
+                    const unitMap = {};
+                    (doc.items || []).forEach(it => {
+                      const u = window.unitOf ? window.unitOf(it.code) : { unitType:'kg', unitLabel:'KG' };
+                      const lbl = u.unitType === 'kg' ? 'KG' : (u.unitLabel || 'หน่วย');
+                      if (!unitMap[lbl]) unitMap[lbl] = { before:0, after:0, adj:0, isKg: u.unitType==='kg' };
+                      unitMap[lbl].before += Number(it.before || 0);
+                      unitMap[lbl].after  += Number(it.after  || 0);
+                      unitMap[lbl].adj    += Number(it.adj    || 0);
+                    });
+                    const uEnt = Object.entries(unitMap);
+                    const fmtU = (val, lbl, isKg) => isKg ? Math.abs(val).toFixed(3)+' KG' : String(Math.round(Math.abs(val)))+' '+lbl;
                     return (
                       <tr key={doc.id} style={{borderBottom:'1px solid var(--bd)'}}>
                         <td style={TD}><span style={{fontFamily:'var(--font-mono)',fontSize:12,color:'var(--rd)',fontWeight:700}}>{doc.id}</span></td>
@@ -2195,10 +2207,16 @@ function StockManage({ toast }) {
                         </span></td>
                         <td style={{...TD,fontSize:13,color:'var(--t2)'}}>{doc.reason}</td>
                         <td style={{...TD,textAlign:'center',fontWeight:700}}>{doc.totalItems}</td>
-                        <td style={{...TDR,color:'var(--t2)'}}>{window.fmtKg(totBefore)}</td>
-                        <td style={{...TDR,fontWeight:800,color:'var(--ac)'}}>{window.fmtKg(totAfter)}</td>
-                        <td style={{...TDR,fontWeight:800,color:netPos?'var(--gn)':'var(--rd)'}}>
-                          {netPos?'+':''}{window.fmtKg(doc.totalAdj)}
+                        <td style={{...TDR,color:'var(--t2)'}}>
+                          {uEnt.length ? uEnt.map(([lbl,g])=><div key={lbl}>{fmtU(g.before,lbl,g.isKg)}</div>) : window.fmtKg(totBefore)}
+                        </td>
+                        <td style={{...TDR,fontWeight:800,color:'var(--ac)'}}>
+                          {uEnt.length ? uEnt.map(([lbl,g])=><div key={lbl}>{fmtU(g.after,lbl,g.isKg)}</div>) : window.fmtKg(totAfter)}
+                        </td>
+                        <td style={{...TDR,fontWeight:800}}>
+                          {uEnt.length
+                            ? uEnt.map(([lbl,g])=><div key={lbl} style={{color:g.adj>=0?'var(--gn)':'var(--rd)'}}>{(g.adj>=0?'+':'-')+fmtU(g.adj,lbl,g.isKg)}</div>)
+                            : <span style={{color:netPos?'var(--gn)':'var(--rd)'}}>{netPos?'+':''}{window.fmtKg(doc.totalAdj)}</span>}
                         </td>
                         <td style={{...TD,fontSize:13}}>{doc.approver||'—'}</td>
                         <td style={TD}>
@@ -2246,14 +2264,14 @@ function StockManage({ toast }) {
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
             <StatCard icon="file-text" iconTone="ac" label="เอกสาร GRN" value={grnFiltered.length+' ฉบับ'} />
-            <StatCard icon="package" iconTone="gn" label="แพ็คทั้งหมด" value={grnFiltered.reduce((s,g)=>s+g.totalPacks,0)+' แพ็ค'} />
+            <StatCard icon="package" iconTone="gn" label="รายการทั้งหมด" value={grnFiltered.reduce((s,g)=>s+g.totalPacks,0)+' รายการ'} />
             <StatCard icon="coin" iconTone="gn" label="มูลค่ารวม" value={$(grnFiltered.reduce((s,g)=>s+g.totalValue,0))} valueTone="gn" />
           </div>
           <Card title={`สรุปรายเอกสาร GRN · ${grnFiltered.length} ฉบับ`} style={{ marginBottom:14 }}>
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>เลขที่ GRN</th><th style={TH}>วันที่รับ</th><th style={TH}>เลขที่ PO</th>
-                <th style={{ ...TH, textAlign:'center' }}>แพ็ค</th><th style={THR}>น้ำหนักรวม</th>
+                <th style={{ ...TH, textAlign:'center' }}>รายการ</th><th style={THR}>น้ำหนักรวม</th>
                 <th style={THR}>มูลค่า</th><th style={TH}>ผู้รับ</th><th style={TH}></th>
               </tr></thead>
               <tbody>{grnFiltered.map(g=>(
@@ -2279,22 +2297,29 @@ function StockManage({ toast }) {
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>เลขที่ GRN</th><th style={TH}>วันที่</th><th style={TH}>รหัส</th><th style={TH}>สินค้า</th>
-                <th style={TH}>แพ็ค</th><th style={THR}>น้ำหนัก</th><th style={THR}>ราคาทุน/KG</th>
+                <th style={TH}>รายการ</th><th style={THR}>น้ำหนัก</th><th style={THR}>ราคาทุน/KG</th>
                 <th style={TH}>ภาษี</th><th style={THR}>มูลค่า</th>
               </tr></thead>
-              <tbody>{grnFiltered.flatMap(g=>g.items.map((it,i)=>({...it,grnId:g.id,date:g.dateDisplay,key:`${g.id}-${i}`}))).map(r=>(
+              <tbody>{grnFiltered.flatMap(g=>g.items.map((it,i)=>({...it,grnId:g.id,date:g.dateDisplay,key:`${g.id}-${i}`}))).map(r=>{
+                const isKgItem = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
+                return (
                 <tr key={r.key} style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)', fontWeight:700 }}>{r.grnId}</span></td>
                   <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{r.date}</td>
                   <td style={TD}><span className="mono">{r.code}</span></td>
                   <td style={{ ...TD, fontWeight:600 }}>{r.name}</td>
-                  <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5, color:'var(--t3)' }}>{r.packNo}</td>
-                  <td style={{ ...TDR, fontWeight:700 }}>{window.fmtKg(r.weight)}</td>
+                  <td style={{ ...TD, fontWeight:600 }}>
+                    {isKgItem ? '—' : window.fmtItemQty(Number(r.weight), r.code)}
+                  </td>
+                  <td style={{ ...TDR, fontWeight:700 }}>
+                    {isKgItem ? window.fmtKg(r.weight) : '—'}
+                  </td>
                   <td style={{ ...TDR, color:'var(--t2)' }}>{$(r.cost)}</td>
                   <td style={TD}><span className={'bx '+(r.tax==='vat7'?'xb':'xx')} style={{ fontSize:10.5 }}>{r.tax==='vat7'?'VAT 7%':'Non VAT'}</span></td>
                   <td style={{ ...TDR, fontWeight:700, color:'var(--gn)' }}>{$(r.value)}</td>
                 </tr>
-              ))}</tbody>
+                );
+              })}</tbody>
             </table></div>
           </Card>
         </div>
@@ -4413,6 +4438,25 @@ function AdjDocument({ doc, onClose, toast }) {
   const TH = { padding:'8px 10px', background:ACC, color:'#fff', fontWeight:700, fontSize:11.5,
     borderBottom:'1px solid rgba(0,0,0,.15)', borderRight:'1px solid rgba(255,255,255,.2)', verticalAlign:'middle' };
   const TD = { padding:'8px 10px', fontSize:12.5, borderBottom:'1px solid #e8e8e8', borderRight:'1px solid #e8e8e8', verticalAlign:'top' };
+  /* per-unit helpers */
+  const adjFmtU = (val, code) => {
+    const u = window.unitOf ? window.unitOf(code) : { unitType:'kg', unitLabel:'KG' };
+    return u.unitType === 'kg'
+      ? Math.abs(Number(val)).toFixed(3)+' KG'
+      : String(Math.round(Math.abs(Number(val))))+' '+(u.unitLabel||'หน่วย');
+  };
+  /* per-unit footer aggregates */
+  const ftMap = {};
+  items.forEach(it => {
+    const u = window.unitOf ? window.unitOf(it.code) : { unitType:'kg', unitLabel:'KG' };
+    const lbl = u.unitType === 'kg' ? 'KG' : (u.unitLabel || 'หน่วย');
+    if (!ftMap[lbl]) ftMap[lbl] = { before:0, adj:0, after:0, isKg: u.unitType==='kg' };
+    ftMap[lbl].before += Number(it.before || 0);
+    ftMap[lbl].adj    += Number(it.adj    || 0);
+    ftMap[lbl].after  += Number(it.after  || 0);
+  });
+  const ftEnt = Object.entries(ftMap);
+  const fmtFt = (val, lbl, isKg) => isKg ? Math.abs(val).toFixed(3)+' KG' : String(Math.round(Math.abs(val)))+' '+lbl;
 
   return (
     <div className="ov" onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -4482,9 +4526,9 @@ function AdjDocument({ doc, onClose, toast }) {
                   <th style={{ ...TH, width:36 }}>#</th>
                   <th style={TH}>รหัส</th>
                   <th style={TH}>ชื่อสินค้า</th>
-                  <th style={{ ...TH, textAlign:'right' }}>ก่อนปรับ (KG)</th>
+                  <th style={{ ...TH, textAlign:'right' }}>ก่อนปรับ</th>
                   <th style={{ ...TH, textAlign:'right' }}>ปรับ (+/-)</th>
-                  <th style={{ ...TH, textAlign:'right', borderRight:'none' }}>หลังปรับ (KG)</th>
+                  <th style={{ ...TH, textAlign:'right', borderRight:'none' }}>หลังปรับ</th>
                 </tr>
               </thead>
               <tbody>
@@ -4493,12 +4537,12 @@ function AdjDocument({ doc, onClose, toast }) {
                     <td style={{ ...TD, color:'#999', fontSize:11 }}>{i+1}</td>
                     <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5 }}>{it.code}</td>
                     <td style={{ ...TD, fontWeight:600 }}>{it.name}</td>
-                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)' }}>{nf(it.before)}</td>
+                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)' }}>{adjFmtU(it.before, it.code)}</td>
                     <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700,
                       color: Number(it.adj) >= 0 ? '#15803d' : '#dc2626' }}>
-                      {Number(it.adj) >= 0 ? '+' : ''}{nf(it.adj)}
+                      {Number(it.adj) >= 0 ? '+' : '-'}{adjFmtU(it.adj, it.code)}
                     </td>
-                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, borderRight:'none' }}>{nf(it.after)}</td>
+                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, borderRight:'none' }}>{adjFmtU(it.after, it.code)}</td>
                   </tr>
                 ))}
                 {items.length === 0 && (
@@ -4508,12 +4552,17 @@ function AdjDocument({ doc, onClose, toast }) {
               <tfoot>
                 <tr style={{ background:ACC_LIGHT }}>
                   <td colSpan="3" style={{ padding:'8px 10px', fontWeight:700, fontSize:12 }}>รวม {items.length} รายการ</td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>{nf(doc.totalBefore||0)}</td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:800,
-                    color: netAdj >= 0 ? '#15803d' : '#dc2626' }}>
-                    {netAdj >= 0 ? '+' : ''}{nf(netAdj)}
+                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
+                    {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.before,lbl,g.isKg)}</div>) : nf(doc.totalBefore||0)}
                   </td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>{nf(doc.totalAfter||0)}</td>
+                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:800 }}>
+                    {ftEnt.length
+                      ? ftEnt.map(([lbl,g])=><div key={lbl} style={{color:g.adj>=0?'#15803d':'#dc2626'}}>{(g.adj>=0?'+':'-')+fmtFt(g.adj,lbl,g.isKg)}</div>)
+                      : <span style={{color:netAdj>=0?'#15803d':'#dc2626'}}>{netAdj>=0?'+':''}{nf(netAdj)}</span>}
+                  </td>
+                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
+                    {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.after,lbl,g.isKg)}</div>) : nf(doc.totalAfter||0)}
+                  </td>
                 </tr>
               </tfoot>
             </table>
