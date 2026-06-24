@@ -97,7 +97,13 @@ function Reports() {
   const totGross = sum('grossSale'), totDisc = sum('discount'),
         totNet   = sum('netSale'),  totVat  = sum('vat'),
         totTotal = sum('total'),    totW    = sum('w');
-  const totKgW = rows.filter(r => (window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true)).reduce((s,r) => s+(r.w||0), 0);
+  const totKgW  = rows.filter(r => (window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true)).reduce((s,r) => s+(r.w||0), 0);
+  const totUnitQ = rows.filter(r => (window.unitOf ? window.unitOf(r.code).unitType !== 'kg' : false)).reduce((s,r) => s+(r.w||0), 0);
+  /* helper: แสดงจำนวนผสม KG/unit */
+  const qtyMix = (kgW, unitQ) =>
+    kgW>0 && unitQ>0 ? kgW.toFixed(3)+' KG / '+Math.round(unitQ)+' units'
+    : kgW>0 ? kgW.toFixed(3)+' KG'
+    : unitQ>0 ? Math.round(unitQ)+' units' : '—';
   const billSet  = new Set(rows.map(r=>r.inv));
   const billCount = billSet.size;
 
@@ -130,8 +136,11 @@ function Reports() {
   const byPay = {};
   rows.forEach(r => {
     const k = r.pay||'cash';
-    if (!byPay[k]) byPay[k] = { pay:k, cnt:0, _bills:new Set(), w:0, net:0, vat:0, total:0 };
-    byPay[k]._bills.add(r.inv); byPay[k].w+=r.w; byPay[k].net+=r.netSale; byPay[k].vat+=r.vat; byPay[k].total+=r.total;
+    if (!byPay[k]) byPay[k] = { pay:k, cnt:0, _bills:new Set(), w:0, kgW:0, unitQ:0, net:0, vat:0, total:0 };
+    const isKgR = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
+    byPay[k]._bills.add(r.inv); byPay[k].w+=r.w;
+    if (isKgR) byPay[k].kgW+=r.w; else byPay[k].unitQ+=r.w;
+    byPay[k].net+=r.netSale; byPay[k].vat+=r.vat; byPay[k].total+=r.total;
   });
   const payRows = Object.values(byPay).map(p => ({ ...p, cnt: p._bills.size }));
   const payTotal = payRows.reduce((s,p)=>s+p.total,0);
@@ -561,8 +570,8 @@ function Reports() {
       {tab==='payment' && (
         <div>
           <FilterBar showSearch={false}
-            onExport={()=>window.exportCSV('report_payment.csv',['ช่องทาง','จำนวนบิล','น้ำหนัก KG','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,p.w.toFixed(2),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']))}
-            onPdf={()=>window.exportPDF('รายงาน Payment',['ช่องทาง','จำนวนบิล','น้ำหนัก KG','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,p.w.toFixed(2),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']),`รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
+            onExport={()=>window.exportCSV('report_payment.csv',['ช่องทาง','จำนวนบิล','จำนวน','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,qtyMix(p.kgW,p.unitQ),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']))}
+            onPdf={()=>window.exportPDF('รายงาน Payment',['ช่องทาง','จำนวนบิล','จำนวน','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,qtyMix(p.kgW,p.unitQ),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']),`รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
           />
           <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
             <Card title="รายงานแยกตามประเภทชำระเงิน">
@@ -570,7 +579,7 @@ function Reports() {
                 <thead><tr>
                   <th style={TH}>ประเภทชำระเงิน</th>
                   <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th>
-                  <th style={THR}>น้ำหนักกรัม (KG)</th>
+                  <th style={THR}>จำนวน</th>
                   <th style={THR}>Net Sale</th><th style={THR}>VAT</th>
                   <th style={THR}>ยอดรวม</th><th style={THR}>สัดส่วน %</th>
                 </tr></thead>
@@ -584,7 +593,7 @@ function Reports() {
                         </div>
                       </td>
                       <td style={{ ...TD, textAlign:'center' }}>{p.cnt}</td>
-                      <td style={TDR}>{p.w.toFixed(2)}</td>
+                      <td style={TDR}>{qtyMix(p.kgW, p.unitQ)}</td>
                       <td style={TDR}>{$(p.net)}</td>
                       <td style={{ ...TDR, color:'var(--pu)' }}>{$(p.vat)}</td>
                       <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(p.total)}</td>
@@ -595,7 +604,7 @@ function Reports() {
                 <tfoot><tr>
                   <td style={TF}>รวม</td>
                   <td style={{ ...TF, textAlign:'center' }}>{billCount}</td>
-                  <td style={TFR}>{totW.toFixed(2)}</td>
+                  <td style={TFR}>{qtyMix(totKgW, totUnitQ)}</td>
                   <td style={TFR}>{$(totNet)}</td>
                   <td style={{ ...TFR, color:'var(--pu)' }}>{$(totVat)}</td>
                   <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
@@ -850,27 +859,26 @@ function Reports() {
       {tab==='customer' && (
         <div>
           <FilterBar
-            onExport={()=>window.exportCSV('report_customers.csv',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','จำนวน','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.kgW>0?c.kgW.toFixed(3):'',c.unitQ>0?Math.round(c.unitQ):'',c.disc,$(c.total)]))}
-            onPdf={()=>window.exportPDF('รายงานยอดขายรายลูกค้า',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','น้ำหนัก KG','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,c.kgW>0?c.kgW.toFixed(3)+' KG':'—',c.disc,$(c.total)]),`${custRows.length} ราย | รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
+            onExport={()=>window.exportCSV('report_customers.csv',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','จำนวน','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,qtyMix(c.kgW,c.unitQ),c.disc,$(c.total)]))}
+            onPdf={()=>window.exportPDF('รายงานยอดขายรายลูกค้า',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','จำนวน','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,qtyMix(c.kgW,c.unitQ),c.disc,$(c.total)]),`${custRows.length} ราย | รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
           />
           <Card title="ยอดขายรายลูกค้า">
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>รหัส</th><th style={TH}>ชื่อลูกค้า</th><th style={TH}>ประเภท</th>
                 <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th>
-                <th style={THR}>น้ำหนักรวม</th><th style={THR}>จำนวน</th>
+                <th style={THR}>จำนวน</th>
                 <th style={THR}>ส่วนลดรวม</th><th style={THR}>ยอดรวมสุทธิ</th><th style={TH}></th>
               </tr></thead>
               <tbody>
-                {custRows.length===0 ? <tr><td colSpan="9" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>ไม่พบข้อมูล</td></tr>
+                {custRows.length===0 ? <tr><td colSpan="8" style={{ padding:'24px', textAlign:'center', color:'var(--t3)' }}>ไม่พบข้อมูล</td></tr>
                 : custPag.slice.map((c,i)=>(
                   <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                     <td style={TD}><span className="mono" style={{ color:'var(--t2)' }}>{c.code}</span></td>
                     <td style={{ ...TD, fontWeight:600 }}>{c.name}</td>
                     <td style={TD}><Badge kind={c.type}/></td>
                     <td style={{ ...TD, textAlign:'center' }}>{c.cnt} บิล</td>
-                    <td style={TDR}>{c.kgW > 0 ? c.kgW.toFixed(3)+' KG' : '—'}</td>
-                    <td style={TDR}>{c.unitQ > 0 ? Math.round(c.unitQ) : '—'}</td>
+                    <td style={TDR}>{qtyMix(c.kgW, c.unitQ)}</td>
                     <td style={{ ...TDR, color:'var(--am)' }}>{c.disc>0?'-'+$(c.disc):'—'}</td>
                     <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(c.total)}</td>
                     <td style={TD}>
@@ -884,8 +892,7 @@ function Reports() {
               {custRows.length>0 && <tfoot><tr>
                 <td colSpan="3" style={TF}>รวม {custRows.length} ราย</td>
                 <td style={{ ...TF, textAlign:'center' }}>{billCount} บิล</td>
-                <td style={TFR}>{totKgW > 0 ? totKgW.toFixed(3)+' KG' : '—'}</td>
-                <td style={TF}>—</td>
+                <td style={TFR}>{qtyMix(totKgW, totUnitQ)}</td>
                 <td style={{ ...TFR, color:'var(--am)' }}>-{$(totDisc)}</td>
                 <td style={{ ...TFR, color:'var(--gn)' }}>{$(totTotal)}</td>
                 <td style={TF}></td>
