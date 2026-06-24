@@ -338,6 +338,28 @@ window.mergeInvItems = function(items, totalDisc) {
   return Object.values(map);
 };
 
+/* ── Modal scroll-lock: ล็อก body scroll เมื่อมี .ov overlay อยู่ใน DOM ──
+   ทำงานอัตโนมัติสำหรับทุก modal ที่ใช้ class "ov"                          */
+(function() {
+  let _locked = false;
+  const _scrollY_store = { v: 0 };
+  const _sync = () => {
+    const open = !!document.querySelector('.ov');
+    if (open && !_locked) {
+      _scrollY_store.v = window.scrollY;
+      document.body.style.overflow = 'hidden';
+      _locked = true;
+    } else if (!open && _locked) {
+      document.body.style.overflow = '';
+      _locked = false;
+    }
+  };
+  const obs = new MutationObserver(_sync);
+  const _start = () => obs.observe(document.body, { childList: true, subtree: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _start);
+  else _start();
+})();
+
 /* ── Print helper ──────────────────────────────────────────────
    type: 'receipt' (TIV/ใบเสร็จ) | 'a4' (INV/รายงาน) | undefined → receipt
    - บน Electron: พิมพ์เงียบผ่าน IPC ไปยังเครื่องพิมพ์ที่ตั้งไว้ใน Settings (ไม่เปิด dialog)
