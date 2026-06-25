@@ -78,6 +78,7 @@ function Reports({ toast = ()=>{} }) {
   const [discSearch, setDiscSearch] = React.useState('');
   const [custModal, setCustModal]   = React.useState(null);
   const [taxDocModal, setTaxDocModal] = React.useState(null); /* TIV invoice popup */
+  const [taxA4Modal,  setTaxA4Modal]  = React.useState(null); /* INV/A4 invoice popup */
   const [taxGrnModal, setTaxGrnModal] = React.useState(null); /* GRN popup */
 
   React.useEffect(() => { setSearch(''); setDiscSearch(''); }, [tab]);
@@ -477,9 +478,15 @@ function Reports({ toast = ()=>{} }) {
                       : taxSaleRows.map((r,i) => {
                           const cust = D.customers.find(c=>c.id===r.custId);
                           const allInvs = window.SP_STATE?.invoices||[];
-                          /* ถ้ามี fullInvNo ให้เปิด INV document, ไม่เช่นนั้นเปิด TIV */
+                          /* ถ้ามี fullInvNo ให้เปิด INV (A4), ไม่เช่นนั้นเปิด TIV */
                           const invObj = allInvs.find(iv=>iv.no===r.no||iv.invoice_no===r.no)
                             || allInvs.find(iv=>iv.no===r.tivNo||iv.thermalNo===r.tivNo);
+                          const isA4 = invObj && (invObj.type==='A4'||invObj.type==='INV');
+                          const openDoc = () => {
+                            if (!invObj) return;
+                            if (isA4) setTaxA4Modal(invObj);
+                            else setTaxDocModal(invObj);
+                          };
                           return (
                             <tr key={r.tivNo} style={{ borderBottom:'1px solid var(--bd)', opacity: r.voided ? 0.55 : 1, background: r.voided ? 'var(--s2)' : undefined }}>
                               <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
@@ -488,7 +495,7 @@ function Reports({ toast = ()=>{} }) {
                                 <div>
                                   <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
                                     <button style={{ ...DOCLINK, color: r.voided ? 'var(--t3)' : 'var(--ac)' }}
-                                      onClick={()=>invObj && setTaxDocModal(invObj)}>
+                                      onClick={openDoc}>
                                       {r.no}
                                     </button>
                                     {r.voided && <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'var(--rd)', borderRadius:3, padding:'1px 5px', lineHeight:'14px', letterSpacing:.3 }}>ยกเลิก</span>}
@@ -583,6 +590,7 @@ function Reports({ toast = ()=>{} }) {
 
           {/* Document popups */}
           {taxDocModal && <TIVDocModal tiv={taxDocModal} onClose={()=>setTaxDocModal(null)} toast={toast} onVoid={()=>setTaxDocModal(null)} />}
+          {taxA4Modal  && <Invoice invoice={taxA4Modal} onClose={()=>setTaxA4Modal(null)} toast={toast} />}
           {taxGrnModal && <GrnDoc grn={taxGrnModal} onClose={()=>setTaxGrnModal(null)} />}
         </div>
         );
