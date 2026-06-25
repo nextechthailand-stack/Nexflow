@@ -371,10 +371,10 @@ function Reports({ toast = ()=>{} }) {
           .map(iv => {
             const items = iv.items||[];
             const disc  = Number(iv.discount||0);
-            const totalGross = items.reduce((s,it)=>s+Number(it.weight||0)*Number(it.price||0),0);
+            const totalGross = items.reduce((s,it)=>s+Number(it.weight||0)*Number(it.price||it.price_per_kg||0),0);
             let inclTotal=0, vatAmt=0;
             items.forEach(it => {
-              const gross    = Number(it.weight||0)*Number(it.price||0);
+              const gross    = Number(it.weight||0)*Number(it.price||it.price_per_kg||0);
               const lineDisc = totalGross>0 ? disc*(gross/totalGross) : 0;
               const lineNet  = gross - lineDisc;
               if (it.tax==='vat7')      { inclTotal+=lineNet;        vatAmt+=lineNet*7/107; }
