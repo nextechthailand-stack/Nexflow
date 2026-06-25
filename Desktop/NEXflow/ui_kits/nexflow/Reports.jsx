@@ -385,7 +385,9 @@ function Reports({ toast = ()=>{} }) {
             return {
               dateISO: (iv.date||'').slice(0,10),
               date: iv.dateDisplay||iv.date||'—',
-              no: iv.thermalNo||iv.no||iv.invoice_no||'—',
+              no: iv.fullInvNo||iv.no||iv.invoice_no||'—',
+              tivNo: iv.no||'—',
+              replaces: iv.replaces||null,
               custId: iv.custId||iv.customer_id,
               inclTotal, vat: vatAmt,
               voided: isVoided,
@@ -474,19 +476,29 @@ function Reports({ toast = ()=>{} }) {
                       ? <tr><td colSpan="7" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการในช่วงวันที่เลือก</td></tr>
                       : taxSaleRows.map((r,i) => {
                           const cust = D.customers.find(c=>c.id===r.custId);
-                          const invObj = (window.SP_STATE?.invoices||[]).find(iv=>iv.thermalNo===r.no||iv.no===r.no||iv.invoice_no===r.no);
+                          const allInvs = window.SP_STATE?.invoices||[];
+                          /* ถ้ามี fullInvNo ให้เปิด INV document, ไม่เช่นนั้นเปิด TIV */
+                          const invObj = allInvs.find(iv=>iv.no===r.no||iv.invoice_no===r.no)
+                            || allInvs.find(iv=>iv.no===r.tivNo||iv.thermalNo===r.tivNo);
                           return (
-                            <tr key={r.no} style={{ borderBottom:'1px solid var(--bd)', opacity: r.voided ? 0.55 : 1, background: r.voided ? 'var(--s2)' : undefined }}>
+                            <tr key={r.tivNo} style={{ borderBottom:'1px solid var(--bd)', opacity: r.voided ? 0.55 : 1, background: r.voided ? 'var(--s2)' : undefined }}>
                               <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
                               <td style={{ ...TD, fontWeight:600, color: r.voided ? 'var(--t3)' : undefined }}>{r.date}</td>
                               <td style={TD}>
-                                <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
-                                  <button style={{ ...DOCLINK, color: r.voided ? 'var(--t3)' : 'var(--ac)' }}
-                                    onClick={()=>invObj && setTaxDocModal(invObj)}>
-                                    {r.no}
-                                  </button>
-                                  {r.voided && <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'var(--rd)', borderRadius:3, padding:'1px 5px', lineHeight:'14px', letterSpacing:.3 }}>ยกเลิก</span>}
-                                </span>
+                                <div>
+                                  <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                                    <button style={{ ...DOCLINK, color: r.voided ? 'var(--t3)' : 'var(--ac)' }}
+                                      onClick={()=>invObj && setTaxDocModal(invObj)}>
+                                      {r.no}
+                                    </button>
+                                    {r.voided && <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'var(--rd)', borderRadius:3, padding:'1px 5px', lineHeight:'14px', letterSpacing:.3 }}>ยกเลิก</span>}
+                                  </span>
+                                  {r.replaces && (
+                                    <div style={{ fontSize:10.5, color:'var(--am)', marginTop:2, lineHeight:1.4 }}>
+                                      ↩ ออกแทนฉบับเดิม <span style={{ fontFamily:'var(--font-mono)', fontWeight:700 }}>{r.replaces}</span>
+                                    </div>
+                                  )}
+                                </div>
                               </td>
                               <td style={{ ...TD, color: r.voided ? 'var(--t3)' : undefined }}>{cust?.name||'ลูกค้าทั่วไป'}</td>
                               <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>

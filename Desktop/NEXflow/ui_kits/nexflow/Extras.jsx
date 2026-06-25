@@ -594,9 +594,10 @@ function InvoiceList({ toast }) {
                           {tiv.no}
                         </button>
                         {tiv.voided && <span className="bx xr" style={{ marginLeft:5,fontSize:10 }}>ยกเลิก</span>}
-                        {tiv.replaces && !tiv.voided && (
-                          <div style={{ fontSize:10, color:'var(--ac)', marginTop:2 }}>
-                            ออกแทน <span style={{ fontFamily:'var(--font-mono)', fontWeight:700 }}>{tiv.replaces}</span>
+                        {tiv.replaces && (
+                          <div style={{ fontSize:10.5, color:'var(--am)', marginTop:3, display:'flex', alignItems:'center', gap:3 }}>
+                            <span>↩</span>
+                            <span>ออกใบแทนฉบับเดิม <span style={{ fontFamily:'var(--font-mono)', fontWeight:700 }}>{tiv.replaces}</span></span>
                           </div>
                         )}
                       </td>
