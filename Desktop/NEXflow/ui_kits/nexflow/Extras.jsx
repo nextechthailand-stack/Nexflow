@@ -4512,15 +4512,15 @@ function AdjDocument({ doc, onClose, toast }) {
     || (typeof localStorage !== 'undefined' ? localStorage.getItem('sp_company_logo') : '')
     || '';
   const nf  = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-  const ACC       = '#1a4fa0';
-  const ACC_LIGHT = '#e8eef8';
+  const ACC       = 'var(--ac)';
+  const ACC_LIGHT = 'var(--abg)';
   const items = doc.items || [];
 
   const adjTypeLabel = { expired:'หมดอายุ', damage:'เสียหาย', recount:'นับใหม่', other:'อื่นๆ' }[doc.adjType] || doc.adjType;
   const netAdj = Number(doc.totalAdj || 0);
 
   const TH = { padding:'8px 10px', background:ACC, color:'#fff', fontWeight:700, fontSize:11.5,
-    borderBottom:'1px solid rgba(0,0,0,.15)', borderRight:'1px solid rgba(255,255,255,.2)', verticalAlign:'middle' };
+    borderBottom:'1px solid rgba(0,0,0,.15)', borderRight:'1px solid rgba(255,255,255,.2)', verticalAlign:'middle', textAlign:'center' };
   const TD = { padding:'8px 10px', fontSize:12.5, borderBottom:'1px solid #e8e8e8', borderRight:'1px solid #e8e8e8', verticalAlign:'top' };
   /* per-unit helpers */
   const adjFmtU = (val, code) => {
@@ -4668,9 +4668,6 @@ function AdjDocument({ doc, onClose, toast }) {
               ))}
             </div>
 
-            <div style={{ textAlign:'center', fontSize:10.5, color:'#aaa', marginTop:12 }}>
-              NEXflow — {co.name}
-            </div>
           </div>
         </div>
 
