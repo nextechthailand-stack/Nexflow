@@ -166,7 +166,7 @@ function App() {
       case 'stock-in':     body = <StockIn toast={toast} setPage={setPage} />; break;
       case 'stock-out':    body = <StockOut toast={toast} onIssue={setInvoice} />; break;
       case 'invoices':     body = <InvoiceList toast={toast} />; break;
-      case 'reports':      body = <Reports />; break;
+      case 'reports':      body = <Reports toast={toast} />; break;
       case 'stock-manage': body = <StockManage toast={toast} />; break;
       case 'products':     body = <Products toast={toast} />; break;
       case 'customers':    body = <Customers toast={toast} />; break;

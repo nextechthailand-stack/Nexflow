@@ -58,7 +58,7 @@ function PieChart({ slices = [], size = 180 }) {
   );
 }
 
-function Reports() {
+function Reports({ toast = ()=>{} }) {
   const [, t] = useLang();
   /* Re-render เมื่อ reloadInvoices() อัปเดตข้อมูล */
   const [dataVer, setDataVer] = React.useState(window.SP_DASH_VERSION || 0);
@@ -77,6 +77,8 @@ function Reports() {
   const [search, setSearch]         = React.useState('');
   const [discSearch, setDiscSearch] = React.useState('');
   const [custModal, setCustModal]   = React.useState(null);
+  const [taxDocModal, setTaxDocModal] = React.useState(null); /* TIV invoice popup */
+  const [taxGrnModal, setTaxGrnModal] = React.useState(null); /* GRN popup */
 
   React.useEffect(() => { setSearch(''); setDiscSearch(''); }, [tab]);
 
@@ -416,8 +418,18 @@ function Reports() {
 
         const THSUB = { fontSize:12, fontWeight:700, padding:'5px 12px', borderRadius:6, border:'none', cursor:'pointer', fontFamily:'inherit' };
         const EXPBTN = { display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, padding:'5px 10px', borderRadius:6, border:'1px solid var(--bd)', background:'var(--s2)', color:'var(--t2)', cursor:'pointer', fontFamily:'inherit' };
+        const DOCLINK = { background:'none', border:'none', padding:0, cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, textDecoration:'underline', textDecorationStyle:'dotted', textUnderlineOffset:3 };
         return (
         <div>
+          {/* Date filter */}
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center', marginBottom:14, padding:'10px 14px', background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--r)', boxShadow:'var(--sh)' }}>
+            <span style={{ fontSize:12, fontWeight:700, color:'var(--t2)', whiteSpace:'nowrap' }}>ช่วงวันที่:</span>
+            <DateField style={{ width:145 }} value={dateFrom} onChange={e=>setDateFrom(e.target.value)} />
+            <span style={{ fontSize:12, color:'var(--t3)' }}>ถึง</span>
+            <DateField style={{ width:145 }} value={dateTo} onChange={e=>setDateTo(e.target.value)} />
+            {(dateFrom||dateTo) && <button className="btn bg2 bsm" onClick={()=>{setDateFrom('');setDateTo('');}}>ล้าง</button>}
+          </div>
+
           {/* Sub-tabs */}
           <div style={{ display:'flex', gap:8, marginBottom:16 }}>
             <button style={{ ...THSUB, background:taxSub==='sale'?'var(--ac)':'var(--s2)', color:taxSub==='sale'?'#fff':'var(--t2)' }} onClick={()=>setTaxSub('sale')}>
@@ -432,10 +444,10 @@ function Reports() {
           {taxSub==='sale' && (
             <div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
-                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}))}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป',c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}))}>
                   <Icon name="download" size={13}/> CSV
                 </button>
-                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)}>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)}>
                   <Icon name="printer" size={13}/> PDF
                 </button>
               </div>
@@ -447,10 +459,10 @@ function Reports() {
               <Card title={`รายงานภาษีขาย — ${taxSaleRows.length} รายการ`}>
                 <div className="tw"><table>
                   <thead><tr>
-                    <th style={{ ...TH, textAlign:'center', width:50 }}>ลำดับ</th>
+                    <th style={{ ...TH, textAlign:'center', width:44 }}>ลำดับ</th>
                     <th style={TH}>วันที่</th>
                     <th style={TH}>เลขที่เอกสาร</th>
-                    <th style={TH}>ชื่อผู้ซื้อสินค้า</th>
+                    <th style={TH}>ชื่อบริษัท</th>
                     <th style={{ ...TH, textAlign:'center' }}>สาขาที่</th>
                     <th style={THR}>มูลค่าสินค้า (฿)</th>
                     <th style={THR}>จำนวนเงินภาษี (฿)</th>
@@ -460,11 +472,17 @@ function Reports() {
                       ? <tr><td colSpan="7" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการในช่วงวันที่เลือก</td></tr>
                       : taxSaleRows.map((r,i) => {
                           const cust = D.customers.find(c=>c.id===r.custId);
+                          const invObj = (window.SP_STATE?.invoices||[]).find(iv=>iv.thermalNo===r.no||iv.no===r.no||iv.invoice_no===r.no);
                           return (
                             <tr key={r.no} style={{ borderBottom:'1px solid var(--bd)' }}>
                               <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
                               <td style={{ ...TD, fontWeight:600 }}>{r.date}</td>
-                              <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--ac)' }}>{r.no}</td>
+                              <td style={TD}>
+                                <button style={{ ...DOCLINK, color:'var(--ac)' }}
+                                  onClick={()=>invObj && setTaxDocModal(invObj)}>
+                                  {r.no}
+                                </button>
+                              </td>
                               <td style={TD}>{cust?.name||'ลูกค้าทั่วไป'}</td>
                               <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
                               <td style={{ ...TDR, fontWeight:700 }}>{$(r.inclTotal)}</td>
@@ -475,7 +493,8 @@ function Reports() {
                     }
                   </tbody>
                   <tfoot><tr>
-                    <td colSpan="5" style={{ ...TF }}>รวมทั้งหมด ({taxSaleRows.length} รายการ)</td>
+                    <td colSpan="4" style={{ ...TF }}>รวมทั้งหมด ({taxSaleRows.length} รายการ)</td>
+                    <td style={TF}></td>
                     <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxSaleTotIncl)}</td>
                     <td style={{ ...TFR, color:'var(--pu)' }}>{$(taxSaleTotVat)}</td>
                   </tr></tfoot>
@@ -488,10 +507,10 @@ function Reports() {
           {taxSub==='buy' && (
             <div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
-                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.note||r.poNo||'—',r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}>
                   <Icon name="download" size={13}/> CSV
                 </button>
-                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.note||r.poNo||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
                   <Icon name="printer" size={13}/> PDF
                 </button>
               </div>
@@ -503,22 +522,29 @@ function Reports() {
               <Card title={`รายงานภาษีซื้อ — ${taxBuyRows.length} รายการ`}>
                 <div className="tw"><table>
                   <thead><tr>
-                    <th style={{ ...TH, textAlign:'center', width:50 }}>ลำดับ</th>
+                    <th style={{ ...TH, textAlign:'center', width:44 }}>ลำดับ</th>
                     <th style={TH}>วันที่</th>
                     <th style={TH}>เลขที่เอกสาร</th>
-                    <th style={TH}>ชื่อผู้รับสินค้า</th>
+                    <th style={TH}>ชื่อบริษัท</th>
+                    <th style={TH}>ผู้รับสินค้า</th>
                     <th style={{ ...TH, textAlign:'center' }}>สาขาที่</th>
                     <th style={THR}>มูลค่าสินค้า (฿)</th>
                     <th style={THR}>จำนวนเงินภาษี (฿)</th>
                   </tr></thead>
                   <tbody>
                     {taxBuyRows.length===0
-                      ? <tr><td colSpan="7" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการในช่วงวันที่เลือก</td></tr>
+                      ? <tr><td colSpan="8" style={{ padding:'28px', textAlign:'center', color:'var(--t3)' }}>ไม่มีรายการในช่วงวันที่เลือก</td></tr>
                       : taxBuyRows.map((r,i) => (
                           <tr key={r.id} style={{ borderBottom:'1px solid var(--bd)' }}>
                             <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
                             <td style={{ ...TD, fontWeight:600 }}>{r.dateDisplay||r.date}</td>
-                            <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--pu)' }}>{r.id}</td>
+                            <td style={TD}>
+                              <button style={{ ...DOCLINK, color:'var(--pu)' }}
+                                onClick={()=>setTaxGrnModal(r)}>
+                                {r.id}
+                              </button>
+                            </td>
+                            <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{r.note||r.poNo||'—'}</td>
                             <td style={TD}>{r.receiver||'—'}</td>
                             <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
                             <td style={{ ...TDR, fontWeight:700 }}>{$(r.inclTotal)}</td>
@@ -529,6 +555,7 @@ function Reports() {
                   </tbody>
                   <tfoot><tr>
                     <td colSpan="5" style={{ ...TF }}>รวมทั้งหมด ({taxBuyRows.length} รายการ)</td>
+                    <td style={TF}></td>
                     <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxBuyTotIncl)}</td>
                     <td style={{ ...TFR, color:'var(--ac)' }}>{$(taxBuyTotVat)}</td>
                   </tr></tfoot>
@@ -536,6 +563,10 @@ function Reports() {
               </Card>
             </div>
           )}
+
+          {/* Document popups */}
+          {taxDocModal && <TIVDocModal tiv={taxDocModal} onClose={()=>setTaxDocModal(null)} toast={toast} onVoid={()=>setTaxDocModal(null)} />}
+          {taxGrnModal && <GrnDoc grn={taxGrnModal} onClose={()=>setTaxGrnModal(null)} />}
         </div>
         );
       })()}
