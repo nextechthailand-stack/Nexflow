@@ -4508,6 +4508,9 @@ function TIVDocModal({ tiv, onClose, toast, onVoid }) {
 function AdjDocument({ doc, onClose, toast }) {
   if (!doc) return null;
   const co  = window.SP_DATA.company;
+  const logoUrl = co.logoUrl
+    || (typeof localStorage !== 'undefined' ? localStorage.getItem('sp_company_logo') : '')
+    || '';
   const nf  = n => Number(n).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
   const ACC       = '#1a4fa0';
   const ACC_LIGHT = '#e8eef8';
@@ -4539,6 +4542,8 @@ function AdjDocument({ doc, onClose, toast }) {
   const ftEnt = Object.entries(ftMap);
   const fmtFt = (val, lbl, isKg) => isKg ? Math.abs(val).toFixed(3)+' KG' : String(Math.round(Math.abs(val)))+' '+lbl;
 
+  const SIG_LABELS = ['ผู้จัดทำ / Prepared by', 'ผู้ตรวจสอบ / Checked by', 'ผู้อนุมัติ / Approved by'];
+
   return (
     <Overlay onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="md" style={{ width:'min(860px,96vw)' }}>
@@ -4553,15 +4558,15 @@ function AdjDocument({ doc, onClose, toast }) {
         </div>
 
         <div className="md-b" style={{ background:'#e8e7e2', padding:16, overflowX:'auto' }}>
-          <div style={{ width:'100%', maxWidth:794, background:'#fff', margin:'0 auto',
+          <div style={{ width:'100%', maxWidth:794, minHeight:1123, background:'#fff', margin:'0 auto',
             boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)',
-            color:'#111', padding:'24px 28px', boxSizing:'border-box', fontSize:12.5 }}>
+            color:'#111', padding:'28px 32px', boxSizing:'border-box', fontSize:12.5 }}>
 
             {/* Header */}
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start',
               borderBottom:`3px solid ${ACC}`, paddingBottom:14, marginBottom:14 }}>
               <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
-                {co.logoUrl && <img src={co.logoUrl} alt="logo" style={{ width:52,height:52,objectFit:'contain',borderRadius:6,flexShrink:0 }} />}
+                {logoUrl && <img src={logoUrl} alt="logo" style={{ width:52,height:52,objectFit:'contain',borderRadius:6,flexShrink:0 }} />}
                 <div>
                   <div style={{ fontSize:16, fontWeight:800, color:'#111' }}>{co.name}</div>
                   {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
@@ -4600,24 +4605,25 @@ function AdjDocument({ doc, onClose, toast }) {
               </div>
             </div>
 
-            {/* Items table */}
+            {/* Items table — รหัส + ชื่อสินค้า รวมกันในคอลัมน์เดียว */}
             <table style={{ width:'100%', borderCollapse:'collapse', border:'1px solid #ccc', marginBottom:14 }}>
               <thead>
                 <tr>
-                  <th style={{ ...TH, width:36 }}>#</th>
-                  <th style={TH}>รหัส</th>
-                  <th style={TH}>ชื่อสินค้า</th>
-                  <th style={{ ...TH, textAlign:'right' }}>ก่อนปรับ</th>
-                  <th style={{ ...TH, textAlign:'right' }}>ปรับ (+/-)</th>
-                  <th style={{ ...TH, textAlign:'right', borderRight:'none' }}>หลังปรับ</th>
+                  <th style={{ ...TH, width:40, textAlign:'center' }}>ลำดับ</th>
+                  <th style={TH}>รหัสสินค้า / รายละเอียดสินค้า</th>
+                  <th style={{ ...TH, textAlign:'right', width:120 }}>ก่อนปรับ</th>
+                  <th style={{ ...TH, textAlign:'right', width:120 }}>ปรับ (+/-)</th>
+                  <th style={{ ...TH, textAlign:'right', width:120, borderRight:'none' }}>หลังปรับ</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((it, i) => (
                   <tr key={it.code+i}>
-                    <td style={{ ...TD, color:'#999', fontSize:11 }}>{i+1}</td>
-                    <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5 }}>{it.code}</td>
-                    <td style={{ ...TD, fontWeight:600 }}>{it.name}</td>
+                    <td style={{ ...TD, textAlign:'center', color:'#999', fontSize:11 }}>{i+1}</td>
+                    <td style={{ ...TD }}>
+                      <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'#777', display:'block', marginBottom:2 }}>{it.code}</span>
+                      <span style={{ fontWeight:600 }}>{it.name}</span>
+                    </td>
                     <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)' }}>{adjFmtU(it.before, it.code)}</td>
                     <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700,
                       color: Number(it.adj) >= 0 ? '#15803d' : '#dc2626' }}>
@@ -4627,12 +4633,12 @@ function AdjDocument({ doc, onClose, toast }) {
                   </tr>
                 ))}
                 {items.length === 0 && (
-                  <tr><td colSpan="6" style={{ padding:20, textAlign:'center', color:'#aaa' }}>ไม่มีรายการ</td></tr>
+                  <tr><td colSpan="5" style={{ padding:20, textAlign:'center', color:'#aaa' }}>ไม่มีรายการ</td></tr>
                 )}
               </tbody>
               <tfoot>
                 <tr style={{ background:ACC_LIGHT }}>
-                  <td colSpan="3" style={{ padding:'8px 10px', fontWeight:700, fontSize:12 }}>รวม {items.length} รายการ</td>
+                  <td colSpan="2" style={{ padding:'8px 10px', fontWeight:700, fontSize:12 }}>รวม {items.length} รายการ</td>
                   <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
                     {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.before,lbl,g.isKg)}</div>) : nf(doc.totalBefore||0)}
                   </td>
@@ -4651,11 +4657,13 @@ function AdjDocument({ doc, onClose, toast }) {
             {/* Signatures */}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:0,
               border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginTop:8 }}>
-              {['ผู้จัดทำ / Prepared by','ผู้ตรวจสอบ / Checked by','ผู้อนุมัติ / Approved by'].map((label, i) => (
+              {SIG_LABELS.map((label, i) => (
                 <div key={i} style={{ padding:'10px 14px', borderRight: i<2 ? '1px solid #ccc' : 'none' }}>
-                  {i === 2 && doc.approver && <div style={{ fontSize:12.5, fontWeight:700, textAlign:'center', marginBottom:6 }}>{doc.approver}</div>}
-                  <div style={{ marginTop: i === 2 && doc.approver ? 20 : 40, borderTop:'1px solid #bbb',
+                  <div style={{ marginTop:48, borderTop:'1px solid #bbb',
                     paddingTop:6, textAlign:'center', fontSize:11, color:'#666' }}>{label}</div>
+                  <div style={{ marginTop:8, textAlign:'center', fontSize:10.5, color:'#888' }}>
+                    วันที่ ....... / ....... / .......
+                  </div>
                 </div>
               ))}
             </div>
