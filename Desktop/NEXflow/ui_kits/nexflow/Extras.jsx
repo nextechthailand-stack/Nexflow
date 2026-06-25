@@ -159,8 +159,8 @@ function A4Content({ iv }) {
         return (
           <div key={pageIdx} style={{ width:'100%', maxWidth:794, minHeight:1123, background:'#fff', margin:'0 auto 8px', boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)', color:'#111', boxSizing:'border-box', fontSize:12.5, overflow:'hidden', position:'relative' }}>
             {/* Page number */}
-            <div style={{ position:'absolute', top:10, right:18, fontSize:10, color:'#bbb', fontFamily:'var(--font-mono)', zIndex:1 }}>
-              {pageIdx+1}/{totalInvPages}
+            <div style={{ position:'absolute', bottom:12, right:18, fontSize:10, color:'#bbb', fontFamily:'var(--font-mono)', zIndex:1 }}>
+              หน้า {pageIdx+1}/{totalInvPages}
             </div>
 
             <InvHeader pageIdx={pageIdx} />
@@ -220,21 +220,15 @@ function A4Content({ iv }) {
                       );
                     })}
                   </tbody>
+                  {!isLast && (
+                    <tfoot>
+                      <tr style={{ background:'#f8f8f6' }}>
+                        <td colSpan="4" style={{ padding:'6px 10px', textAlign:'right', fontSize:11.5, color:'#555', borderTop:'1px solid #ddd' }}>ยอดรวม<span style={{ fontSize:10, color:'#888', display:'block' }}>Subtotal</span></td>
+                        <td style={{ padding:'6px 10px', textAlign:'right', fontSize:13, fontWeight:700, color:'#333', borderTop:'1px solid #ddd' }}>{pageSub.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
-
-                {/* SUBTOTAL — ทุกหน้า */}
-                {!isLast && (
-                  <div style={{ display:'flex', justifyContent:'flex-end', borderTop:'1px solid #ddd' }}>
-                    <table style={{ minWidth:280, borderCollapse:'collapse' }}>
-                      <tbody>
-                        <tr>
-                          <td style={{ padding:'5px 12px', fontSize:12, color:'#333' }}>ยอดรวมหน้านี้<span style={{ fontSize:10, color:'#888', display:'block' }}>Page Subtotal</span></td>
-                          <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', minWidth:110 }}>{pageSub.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
 
                 {/* SUMMARY — last page only */}
                 {isLast && (
@@ -249,7 +243,7 @@ function A4Content({ iv }) {
                     <div style={{ minWidth:280 }}>
                       <table style={{ width:'100%', borderCollapse:'collapse' }}>
                         <tbody>
-                          <SumRow label="ยอดรวมหน้านี้" sublabel="Page Subtotal" value={pageSub.toLocaleString('en-US',{minimumFractionDigits:2})} />
+                          <SumRow label="ยอดรวม" sublabel="Subtotal" value={pageSub.toLocaleString('en-US',{minimumFractionDigits:2})} />
                           <SumRow label="รวมเป็นเงิน" sublabel="Gross Amount" value={grossSale.toLocaleString('en-US',{minimumFractionDigits:2})} />
                           {discount > 0 && <SumRow label="หักส่วนลด" sublabel="Less Discount" value={`-${discount.toLocaleString('en-US',{minimumFractionDigits:2})}`} />}
                           {discount > 0 && <SumRow label="ยอดหลังหักส่วนลด" sublabel="After Discount" value={afterDisc.toLocaleString('en-US',{minimumFractionDigits:2})} />}
@@ -4658,8 +4652,8 @@ function AdjDocument({ doc, onClose, toast }) {
                 color:'#111', padding:'24px 28px', boxSizing:'border-box', fontSize:12.5, position:'relative' }}>
 
                 {/* Page number */}
-                <div style={{ position:'absolute', top:10, right:20, fontSize:10, color:'#bbb', fontFamily:'var(--font-mono)', zIndex:1 }}>
-                  {pageIdx+1}/{totalAdjPages}
+                <div style={{ position:'absolute', bottom:12, right:20, fontSize:10, color:'#bbb', fontFamily:'var(--font-mono)', zIndex:1 }}>
+                  หน้า {pageIdx+1}/{totalAdjPages}
                 </div>
 
                 <AdjHeader />

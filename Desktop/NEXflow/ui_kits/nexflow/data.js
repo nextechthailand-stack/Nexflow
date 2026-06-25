@@ -704,7 +704,8 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
       const rowOffset = grnPages.slice(0,pgIdx).reduce((s,p)=>s+p.length,0);
       const rows = pageItems.map((it,i) => makeGrnRow(it, rowOffset+i)).join('');
       const pageSub = pageItems.reduce((s,it) => s + Number(it.totalValue||0), 0);
-      const subRow = `<tr><td style="${subTd}">ยอดรวมหน้านี้<span style="font-size:9px;color:#888;display:block">Page Subtotal</span></td><td style="${subTdR}">${$n(pageSub)}</td></tr>`;
+      const subRow = `<tr><td style="${subTd}">ยอดรวม<span style="font-size:9px;color:#888;display:block">Subtotal</span></td><td style="${subTdR}">${$n(pageSub)}</td></tr>`;
+      const subTfoot = isLast ? '' : `<tfoot><tr style="background:#f8f8f6"><td colspan="4" style="padding:6px 10px;text-align:right;font-size:11.5px;color:#555;border-top:1px solid #ddd">ยอดรวม<span style="font-size:9px;color:#888;display:block">Subtotal</span></td><td style="padding:6px 10px;text-align:right;font-size:13px;font-weight:700;color:#333;border-top:1px solid #ddd">${$n(pageSub)}</td></tr></tfoot>`;
       const bottomHtml = isLast
         ? `<div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
             <div style="padding:10px 12px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #ddd">
@@ -721,22 +722,20 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
               <tr style="background:${ACC}"><td style="padding:7px 10px;font-size:12.5px;font-weight:800;color:#fff">มูลค่ารวมทั้งสิ้น<span style="font-size:9.5px;font-weight:400;display:block;opacity:.8">Total Amount</span></td><td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:900;color:#fff;min-width:100px">${$n(totV)}</td></tr>
             </table></div>
           </div>`
-        : `<div style="display:flex;justify-content:flex-end;border-top:1px solid #ddd">
-            <table style="min-width:240px;border-collapse:collapse">${subRow}</table>
-          </div>`;
+        : '';
       grnPagesHtml += `
       <div class="pg${isLast?' last':''}">
         <div style="position:relative">
-          <div style="position:absolute;top:6px;right:0;font-size:10px;color:#bbb;font-family:monospace;z-index:1">${pgIdx+1}/${grnTotalPg}</div>
           ${grnHdrHtml}
         </div>
         <div style="padding:10px 16px 14px">
           ${grnMetaHtml}
           <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:12px">${grnThead}<tbody>${rows}</tbody></table>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">${grnThead}<tbody>${rows}</tbody>${subTfoot}</table>
             ${bottomHtml}
           </div>
           ${isLast ? grnSig : ''}
+          <div style="text-align:right;font-size:10px;color:#bbb;font-family:monospace;margin-top:4px">หน้า ${pgIdx+1}/${grnTotalPg}</div>
         </div>
       </div>`;
     });
@@ -1060,7 +1059,8 @@ body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;
         const qty=isUnit?w*(it.scanCount||1):(it.scanCount||1);
         return s+(isUnit?qty*p0-Number(it.lineDisc||0):qty*w*p0-Number(it.lineDisc||0));
       }, 0);
-      const invSubRow = `<tr><td style="${invSubTd}">ยอดรวมหน้านี้<span style="font-size:9px;color:#888;display:block">Page Subtotal</span></td><td style="${invSubTdR}">${nf(pageSub)}</td></tr>`;
+      const invSubRow = `<tr><td style="${invSubTd}">ยอดรวม<span style="font-size:9px;color:#888;display:block">Subtotal</span></td><td style="${invSubTdR}">${nf(pageSub)}</td></tr>`;
+      const invSubTfoot = isLast ? '' : `<tfoot><tr style="background:#f8f8f6"><td colspan="4" style="padding:6px 10px;text-align:right;font-size:11.5px;color:#555;border-top:1px solid #ddd">ยอดรวม<span style="font-size:9px;color:#888;display:block">Subtotal</span></td><td style="padding:6px 10px;text-align:right;font-size:13px;font-weight:700;color:#333;border-top:1px solid #ddd">${nf(pageSub)}</td></tr></tfoot>`;
       const invBottomHtml = isLast
         ? `<div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
             <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:flex-end;border-right:1px solid #ddd">
@@ -1077,22 +1077,20 @@ body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;
               <tr style="background:${ACC}"><td style="padding:7px 10px;font-size:12.5px;font-weight:800;color:#fff">จำนวนเงินรวมทั้งสิ้น<span style="font-size:9.5px;font-weight:400;display:block;opacity:.8">Total Invoice</span></td><td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:900;color:#fff;min-width:100px">${nf(total)}</td></tr>
             </table></div>
           </div>`
-        : `<div style="display:flex;justify-content:flex-end;border-top:1px solid #ddd">
-            <table style="min-width:250px;border-collapse:collapse">${invSubRow}</table>
-          </div>`;
+        : '';
       invPagesHtml += `
       <div class="pg${isLast?' last':''}">
         <div style="position:relative">
-          <div style="position:absolute;top:6px;right:0;font-size:10px;color:#bbb;font-family:monospace;z-index:1">${pgIdx+1}/${invTotalPg}</div>
           ${invHdrHtml}
         </div>
         <div style="padding:10px 16px 14px">
           ${invCustHtml}
           <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:12px">${invThead}<tbody>${rows}</tbody></table>
+            <table style="width:100%;border-collapse:collapse;font-size:12px">${invThead}<tbody>${rows}</tbody>${invSubTfoot}</table>
             ${invBottomHtml}
           </div>
           ${isLast ? invSig : ''}
+          <div style="text-align:right;font-size:10px;color:#bbb;font-family:monospace;margin-top:4px">หน้า ${pgIdx+1}/${invTotalPg}</div>
         </div>
       </div>`;
     });
@@ -1227,7 +1225,6 @@ body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;
       adjPagesHtml += `
       <div class="pg${isLast?' last':''}">
         <div style="position:relative">
-          <div style="position:absolute;top:6px;right:0;font-size:10px;color:#bbb;font-family:monospace;z-index:1">${pgIdx+1}/${adjTotalPg}</div>
           ${adjHdrHtml}
         </div>
         <div style="padding:10px 16px 14px">
@@ -1237,6 +1234,7 @@ body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;
             <tfoot>${isLast ? adjSummary : `<tr style="background:${ACC_LIGHT}"><td colspan="5" style="padding:7px 8px;font-size:11px;font-weight:600;text-align:center;color:#555;border-top:1px solid #ccc">รายการหน้านี้ ${pageItems.length} รายการ</td></tr>`}</tfoot>
           </table>
           ${isLast ? adjSig : ''}
+          <div style="text-align:right;font-size:10px;color:#bbb;font-family:monospace;margin-top:4px">หน้า ${pgIdx+1}/${adjTotalPg}</div>
         </div>
       </div>`;
     });
