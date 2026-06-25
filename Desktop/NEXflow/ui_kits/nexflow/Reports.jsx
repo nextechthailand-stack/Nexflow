@@ -590,7 +590,25 @@ function Reports({ toast = ()=>{} }) {
 
           {/* Document popups */}
           {taxDocModal && <TIVDocModal tiv={taxDocModal} onClose={()=>setTaxDocModal(null)} toast={toast} onVoid={()=>setTaxDocModal(null)} />}
-          {taxA4Modal  && <Invoice invoice={taxA4Modal} onClose={()=>setTaxA4Modal(null)} toast={toast} />}
+          {taxA4Modal && (
+            <Overlay onClick={e=>e.target===e.currentTarget&&setTaxA4Modal(null)}>
+              <div className="md" style={{ width:'min(860px,96vw)' }}>
+                <div className="md-h">
+                  <span className="md-t">ใบกำกับภาษี · <span style={{ fontFamily:'var(--font-mono)' }}>{taxA4Modal.no}</span></span>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <Button variant="bp" size="sm" icon="printer" onClick={()=>{window.printDoc('inv',taxA4Modal);toast('info','กำลังพิมพ์ใบกำกับภาษี…');}}>พิมพ์</Button>
+                    <button type="button" className="md-x" aria-label="ปิด" onClick={()=>setTaxA4Modal(null)}>✕</button>
+                  </div>
+                </div>
+                <div className="md-b" style={{ background:'#e8e7e2', padding:'16px', overflowX:'auto' }}>
+                  <A4Content iv={taxA4Modal} />
+                </div>
+                <div className="md-f">
+                  <Button variant="bg2" onClick={()=>setTaxA4Modal(null)}>ปิด</Button>
+                </div>
+              </div>
+            </Overlay>
+          )}
           {taxGrnModal && <GrnDoc grn={taxGrnModal} onClose={()=>setTaxGrnModal(null)} />}
         </div>
         );
