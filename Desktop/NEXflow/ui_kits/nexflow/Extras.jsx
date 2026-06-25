@@ -97,150 +97,177 @@ function A4Content({ iv }) {
     ? window.mergeInvItems(iv.items || [], discount)
     : (iv.items||[]).map(it=>({ ...it, indivWeight:Number(it.weight||0), scanCount:1, lineDisc:0 }));
 
-  return (
-    <div style={{ width:'100%', maxWidth:794, background:'#fff', margin:'0 auto', boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)', color:'#111', boxSizing:'border-box', fontSize:12.5, overflow:'hidden' }}>
-      {/* ══ HEADER ══ */}
-      <div style={{ background:'#fff', padding:'18px 24px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <div style={{ display:'flex', gap:12, alignItems:'flex-start', flex:1 }}>
-          {logoUrl && <img src={logoUrl} alt="logo" style={{ width:56, height:56, objectFit:'contain', borderRadius:6, flexShrink:0 }} />}
-          <div>
-            <div style={{ fontSize:17, fontWeight:800, lineHeight:1.3, color:'#111' }}>{co.name}</div>
-            {co.nameEn && <div style={{ fontSize:12, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
-            <div style={{ fontSize:11, color:'#555', lineHeight:1.8, marginTop:3 }}>
-              {co.addr && <div>{co.addr}</div>}
-              <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
-              <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b> &nbsp;สำนักงานใหญ่</div>
-            </div>
-          </div>
-        </div>
-        <div style={{ textAlign:'right', minWidth:200, flexShrink:0 }}>
-          <div style={{ display:'inline-block', padding:'5px 18px', background: iv.voided ? '#fee' : ACC_LIGHT, color: iv.voided ? '#c0392b' : ACC, borderRadius:4, fontSize:15, fontWeight:800, marginBottom:8, letterSpacing:.5 }}>{copyLabel}</div>
-          <div style={{ fontSize:22, fontWeight:800, color:ACC, lineHeight:1.4 }}>ใบกำกับภาษี/ ใบเสร็จรับเงิน</div>
-          <div style={{ fontSize:13, fontWeight:600, color:'#555', marginTop:3 }}>Tax Invoice / Receipt</div>
-        </div>
-      </div>
-      {/* ══ BODY ══ */}
-      <div style={{ padding:'16px 24px 20px' }}>
-      {/* ══ CUSTOMER + DOC INFO ══ */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0, marginBottom:14, ...B, borderRadius:6, overflow:'hidden' }}>
-        <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
-          <div style={{ fontSize:11, color:'#777', marginBottom:6 }}>ลูกค้า / Customer</div>
-          <div style={{ fontSize:13.5, fontWeight:700, marginBottom:4 }}>{cust?.name || iv.custName || '—'}</div>
-          {(cust?.addr || iv.custAddr) && <div style={{ fontSize:11.5, color:'#444', lineHeight:1.7, marginBottom:3 }}>{cust?.addr || iv.custAddr}</div>}
-          <div style={{ fontSize:11.5, color:'#444', marginBottom:2 }}>
-            <span style={{ color:'#888' }}>เลขประจำตัวผู้เสียภาษี </span>
-            <b style={{ fontFamily:'var(--font-mono)' }}>{iv.custTax || cust?.tax || '—'}</b>
-            <span style={{ marginLeft:8, color:'#666' }}>{branchLabel}</span>
-          </div>
-          {cust?.phone && <div style={{ fontSize:11.5, color:'#444' }}>โทร. {cust.phone}</div>}
-        </div>
-        <div style={{ padding:'10px 14px', minWidth:210, background:ACC_LIGHT }}>
-          {(() => {
-            const PAY_LBL = { cash:'เงินสด', transfer:'เงินโอน', credit:'เครดิต' };
-            const payLabel = iv.pay ? PAY_LBL[iv.pay] || iv.pay : null;
-            return [
-              ['เลขที่ / No.', <b style={{ fontFamily:'var(--font-mono)', fontSize:13, color:ACC }}>{iv.no}</b>],
-              ['วันที่ / Date', <b>{iv.dateDisplay}</b>],
-              ['อ้างอิง', iv.thermalNo ? <span style={{ fontFamily:'var(--font-mono)', fontSize:11.5, color:'#555' }}>{iv.thermalNo}</span> : null],
-              ['ออกแทนใบ', iv.replaces ? <span style={{ fontFamily:'var(--font-mono)', fontSize:11.5, color:'#c0392b' }}>{iv.replaces}</span> : null],
-              ['ชำระเงิน', payLabel ? <span style={{ fontWeight:600 }}>{payLabel}</span> : null],
-            ].filter(r => r[1]).map(([l,v],i) => (
-              <div key={i} style={{ display:'flex', justifyContent:'space-between', gap:12, padding:'4px 0', borderBottom:'1px solid #d0d8e8', fontSize:12 }}>
-                <span style={{ color:'#667', whiteSpace:'nowrap' }}>{l}</span>{v}
-              </div>
-            ));
-          })()}
-        </div>
-      </div>
-      {/* ══ ITEMS TABLE + SUMMARY ══ */}
-      <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5 }}>
-          <thead>
-            <tr>
-              <th style={{ ...TH, width:34, textAlign:'center' }}>ลำดับ<br/><span style={{ fontSize:9.5, fontWeight:400 }}>No.</span></th>
-              <th style={{ ...TH, textAlign:'center' }}>รหัสสินค้าและรายละเอียด<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Code / Descriptions</span></th>
-              <th style={{ ...TH, width:90, textAlign:'center' }}>จำนวน<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Quantity</span></th>
-              <th style={{ ...TH, width:90, textAlign:'center' }}>หน่วยละ<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Unit Price</span></th>
-              <th style={{ ...TH, width:100, textAlign:'center', borderRight:'none' }}>จำนวนเงิน<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Amount</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {merged.map((it, i) => {
-              const w      = Number(it.indivWeight || it.weight || 0);
-              const p      = Number(it.price || it.price_per_kg || 0);
-              const unit   = window.unitOf(it.code);
-              const isUnit = unit.unitType === 'unit';
-              const qty    = isUnit ? w * (it.scanCount||1) : (it.scanCount || 1);
-              const qtyStr = `${qty}`;
-              const lineTotal = isUnit ? qty * p - Number(it.lineDisc||0) : qty * w * p - Number(it.lineDisc||0);
-              return (
-                <tr key={i} style={{ background: i%2===0?'#fff':'#fafafa' }}>
-                  <td style={{ ...TD, textAlign:'center', color:'#888' }}>{i+1}</td>
-                  <td style={{ ...TD }}>
-                    <div style={{ fontSize:11, color:'#888', fontFamily:'var(--font-mono)', marginBottom:2 }}>{it.code}</div>
-                    <div style={{ fontWeight:600 }}>{it.name}{unit.unitType !== 'unit' && w > 0 ? ` @ ${w.toFixed(3)} kg.` : ''}</div>
-                  </td>
-                  <td style={{ ...TD, textAlign:'center', fontWeight:600 }}>{qtyStr}</td>
-                  <td style={{ ...TD, textAlign:'right' }}>{p.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                  <td style={{ ...TD, textAlign:'right', fontWeight:700, borderRight:'none' }}>{lineTotal.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                </tr>
-              );
-            })}
-            {merged.length < 5 && Array.from({ length: 5 - merged.length }).map((_,i) => (
-              <tr key={'e'+i} style={{ background: (merged.length+i)%2===0?'#fff':'#fafafa' }}>
-                <td style={{ ...TD, height:30 }}></td><td style={TD}></td><td style={TD}></td><td style={TD}></td><td style={{ ...TD, borderRight:'none' }}></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {/* ══ SUMMARY + AMOUNT WORDS ══ */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderTop:'2px solid #ccc' }}>
-          <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', justifyContent:'flex-end', borderRight:'1px solid #ddd' }}>
-            <div style={{ fontSize:10.5, color:'#777', marginBottom:3 }}>จำนวนเงิน (ตัวอักษร)</div>
-            <div style={{ fontSize:12.5, fontWeight:600 }}>({window.bahtText ? window.bahtText(total) : ''})</div>
-            {iv.note && <div style={{ marginTop:8, fontSize:11, color:'#666' }}><b>หมายเหตุ:</b> {iv.note}</div>}
-            {iv.replaces && (
-              <div style={{ marginTop:6, fontSize:11, color:'#555' }}>ออกแทนฉบับเลขที่ <b style={{ fontFamily:'var(--font-mono)' }}>{iv.replaces}</b></div>
-            )}
-          </div>
-          <div style={{ minWidth:280 }}>
-            <table style={{ width:'100%', borderCollapse:'collapse' }}>
-              <tbody>
-                <SumRow label="รวมเป็นเงิน" sublabel="Gross Amount" value={grossSale.toLocaleString('en-US',{minimumFractionDigits:2})} />
-                {discount > 0 && <SumRow label="หักส่วนลด" sublabel="Less Discount" value={`-${discount.toLocaleString('en-US',{minimumFractionDigits:2})}`} />}
-                {discount > 0 && <SumRow label="ยอดหลังหักส่วนลด" sublabel="After Discount" value={afterDisc.toLocaleString('en-US',{minimumFractionDigits:2})} />}
-                <SumRow label="ราคาสินค้า (ก่อน VAT)" sublabel="Taxable Amount" value={vatBase.toLocaleString('en-US',{minimumFractionDigits:2})} />
-                <SumRow label="ภาษีมูลค่าเพิ่ม 7%" sublabel="VAT 7%" value={vatAmt.toLocaleString('en-US',{minimumFractionDigits:2})} />
-                <tr style={{ background:ACC }}>
-                  <td style={{ padding:'8px 12px', fontSize:13, fontWeight:800, color:'#fff' }}>จำนวนเงินรวมทั้งสิ้น<span style={{ fontSize:10, fontWeight:400, display:'block', opacity:.8 }}>Total Invoice</span></td>
-                  <td style={{ padding:'8px 12px', textAlign:'right', fontSize:16, fontWeight:900, color:'#fff', minWidth:110 }}>{total.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-                </tr>
-              </tbody>
-            </table>
+  /* ── Pagination ── */
+  const ROWS_FIRST = 10, ROWS_REST = 16;
+  const invPages = (() => {
+    const pages = []; let rem = [...merged];
+    do { pages.push(rem.splice(0, pages.length === 0 ? ROWS_FIRST : ROWS_REST)); } while (rem.length > 0);
+    return pages;
+  })();
+  const totalInvPages = invPages.length;
+
+  const PAY_LBL = { cash:'เงินสด', transfer:'เงินโอน', credit:'เครดิต' };
+  const payLabel = iv.pay ? PAY_LBL[iv.pay] || iv.pay : null;
+
+  const InvHeader = ({ pageIdx }) => (
+    <div style={{ background:'#fff', padding:'14px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'2px solid #e8e8e8' }}>
+      <div style={{ display:'flex', gap:12, alignItems:'flex-start', flex:1 }}>
+        {logoUrl && <img src={logoUrl} alt="logo" style={{ width:52, height:52, objectFit:'contain', borderRadius:6, flexShrink:0 }} />}
+        <div>
+          <div style={{ fontSize:16, fontWeight:800, lineHeight:1.3, color:'#111' }}>{co.name}</div>
+          {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
+          <div style={{ fontSize:10.5, color:'#555', lineHeight:1.7, marginTop:2 }}>
+            {co.addr && <div>{co.addr}</div>}
+            <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
+            <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b> &nbsp;สำนักงานใหญ่</div>
           </div>
         </div>
       </div>
-      {/* ══ SIGNATURES ══ */}
-      <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, ...B, borderRadius:6, overflow:'hidden' }}>
-        <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
-          <div style={{ fontSize:12, fontWeight:600, marginBottom:8 }}>ได้รับสินค้าตามรายการถูกต้องแล้ว</div>
-          <div style={{ marginTop:48, borderTop:'1px solid #bbb', paddingTop:6, textAlign:'center', fontSize:11.5, color:'#555' }}>
-            ผู้รับสินค้า / Goods Received by
-          </div>
-          <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
-        </div>
-        <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
-          <div style={{ fontSize:12, fontWeight:600, textAlign:'center' }}>{co.name}</div>
-          <div>
-            <div style={{ textAlign:'center', marginTop:32, borderTop:'1px solid #bbb', paddingTop:6, fontSize:11.5, color:'#555' }}>
-              ผู้รับมอบอำนาจ / Authorized Signature
-            </div>
-            <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
-          </div>
-        </div>
-      </div>
+      <div style={{ textAlign:'right', minWidth:200, flexShrink:0 }}>
+        <div style={{ display:'inline-block', padding:'4px 14px', background: iv.voided ? '#fee' : ACC_LIGHT, color: iv.voided ? '#c0392b' : ACC, borderRadius:4, fontSize:13, fontWeight:800, marginBottom:6, letterSpacing:.5 }}>{copyLabel}</div>
+        <div style={{ fontSize:20, fontWeight:800, color:ACC, lineHeight:1.4 }}>ใบกำกับภาษี / ใบเสร็จรับเงิน</div>
+        <div style={{ fontSize:11.5, fontWeight:600, color:'#555', marginTop:2 }}>Tax Invoice / Receipt</div>
       </div>
     </div>
+  );
+
+  const InvThead = () => (
+    <thead>
+      <tr>
+        <th style={{ ...TH, width:34, textAlign:'center' }}>ลำดับ<br/><span style={{ fontSize:9.5, fontWeight:400 }}>No.</span></th>
+        <th style={{ ...TH, textAlign:'center' }}>รหัสสินค้าและรายละเอียด<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Code / Descriptions</span></th>
+        <th style={{ ...TH, width:90, textAlign:'center' }}>จำนวน<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Quantity</span></th>
+        <th style={{ ...TH, width:90, textAlign:'center' }}>หน่วยละ<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Unit Price</span></th>
+        <th style={{ ...TH, width:100, textAlign:'center', borderRight:'none' }}>จำนวนเงิน<br/><span style={{ fontSize:9.5, fontWeight:400 }}>Amount</span></th>
+      </tr>
+    </thead>
+  );
+
+  return (
+    <React.Fragment>
+      {invPages.map((pageItems, pageIdx) => {
+        const isFirst = pageIdx === 0;
+        const isLast  = pageIdx === totalInvPages - 1;
+        const rowOffset = invPages.slice(0, pageIdx).reduce((s,p)=>s+p.length, 0);
+        return (
+          <div key={pageIdx} style={{ width:'100%', maxWidth:794, minHeight:1123, background:'#fff', margin:'0 auto 8px', boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)', color:'#111', boxSizing:'border-box', fontSize:12.5, overflow:'hidden', position:'relative' }}>
+            {/* Page number */}
+            <div style={{ position:'absolute', top:10, right:18, fontSize:10, color:'#bbb', fontFamily:'var(--font-mono)', zIndex:1 }}>
+              {pageIdx+1}/{totalInvPages}
+            </div>
+
+            <InvHeader pageIdx={pageIdx} />
+
+            <div style={{ padding:'14px 24px 20px' }}>
+              {/* CUSTOMER + DOC INFO — first page only */}
+              {isFirst && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0, marginBottom:12, ...B, borderRadius:6, overflow:'hidden' }}>
+                  <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
+                    <div style={{ fontSize:11, color:'#777', marginBottom:4 }}>ลูกค้า / Customer</div>
+                    <div style={{ fontSize:13.5, fontWeight:700, marginBottom:4 }}>{cust?.name || iv.custName || '—'}</div>
+                    {(cust?.addr || iv.custAddr) && <div style={{ fontSize:11.5, color:'#444', lineHeight:1.7, marginBottom:3 }}>{cust?.addr || iv.custAddr}</div>}
+                    <div style={{ fontSize:11.5, color:'#444', marginBottom:2 }}>
+                      <span style={{ color:'#888' }}>เลขประจำตัวผู้เสียภาษี </span>
+                      <b style={{ fontFamily:'var(--font-mono)' }}>{iv.custTax || cust?.tax || '—'}</b>
+                      <span style={{ marginLeft:8, color:'#666' }}>{branchLabel}</span>
+                    </div>
+                    {cust?.phone && <div style={{ fontSize:11.5, color:'#444' }}>โทร. {cust.phone}</div>}
+                  </div>
+                  <div style={{ padding:'10px 14px', minWidth:210, background:ACC_LIGHT }}>
+                    {[
+                      ['เลขที่ / No.', <b style={{ fontFamily:'var(--font-mono)', fontSize:13, color:ACC }}>{iv.no}</b>],
+                      ['วันที่ / Date', <b>{iv.dateDisplay}</b>],
+                      ['อ้างอิง', iv.thermalNo ? <span style={{ fontFamily:'var(--font-mono)', fontSize:11.5, color:'#555' }}>{iv.thermalNo}</span> : null],
+                      ['ออกแทนใบ', iv.replaces ? <span style={{ fontFamily:'var(--font-mono)', fontSize:11.5, color:'#c0392b' }}>{iv.replaces}</span> : null],
+                      ['ชำระเงิน', payLabel ? <span style={{ fontWeight:600 }}>{payLabel}</span> : null],
+                    ].filter(r => r[1]).map(([l,v],i) => (
+                      <div key={i} style={{ display:'flex', justifyContent:'space-between', gap:12, padding:'4px 0', borderBottom:'1px solid #d0d8e8', fontSize:12 }}>
+                        <span style={{ color:'#667', whiteSpace:'nowrap' }}>{l}</span>{v}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ITEMS TABLE */}
+              <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5 }}>
+                  <InvThead />
+                  <tbody>
+                    {pageItems.map((it, i) => {
+                      const w = Number(it.indivWeight || it.weight || 0);
+                      const p = Number(it.price || it.price_per_kg || 0);
+                      const unit = window.unitOf(it.code);
+                      const isUnit = unit.unitType === 'unit';
+                      const qty = isUnit ? w * (it.scanCount||1) : (it.scanCount || 1);
+                      const lineTotal = isUnit ? qty * p - Number(it.lineDisc||0) : qty * w * p - Number(it.lineDisc||0);
+                      return (
+                        <tr key={i} style={{ background: (rowOffset+i)%2===0?'#fff':'#fafafa' }}>
+                          <td style={{ ...TD, textAlign:'center', color:'#888' }}>{rowOffset+i+1}</td>
+                          <td style={{ ...TD }}>
+                            <div style={{ fontSize:11, color:'#888', fontFamily:'var(--font-mono)', marginBottom:2 }}>{it.code}</div>
+                            <div style={{ fontWeight:600 }}>{it.name}{unit.unitType !== 'unit' && w > 0 ? ` @ ${w.toFixed(3)} kg.` : ''}</div>
+                          </td>
+                          <td style={{ ...TD, textAlign:'center', fontWeight:600 }}>{qty}</td>
+                          <td style={{ ...TD, textAlign:'right' }}>{p.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                          <td style={{ ...TD, textAlign:'right', fontWeight:700, borderRight:'none' }}>{lineTotal.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {/* SUMMARY — last page only */}
+                {isLast && (
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderTop:'2px solid #ccc' }}>
+                    <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', justifyContent:'flex-end', borderRight:'1px solid #ddd' }}>
+                      <div style={{ fontSize:11.5, color:'#777', marginBottom:4 }}>รวม {merged.length} รายการ</div>
+                      <div style={{ fontSize:10.5, color:'#777', marginBottom:3 }}>จำนวนเงิน (ตัวอักษร)</div>
+                      <div style={{ fontSize:12.5, fontWeight:600 }}>({window.bahtText ? window.bahtText(total) : ''})</div>
+                      {iv.note && <div style={{ marginTop:8, fontSize:11, color:'#666' }}><b>หมายเหตุ:</b> {iv.note}</div>}
+                      {iv.replaces && <div style={{ marginTop:6, fontSize:11, color:'#555' }}>ออกแทนฉบับเลขที่ <b style={{ fontFamily:'var(--font-mono)' }}>{iv.replaces}</b></div>}
+                    </div>
+                    <div style={{ minWidth:280 }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                        <tbody>
+                          <SumRow label="รวมเป็นเงิน" sublabel="Gross Amount" value={grossSale.toLocaleString('en-US',{minimumFractionDigits:2})} />
+                          {discount > 0 && <SumRow label="หักส่วนลด" sublabel="Less Discount" value={`-${discount.toLocaleString('en-US',{minimumFractionDigits:2})}`} />}
+                          {discount > 0 && <SumRow label="ยอดหลังหักส่วนลด" sublabel="After Discount" value={afterDisc.toLocaleString('en-US',{minimumFractionDigits:2})} />}
+                          <SumRow label="ราคาสินค้า (ก่อน VAT)" sublabel="Taxable Amount" value={vatBase.toLocaleString('en-US',{minimumFractionDigits:2})} />
+                          <SumRow label="ภาษีมูลค่าเพิ่ม 7%" sublabel="VAT 7%" value={vatAmt.toLocaleString('en-US',{minimumFractionDigits:2})} />
+                          <tr style={{ background:ACC }}>
+                            <td style={{ padding:'8px 12px', fontSize:13, fontWeight:800, color:'#fff' }}>จำนวนเงินรวมทั้งสิ้น<span style={{ fontSize:10, fontWeight:400, display:'block', opacity:.8 }}>Total Invoice</span></td>
+                            <td style={{ padding:'8px 12px', textAlign:'right', fontSize:16, fontWeight:900, color:'#fff', minWidth:110 }}>{total.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SIGNATURES — last page only */}
+              {isLast && (
+                <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, ...B, borderRadius:6, overflow:'hidden' }}>
+                  <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
+                    <div style={{ fontSize:12, fontWeight:600, marginBottom:8 }}>ได้รับสินค้าตามรายการถูกต้องแล้ว</div>
+                    <div style={{ marginTop:48, borderTop:'1px solid #bbb', paddingTop:6, textAlign:'center', fontSize:11.5, color:'#555' }}>ผู้รับสินค้า / Goods Received by</div>
+                    <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
+                  </div>
+                  <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+                    <div style={{ fontSize:12, fontWeight:600, textAlign:'center' }}>{co.name}</div>
+                    <div>
+                      <div style={{ textAlign:'center', marginTop:32, borderTop:'1px solid #bbb', paddingTop:6, fontSize:11.5, color:'#555' }}>ผู้รับมอบอำนาจ / Authorized Signature</div>
+                      <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </React.Fragment>
   );
 }
 window.A4Content = A4Content;
@@ -4544,6 +4571,49 @@ function AdjDocument({ doc, onClose, toast }) {
 
   const SIG_LABELS = ['ผู้จัดทำ / Prepared by', 'ผู้ตรวจสอบ / Checked by', 'ผู้อนุมัติ / Approved by'];
 
+  /* ── Pagination ── */
+  const ADJ_ROWS_FIRST = 10, ADJ_ROWS_REST = 14;
+  const adjPages = (() => {
+    const pages = []; let rem = [...items];
+    do { pages.push(rem.splice(0, pages.length === 0 ? ADJ_ROWS_FIRST : ADJ_ROWS_REST)); } while (rem.length > 0);
+    return pages;
+  })();
+  const totalAdjPages = adjPages.length;
+
+  const AdjHeader = () => (
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start',
+      borderBottom:`3px solid ${ACC}`, paddingBottom:12, marginBottom:12 }}>
+      <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
+        {logoUrl && <img src={logoUrl} alt="logo" style={{ width:48,height:48,objectFit:'contain',borderRadius:6,flexShrink:0 }} />}
+        <div>
+          <div style={{ fontSize:16, fontWeight:800, color:'#111' }}>{co.name}</div>
+          {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
+          <div style={{ fontSize:10.5, color:'#555', lineHeight:1.7, marginTop:2 }}>
+            {co.addr && <div>{co.addr}</div>}
+            <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
+            <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b></div>
+          </div>
+        </div>
+      </div>
+      <div style={{ textAlign:'right', minWidth:200, flexShrink:0 }}>
+        <div style={{ fontSize:20, fontWeight:800, color:ACC, lineHeight:1.3 }}>เอกสารปรับปรุงสต็อก</div>
+        <div style={{ fontSize:12, color:'#555', marginTop:2 }}>Stock Adjustment Document</div>
+      </div>
+    </div>
+  );
+
+  const AdjThead = () => (
+    <thead>
+      <tr>
+        <th style={{ ...TH, width:40, textAlign:'center' }}>ลำดับ</th>
+        <th style={TH}>รหัสสินค้า / รายละเอียดสินค้า</th>
+        <th style={{ ...TH, textAlign:'right', width:120 }}>ก่อนปรับ</th>
+        <th style={{ ...TH, textAlign:'right', width:120 }}>ปรับ (+/-)</th>
+        <th style={{ ...TH, textAlign:'right', width:120, borderRight:'none' }}>หลังปรับ</th>
+      </tr>
+    </thead>
+  );
+
   return (
     <Overlay onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="md" style={{ width:'min(860px,96vw)' }}>
@@ -4557,118 +4627,106 @@ function AdjDocument({ doc, onClose, toast }) {
           </div>
         </div>
 
-        <div className="md-b" style={{ background:'#e8e7e2', padding:16, overflowX:'auto' }}>
-          <div style={{ width:'100%', maxWidth:794, minHeight:1123, background:'#fff', margin:'0 auto',
-            boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)',
-            color:'#111', padding:'28px 32px', boxSizing:'border-box', fontSize:12.5 }}>
+        <div className="md-b" style={{ background:'#e8e7e2', padding:'8px 16px', overflowY:'auto' }}>
+          {adjPages.map((pageItems, pageIdx) => {
+            const isFirst = pageIdx === 0;
+            const isLast  = pageIdx === totalAdjPages - 1;
+            const rowOffset = adjPages.slice(0, pageIdx).reduce((s,p)=>s+p.length, 0);
+            return (
+              <div key={pageIdx} style={{ width:'100%', maxWidth:794, minHeight:1123, background:'#fff', margin:'0 auto 8px',
+                boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)',
+                color:'#111', padding:'24px 28px', boxSizing:'border-box', fontSize:12.5, position:'relative' }}>
 
-            {/* Header */}
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start',
-              borderBottom:`3px solid ${ACC}`, paddingBottom:14, marginBottom:14 }}>
-              <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
-                {logoUrl && <img src={logoUrl} alt="logo" style={{ width:52,height:52,objectFit:'contain',borderRadius:6,flexShrink:0 }} />}
-                <div>
-                  <div style={{ fontSize:16, fontWeight:800, color:'#111' }}>{co.name}</div>
-                  {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
-                  <div style={{ fontSize:11, color:'#555', lineHeight:1.8, marginTop:2 }}>
-                    {co.addr && <div>{co.addr}</div>}
-                    <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
-                    <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b></div>
+                {/* Page number */}
+                <div style={{ position:'absolute', top:10, right:20, fontSize:10, color:'#bbb', fontFamily:'var(--font-mono)', zIndex:1 }}>
+                  {pageIdx+1}/{totalAdjPages}
+                </div>
+
+                <AdjHeader />
+
+                {/* Meta grid — first page only */}
+                {isFirst && (
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0,
+                    border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginBottom:12 }}>
+                    <div style={{ padding:'10px 14px' }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:'4px 12px', fontSize:12.5 }}>
+                        <span style={{ color:'#888' }}>ประเภท:</span><b>{adjTypeLabel}</b>
+                        <span style={{ color:'#888' }}>เหตุผล:</span><span>{doc.reason || '—'}</span>
+                        {doc.note && <><span style={{ color:'#888' }}>หมายเหตุ:</span><span>{doc.note}</span></>}
+                        <span style={{ color:'#888' }}>ผู้อนุมัติ:</span><span>{doc.approver || '—'}</span>
+                      </div>
+                    </div>
+                    <div style={{ padding:'10px 14px', background:ACC_LIGHT, minWidth:180, borderLeft:'1px solid #ccc' }}>
+                      <div style={{ fontSize:11, color:'#666', marginBottom:2 }}>เลขที่เอกสาร</div>
+                      <div style={{ fontFamily:'var(--font-mono)', fontSize:14, fontWeight:800, color:ACC, marginBottom:6 }}>{doc.id}</div>
+                      <div style={{ fontSize:11, color:'#666', marginBottom:2 }}>วันที่</div>
+                      <div style={{ fontWeight:700 }}>{doc.dateDisplay || doc.date}</div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div style={{ textAlign:'right', minWidth:200, flexShrink:0 }}>
-                <div style={{ fontSize:20, fontWeight:800, color:ACC, lineHeight:1.3 }}>เอกสารปรับปรุงสต็อก</div>
-                <div style={{ fontSize:12, color:'#555', marginTop:2 }}>Stock Adjustment Document</div>
-              </div>
-            </div>
-
-            {/* Meta grid */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0,
-              border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginBottom:14 }}>
-              <div style={{ padding:'12px 16px' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:'4px 12px', fontSize:12.5 }}>
-                  <span style={{ color:'#888' }}>ประเภท:</span>
-                  <b>{adjTypeLabel}</b>
-                  <span style={{ color:'#888' }}>เหตุผล:</span>
-                  <span>{doc.reason || '—'}</span>
-                  {doc.note && <><span style={{ color:'#888' }}>หมายเหตุ:</span><span>{doc.note}</span></>}
-                  <span style={{ color:'#888' }}>ผู้อนุมัติ:</span>
-                  <span>{doc.approver || '—'}</span>
-                </div>
-              </div>
-              <div style={{ padding:'12px 16px', background:ACC_LIGHT, minWidth:180, borderLeft:'1px solid #ccc' }}>
-                <div style={{ fontSize:11, color:'#666', marginBottom:2 }}>เลขที่เอกสาร</div>
-                <div style={{ fontFamily:'var(--font-mono)', fontSize:14, fontWeight:800, color:ACC, marginBottom:8 }}>{doc.id}</div>
-                <div style={{ fontSize:11, color:'#666', marginBottom:2 }}>วันที่</div>
-                <div style={{ fontWeight:700 }}>{doc.dateDisplay || doc.date}</div>
-              </div>
-            </div>
-
-            {/* Items table — รหัส + ชื่อสินค้า รวมกันในคอลัมน์เดียว */}
-            <table style={{ width:'100%', borderCollapse:'collapse', border:'1px solid #ccc', marginBottom:14 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...TH, width:40, textAlign:'center' }}>ลำดับ</th>
-                  <th style={TH}>รหัสสินค้า / รายละเอียดสินค้า</th>
-                  <th style={{ ...TH, textAlign:'right', width:120 }}>ก่อนปรับ</th>
-                  <th style={{ ...TH, textAlign:'right', width:120 }}>ปรับ (+/-)</th>
-                  <th style={{ ...TH, textAlign:'right', width:120, borderRight:'none' }}>หลังปรับ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it, i) => (
-                  <tr key={it.code+i}>
-                    <td style={{ ...TD, textAlign:'center', color:'#999', fontSize:11 }}>{i+1}</td>
-                    <td style={{ ...TD }}>
-                      <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'#777', display:'block', marginBottom:2 }}>{it.code}</span>
-                      <span style={{ fontWeight:600 }}>{it.name}</span>
-                    </td>
-                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)' }}>{adjFmtU(it.before, it.code)}</td>
-                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700,
-                      color: Number(it.adj) >= 0 ? '#15803d' : '#dc2626' }}>
-                      {Number(it.adj) >= 0 ? '+' : '-'}{adjFmtU(it.adj, it.code)}
-                    </td>
-                    <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, borderRight:'none' }}>{adjFmtU(it.after, it.code)}</td>
-                  </tr>
-                ))}
-                {items.length === 0 && (
-                  <tr><td colSpan="5" style={{ padding:20, textAlign:'center', color:'#aaa' }}>ไม่มีรายการ</td></tr>
                 )}
-              </tbody>
-              <tfoot>
-                <tr style={{ background:ACC_LIGHT }}>
-                  <td colSpan="2" style={{ padding:'8px 10px', fontWeight:700, fontSize:12 }}>รวม {items.length} รายการ</td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
-                    {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.before,lbl,g.isKg)}</div>) : nf(doc.totalBefore||0)}
-                  </td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:800 }}>
-                    {ftEnt.length
-                      ? ftEnt.map(([lbl,g])=><div key={lbl} style={{color:g.adj>=0?'#15803d':'#dc2626'}}>{(g.adj>=0?'+':'-')+fmtFt(g.adj,lbl,g.isKg)}</div>)
-                      : <span style={{color:netAdj>=0?'#15803d':'#dc2626'}}>{netAdj>=0?'+':''}{nf(netAdj)}</span>}
-                  </td>
-                  <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
-                    {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.after,lbl,g.isKg)}</div>) : nf(doc.totalAfter||0)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
 
-            {/* Signatures */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:0,
-              border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginTop:8 }}>
-              {SIG_LABELS.map((label, i) => (
-                <div key={i} style={{ padding:'10px 14px', borderRight: i<2 ? '1px solid #ccc' : 'none' }}>
-                  <div style={{ marginTop:48, borderTop:'1px solid #bbb',
-                    paddingTop:6, textAlign:'center', fontSize:11, color:'#666' }}>{label}</div>
-                  <div style={{ marginTop:8, textAlign:'center', fontSize:10.5, color:'#888' }}>
-                    วันที่ ....... / ....... / .......
+                {/* Items table */}
+                <table style={{ width:'100%', borderCollapse:'collapse', border:'1px solid #ccc', marginBottom: isLast ? 12 : 0 }}>
+                  <AdjThead />
+                  <tbody>
+                    {pageItems.map((it, i) => (
+                      <tr key={it.code+(rowOffset+i)}>
+                        <td style={{ ...TD, textAlign:'center', color:'#999', fontSize:11 }}>{rowOffset+i+1}</td>
+                        <td style={{ ...TD }}>
+                          <span style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'#777', display:'block', marginBottom:2 }}>{it.code}</span>
+                          <span style={{ fontWeight:600 }}>{it.name}</span>
+                        </td>
+                        <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)' }}>{adjFmtU(it.before, it.code)}</td>
+                        <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700,
+                          color: Number(it.adj) >= 0 ? '#15803d' : '#dc2626' }}>
+                          {Number(it.adj) >= 0 ? '+' : '-'}{adjFmtU(it.adj, it.code)}
+                        </td>
+                        <td style={{ ...TD, textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700, borderRight:'none' }}>{adjFmtU(it.after, it.code)}</td>
+                      </tr>
+                    ))}
+                    {pageItems.length === 0 && (
+                      <tr><td colSpan="5" style={{ padding:20, textAlign:'center', color:'#aaa' }}>ไม่มีรายการ</td></tr>
+                    )}
+                  </tbody>
+                  {/* tfoot — last page only */}
+                  {isLast && (
+                    <tfoot>
+                      <tr style={{ background:ACC_LIGHT }}>
+                        <td colSpan="2" style={{ padding:'8px 10px', fontWeight:700, fontSize:12 }}>รวม {items.length} รายการ</td>
+                        <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
+                          {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.before,lbl,g.isKg)}</div>) : nf(doc.totalBefore||0)}
+                        </td>
+                        <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:800 }}>
+                          {ftEnt.length
+                            ? ftEnt.map(([lbl,g])=><div key={lbl} style={{color:g.adj>=0?'#15803d':'#dc2626'}}>{(g.adj>=0?'+':'-')+fmtFt(g.adj,lbl,g.isKg)}</div>)
+                            : <span style={{color:netAdj>=0?'#15803d':'#dc2626'}}>{netAdj>=0?'+':''}{nf(netAdj)}</span>}
+                        </td>
+                        <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
+                          {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.after,lbl,g.isKg)}</div>) : nf(doc.totalAfter||0)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+
+                {/* Signatures — last page only */}
+                {isLast && (
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:0,
+                    border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
+                    {SIG_LABELS.map((label, i) => (
+                      <div key={i} style={{ padding:'10px 14px', borderRight: i<2 ? '1px solid #ccc' : 'none' }}>
+                        <div style={{ marginTop:48, borderTop:'1px solid #bbb',
+                          paddingTop:6, textAlign:'center', fontSize:11, color:'#666' }}>{label}</div>
+                        <div style={{ marginTop:8, textAlign:'center', fontSize:10.5, color:'#888' }}>
+                          วันที่ ....... / ....... / .......
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
-            </div>
-
-          </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="md-f">

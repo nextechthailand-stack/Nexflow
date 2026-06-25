@@ -42,6 +42,48 @@ function GrnDoc({ grn, onClose }) {
     padding:'8px 10px', fontSize:12, borderBottom:'1px solid #e8e8e8', ...extra
   });
 
+  /* ── Pagination ── */
+  const ROWS_FIRST = 12, ROWS_REST = 16;
+  const grnPages = (() => {
+    const pages = []; let rem = [...mergedItems];
+    do { pages.push(rem.splice(0, pages.length === 0 ? ROWS_FIRST : ROWS_REST)); } while (rem.length > 0);
+    return pages;
+  })();
+  const totalPages = grnPages.length;
+
+  const GrnHeader = () => (
+    <div style={{ background:'#fff', padding:'14px 24px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'2px solid #e8e8e8' }}>
+      <div style={{ display:'flex', gap:14, alignItems:'center', flex:1 }}>
+        <CompanyLogo size={56} radius={6} />
+        <div style={{ marginTop:2 }}>
+          <div style={{ fontSize:16, fontWeight:800, lineHeight:1.3, color:'#111' }}>{co.name}</div>
+          {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
+          <div style={{ fontSize:10.5, color:'#555', lineHeight:1.7, marginTop:2 }}>
+            {co.addr && <div>{co.addr}</div>}
+            <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
+            <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b>&nbsp;&nbsp;สำนักงานใหญ่</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ textAlign:'right', minWidth:210, flexShrink:0 }}>
+        <div style={{ fontSize:28, fontWeight:900, color:ACC, lineHeight:1.2, letterSpacing:1 }}>ใบรับสินค้า</div>
+        <div style={{ fontSize:12, fontWeight:600, color:'#777', marginTop:2 }}>Goods Receipt Note</div>
+      </div>
+    </div>
+  );
+
+  const GrnThead = () => (
+    <thead>
+      <tr>
+        <th style={thStyle({ textAlign:'center', width:34, borderRight:'1px solid rgba(255,255,255,.2)' })}>ลำดับ<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>No.</span></th>
+        <th style={thStyle({ borderRight:'1px solid rgba(255,255,255,.2)', textAlign:'center' })}>รหัสสินค้าและรายละเอียด<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Code / Description</span></th>
+        <th style={thStyle({ borderRight:'1px solid rgba(255,255,255,.2)', textAlign:'center', width:60 })}>จำนวน<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Quantity</span></th>
+        <th style={thStyle({ borderRight:'1px solid rgba(255,255,255,.2)', textAlign:'center', width:90 })}>ราคาต้นทุน<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Cost Price</span></th>
+        <th style={thStyle({ textAlign:'center', width:100 })}>มูลค่า<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Amount</span></th>
+      </tr>
+    </thead>
+  );
+
   return (
     <Overlay onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="md" style={{ width:900, maxHeight:'92vh' }}>
@@ -52,141 +94,127 @@ function GrnDoc({ grn, onClose }) {
             <div className="md-x" onClick={onClose}>✕</div>
           </div>
         </div>
-        <div className="md-b" style={{ background:'var(--s2)' }}>
-          <div style={{ background:'#fff', width:794, minHeight:1123, maxWidth:'100%', margin:'0 auto', fontFamily:'var(--font-sans)', boxShadow:'0 2px 16px rgba(0,0,0,.08)', border:'1px solid var(--bd)', overflow:'hidden' }}>
-
-            {/* HEADER */}
-            <div style={{ background:'#fff', padding:'16px 24px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ display:'flex', gap:14, alignItems:'center', flex:1 }}>
-                <CompanyLogo size={60} radius={6} />
-                <div style={{ marginTop:4 }}>
-                  <div style={{ fontSize:17, fontWeight:800, lineHeight:1.3, color:'#111' }}>{co.name}</div>
-                  {co.nameEn && <div style={{ fontSize:12, fontWeight:600, color:'#444' }}>{co.nameEn}</div>}
-                  <div style={{ fontSize:11, color:'#555', lineHeight:1.8, marginTop:4 }}>
-                    {co.addr && <div>{co.addr}</div>}
-                    <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>
-                    <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b>&nbsp;&nbsp;สำนักงานใหญ่</div>
-                  </div>
+        <div className="md-b" style={{ background:'var(--s2)', overflowY:'auto', padding:'8px 0' }}>
+          {grnPages.map((pageItems, pageIdx) => {
+            const isFirst = pageIdx === 0;
+            const isLast  = pageIdx === totalPages - 1;
+            const rowOffset = grnPages.slice(0, pageIdx).reduce((s,p)=>s+p.length, 0);
+            return (
+              <div key={pageIdx} style={{ background:'#fff', width:794, minHeight:1123, maxWidth:'100%', margin:'0 auto 8px', fontFamily:'var(--font-sans)', boxShadow:'0 2px 16px rgba(0,0,0,.08)', border:'1px solid var(--bd)', boxSizing:'border-box', position:'relative' }}>
+                {/* Page number */}
+                <div style={{ position:'absolute', top:8, right:16, fontSize:10, color:'#bbb', fontFamily:'var(--font-mono)', zIndex:1 }}>
+                  {pageIdx+1}/{totalPages}
                 </div>
-              </div>
-              <div style={{ textAlign:'right', minWidth:210, flexShrink:0 }}>
-                <div style={{ fontSize:30, fontWeight:900, color:ACC, lineHeight:1.2, letterSpacing:1 }}>ใบรับสินค้า</div>
-                <div style={{ fontSize:13, fontWeight:600, color:'#777', marginTop:4 }}>Goods Receipt Note</div>
-              </div>
-            </div>
 
-            {/* BODY */}
-            <div style={{ padding:'16px 24px 20px' }}>
+                <GrnHeader />
 
-              {/* META INFO PANEL */}
-              <div style={{ display:'grid', gridTemplateColumns:'1fr auto', marginBottom:14, border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
-                <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
-                  <div style={{ fontSize:10.5, color:'#777', marginBottom:4 }}>ผู้รับสินค้า / Consignee</div>
-                  <div style={{ fontSize:14, fontWeight:800, color:'#111' }}>{co.name}</div>
-                  {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#555' }}>{co.nameEn}</div>}
-                  <div style={{ fontSize:11, color:'#555', lineHeight:1.7, marginTop:3 }}>
-                    {co.addr && <div>{co.addr}</div>}
-                    {(co.tel || co.email) && <div>{'โทร. '}{co.tel}{co.email ? ` | ${co.email}` : ''}</div>}
-                    {co.tax && <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b></div>}
-                  </div>
-                </div>
-                <div style={{ padding:'10px 14px', minWidth:240, background:ACC_LIGHT }}>
-                  {[
-                    ['เลขที่',       <b style={{ fontFamily:'var(--font-mono)', fontSize:13, color:ACC }}>{grn.id}</b>],
-                    ['วันที่รับ',         <b>{grn.dateDisplay}</b>],
-                    ...(grn.poNo ? [['เลขที่อ้างอิง', <b style={{ fontFamily:'var(--font-mono)' }}>{grn.poNo}</b>]] : []),
-                    ['ผู้รับสินค้า',      <b>{grn.receiver}</b>],
-                  ].map(([label, val], i, arr) => (
-                    <div key={i} style={{ display:'flex', justifyContent:'space-between', gap:12, padding:'4px 0', borderBottom: i < arr.length-1 ? '1px solid #d0d8e8' : 'none', fontSize:12 }}>
-                      <span style={{ color:'#667', whiteSpace:'nowrap' }}>{label}</span>{val}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* ITEMS TABLE + SUMMARY */}
-              <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5 }}>
-                  <thead>
-                    <tr>
-                      <th style={thStyle({ textAlign:'center', width:34, borderRight:'1px solid rgba(255,255,255,.2)' })}>ลำดับ<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>No.</span></th>
-                      <th style={thStyle({ borderRight:'1px solid rgba(255,255,255,.2)', textAlign:'center' })}>รหัสสินค้าและรายละเอียด<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Code / Description</span></th>
-                      <th style={thStyle({ borderRight:'1px solid rgba(255,255,255,.2)', textAlign:'center', width:60 })}>จำนวน<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Quantity</span></th>
-                      <th style={thStyle({ borderRight:'1px solid rgba(255,255,255,.2)', textAlign:'center', width:90 })}>ราคาต้นทุน<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Cost Price</span></th>
-                      <th style={thStyle({ textAlign:'center', width:100 })}>มูลค่า<br/><span style={{ fontSize:'9.5px', fontWeight:400 }}>Amount</span></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mergedItems.map((it, i) => (
-                      <tr key={i} style={{ background: i%2===0 ? '#fff' : '#fafafa' }}>
-                        <td style={tdStyle({ textAlign:'center', color:'#888', borderRight:'1px solid #e8e8e8' })}>{i+1}</td>
-                        <td style={tdStyle({ borderRight:'1px solid #e8e8e8' })}>
-                          <div style={{ fontSize:10, color:'#888', fontFamily:'var(--font-mono)', marginBottom:2 }}>{it.code}</div>
-                          <div style={{ fontWeight:600 }}>
-                            {it.name}
-                            {window.unitOf && window.unitOf(it.code).unitType === 'kg' && it.totalWeight > 0
-                              ? <span style={{ fontWeight:400, color:'#555', marginLeft:4 }}>@ {(it.totalWeight / it.packCount).toFixed(3)} kg</span>
-                              : null}
-                          </div>
-                        </td>
-                        <td style={tdStyle({ borderRight:'1px solid #e8e8e8', textAlign:'center', fontWeight:600 })}>{it.packCount}</td>
-                        <td style={tdStyle({ borderRight:'1px solid #e8e8e8', textAlign:'right' })}>{fmtN(it.cost)}</td>
-                        <td style={tdStyle({ textAlign:'right', fontWeight:700, color:'#111' })}>{fmtN(it.totalValue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {/* SUMMARY ROW */}
-                <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderTop:'2px solid #ccc' }}>
-                  <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap:6, borderRight:'1px solid #ddd' }}>
-                    {grn.note && (
-                      <div>
-                        <div style={{ fontSize:10.5, color:'#777', marginBottom:2 }}>หมายเหตุ</div>
-                        <div style={{ fontSize:12, color:'#444' }}>{grn.note}</div>
+                <div style={{ padding:'14px 24px 20px' }}>
+                  {/* META — first page only */}
+                  {isFirst && (
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr auto', marginBottom:12, border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
+                      <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
+                        <div style={{ fontSize:10.5, color:'#777', marginBottom:4 }}>ผู้รับสินค้า / Consignee</div>
+                        <div style={{ fontSize:14, fontWeight:800, color:'#111' }}>{co.name}</div>
+                        {co.nameEn && <div style={{ fontSize:11.5, fontWeight:600, color:'#555' }}>{co.nameEn}</div>}
+                        <div style={{ fontSize:11, color:'#555', lineHeight:1.7, marginTop:3 }}>
+                          {co.addr && <div>{co.addr}</div>}
+                          {(co.tel || co.email) && <div>โทร. {co.tel}{co.email ? ` | ${co.email}` : ''}</div>}
+                          {co.tax && <div>เลขประจำตัวผู้เสียภาษี <b style={{ color:'#111' }}>{co.tax}</b></div>}
+                        </div>
                       </div>
-                    )}
-                    <div style={{ marginTop:'auto' }}>
-                      <div style={{ fontSize:10.5, color:'#777', marginBottom:3 }}>จำนวนเงิน (ตัวอักษร)</div>
-                      <div style={{ fontSize:12.5, fontWeight:600, color:'#111' }}>{window.bahtText ? window.bahtText(totalValue) : ''}</div>
+                      <div style={{ padding:'10px 14px', minWidth:240, background:ACC_LIGHT }}>
+                        {[
+                          ['เลขที่', <b style={{ fontFamily:'var(--font-mono)', fontSize:13, color:ACC }}>{grn.id}</b>],
+                          ['วันที่รับ', <b>{grn.dateDisplay}</b>],
+                          ...(grn.poNo ? [['เลขที่อ้างอิง', <b style={{ fontFamily:'var(--font-mono)' }}>{grn.poNo}</b>]] : []),
+                          ['ผู้รับสินค้า', <b>{grn.receiver}</b>],
+                        ].map(([label, val], i, arr) => (
+                          <div key={i} style={{ display:'flex', justifyContent:'space-between', gap:12, padding:'4px 0', borderBottom: i < arr.length-1 ? '1px solid #d0d8e8' : 'none', fontSize:12 }}>
+                            <span style={{ color:'#667', whiteSpace:'nowrap' }}>{label}</span>{val}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ width:250, flexShrink:0 }}>
-                    <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                  )}
+
+                  {/* ITEMS TABLE */}
+                  <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5 }}>
+                      <GrnThead />
                       <tbody>
-                        <tr>
-                          <td style={{ padding:'5px 12px', fontSize:12, color:'#333', borderBottom:'1px solid #eee' }}>ราคาก่อน VAT<span style={{ fontSize:10, color:'#888', display:'block' }}>Taxable Amount</span></td>
-                          <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', borderBottom:'1px solid #eee' }}>{fmtN(preVat)}</td>
-                        </tr>
-                        <tr>
-                          <td style={{ padding:'5px 12px', fontSize:12, color:'#333', borderBottom:'1px solid #eee' }}>ภาษีมูลค่าเพิ่ม 7%<span style={{ fontSize:10, color:'#888', display:'block' }}>VAT 7%</span></td>
-                          <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', borderBottom:'1px solid #eee' }}>{fmtN(vat)}</td>
-                        </tr>
-                        <tr style={{ background:ACC }}>
-                          <td style={{ padding:'8px 12px', fontSize:13, fontWeight:800, color:'#fff' }}>มูลค่ารวมทั้งสิ้น<span style={{ fontSize:10, fontWeight:400, display:'block', opacity:.8 }}>Total Amount</span></td>
-                          <td style={{ padding:'8px 12px', textAlign:'right', fontSize:16, fontWeight:900, color:'#fff', minWidth:110 }}>{fmtN(totalValue)}</td>
-                        </tr>
+                        {pageItems.map((it, i) => (
+                          <tr key={i} style={{ background: (rowOffset+i)%2===0 ? '#fff' : '#fafafa' }}>
+                            <td style={tdStyle({ textAlign:'center', color:'#888', borderRight:'1px solid #e8e8e8' })}>{rowOffset+i+1}</td>
+                            <td style={tdStyle({ borderRight:'1px solid #e8e8e8' })}>
+                              <div style={{ fontSize:10, color:'#888', fontFamily:'var(--font-mono)', marginBottom:2 }}>{it.code}</div>
+                              <div style={{ fontWeight:600 }}>
+                                {it.name}
+                                {window.unitOf && window.unitOf(it.code).unitType === 'kg' && it.totalWeight > 0
+                                  ? <span style={{ fontWeight:400, color:'#555', marginLeft:4 }}>@ {(it.totalWeight / it.packCount).toFixed(3)} kg</span>
+                                  : null}
+                              </div>
+                            </td>
+                            <td style={tdStyle({ borderRight:'1px solid #e8e8e8', textAlign:'center', fontWeight:600 })}>{it.packCount}</td>
+                            <td style={tdStyle({ borderRight:'1px solid #e8e8e8', textAlign:'right' })}>{fmtN(it.cost)}</td>
+                            <td style={tdStyle({ textAlign:'right', fontWeight:700, color:'#111' })}>{fmtN(it.totalValue)}</td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
+
+                    {/* SUMMARY — last page only */}
+                    {isLast && (
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderTop:'2px solid #ccc' }}>
+                        <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap:6, borderRight:'1px solid #ddd' }}>
+                          <div style={{ fontSize:11.5, color:'#777', marginBottom:2 }}>รวม {mergedItems.length} รายการ</div>
+                          {grn.note && (
+                            <div>
+                              <div style={{ fontSize:10.5, color:'#777', marginBottom:2 }}>หมายเหตุ</div>
+                              <div style={{ fontSize:12, color:'#444' }}>{grn.note}</div>
+                            </div>
+                          )}
+                          <div style={{ marginTop:'auto' }}>
+                            <div style={{ fontSize:10.5, color:'#777', marginBottom:3 }}>จำนวนเงิน (ตัวอักษร)</div>
+                            <div style={{ fontSize:12.5, fontWeight:600, color:'#111' }}>{window.bahtText ? window.bahtText(totalValue) : ''}</div>
+                          </div>
+                        </div>
+                        <div style={{ width:250, flexShrink:0 }}>
+                          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+                            <tbody>
+                              <tr>
+                                <td style={{ padding:'5px 12px', fontSize:12, color:'#333', borderBottom:'1px solid #eee' }}>ราคาก่อน VAT<span style={{ fontSize:10, color:'#888', display:'block' }}>Taxable Amount</span></td>
+                                <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', borderBottom:'1px solid #eee' }}>{fmtN(preVat)}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding:'5px 12px', fontSize:12, color:'#333', borderBottom:'1px solid #eee' }}>ภาษีมูลค่าเพิ่ม 7%<span style={{ fontSize:10, color:'#888', display:'block' }}>VAT 7%</span></td>
+                                <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', borderBottom:'1px solid #eee' }}>{fmtN(vat)}</td>
+                              </tr>
+                              <tr style={{ background:ACC }}>
+                                <td style={{ padding:'8px 12px', fontSize:13, fontWeight:800, color:'#fff' }}>มูลค่ารวมทั้งสิ้น<span style={{ fontSize:10, fontWeight:400, display:'block', opacity:.8 }}>Total Amount</span></td>
+                                <td style={{ padding:'8px 12px', textAlign:'right', fontSize:16, fontWeight:900, color:'#fff', minWidth:110 }}>{fmtN(totalValue)}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* SIGNATURES — last page only */}
+                  {isLast && (
+                    <div style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
+                      {['ผู้รับสินค้า / Receiver', 'ผู้มีอำนาจลงนาม / Authorized'].map((label, i) => (
+                        <div key={i} style={{ padding:'10px 14px', borderRight: i<1 ? '1px solid #ccc' : 'none' }}>
+                          <div style={{ marginTop:48, borderTop:'1px solid #bbb', paddingTop:6, textAlign:'center', fontSize:11.5, color:'#555' }}>{label}</div>
+                          <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* SIGNATURES */}
-              <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'1fr 1fr', border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
-                {[
-                  'ผู้รับสินค้า / Receiver',
-                  'ผู้มีอำนาจลงนาม / Authorized',
-                ].map((label, i) => (
-                  <div key={i} style={{ padding:'10px 14px', borderRight: i<1 ? '1px solid #ccc' : 'none' }}>
-                    <div style={{ marginTop:48, borderTop:'1px solid #bbb', paddingTop:6, textAlign:'center', fontSize:11.5, color:'#555' }}>{label}</div>
-                    <div style={{ marginTop:10, paddingTop:5, textAlign:'center', fontSize:10.5, color:'#888' }}>วันที่ ....... / ....... / .......</div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-          </div>
+            );
+          })}
         </div>
         <div className="md-f">
           <Button variant="bg2" onClick={onClose}>ปิด</Button>
