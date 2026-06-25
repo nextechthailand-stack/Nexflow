@@ -4137,6 +4137,7 @@ function AmendINVModal({ inv, onConfirm, onClose, toast }) {
           prefix:          pfx.inv || 'INV',
           channel:         inv.channel || 'wholesale',
           ref_invoice_no:  refNo,
+          replaces_no:     refNo,
           customer_id:     inv.custId || null,
           customer_name:   custName,
           customer_tax_id: custTax,
