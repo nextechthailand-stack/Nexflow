@@ -209,6 +209,23 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
   } catch(e) { console.warn('[migrate] invoices replaces_no:', e.message); }
 
   try {
+    /* backfill: INV เก่าที่ถูกออกแทนกัน — copy ref_invoice_no → replaces_no ถ้ายัง null */
+    await q(`
+      UPDATE invoices i1
+      SET replaces_no = i1.ref_invoice_no
+      WHERE i1.invoice_type = 'INV'
+        AND i1.ref_invoice_no IS NOT NULL
+        AND i1.replaces_no IS NULL
+        AND i1.ref_invoice_no <> i1.invoice_no
+        AND EXISTS (
+          SELECT 1 FROM invoices i2
+          WHERE i2.invoice_no = i1.ref_invoice_no
+            AND i2.invoice_type = 'INV'
+        )
+    `);
+  } catch(e) { console.warn('[migrate] backfill replaces_no from ref_invoice_no:', e.message); }
+
+  try {
     await q(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS customer_branch VARCHAR(100) NOT NULL DEFAULT 'head'`);
   } catch(e) { console.warn('[migrate] invoices customer_branch:', e.message); }
 
