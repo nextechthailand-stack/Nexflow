@@ -99,6 +99,7 @@ function GrnDoc({ grn, onClose }) {
             const isFirst = pageIdx === 0;
             const isLast  = pageIdx === totalPages - 1;
             const rowOffset = grnPages.slice(0, pageIdx).reduce((s,p)=>s+p.length, 0);
+            const pageSub   = pageItems.reduce((s,it)=>s+Number(it.totalValue||0),0);
             return (
               <div key={pageIdx} style={{ background:'#fff', width:794, minHeight:1123, maxWidth:'100%', margin:'0 auto 8px', fontFamily:'var(--font-sans)', boxShadow:'0 2px 16px rgba(0,0,0,.08)', border:'1px solid var(--bd)', boxSizing:'border-box', position:'relative' }}>
                 {/* Page number */}
@@ -160,11 +161,19 @@ function GrnDoc({ grn, onClose }) {
                       </tbody>
                     </table>
 
-                    {/* PAGE SUBTOTAL — ทุกหน้า */}
-                    <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', borderTop:'1px solid #ddd', padding:'6px 12px', background:'#fafafa', gap:16 }}>
-                      <span style={{ fontSize:11.5, color:'#666' }}>ยอดรวมหน้านี้</span>
-                      <b style={{ fontFamily:'var(--font-mono)', fontSize:13.5, color:ACC, minWidth:110, textAlign:'right' }}>{fmtN(pageItems.reduce((s,it)=>s+Number(it.totalValue||0),0))}</b>
-                    </div>
+                    {/* SUBTOTAL — ทุกหน้า */}
+                    {!isLast && (
+                      <div style={{ display:'flex', justifyContent:'flex-end', borderTop:'1px solid #ddd' }}>
+                        <table style={{ minWidth:250, borderCollapse:'collapse' }}>
+                          <tbody>
+                            <tr>
+                              <td style={{ padding:'5px 12px', fontSize:12, color:'#333' }}>ยอดรวมหน้านี้<span style={{ fontSize:10, color:'#888', display:'block' }}>Page Subtotal</span></td>
+                              <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', minWidth:100 }}>{fmtN(pageSub)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
 
                     {/* VAT + GRAND TOTAL — last page only */}
                     {isLast && (
@@ -185,6 +194,10 @@ function GrnDoc({ grn, onClose }) {
                         <div style={{ width:250, flexShrink:0 }}>
                           <table style={{ width:'100%', borderCollapse:'collapse' }}>
                             <tbody>
+                              <tr>
+                                <td style={{ padding:'5px 12px', fontSize:12, color:'#333', borderBottom:'1px solid #eee' }}>ยอดรวมหน้านี้<span style={{ fontSize:10, color:'#888', display:'block' }}>Page Subtotal</span></td>
+                                <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', borderBottom:'1px solid #eee', minWidth:100 }}>{fmtN(pageSub)}</td>
+                              </tr>
                               <tr>
                                 <td style={{ padding:'5px 12px', fontSize:12, color:'#333', borderBottom:'1px solid #eee' }}>ราคาก่อน VAT<span style={{ fontSize:10, color:'#888', display:'block' }}>Taxable Amount</span></td>
                                 <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', borderBottom:'1px solid #eee' }}>{fmtN(preVat)}</td>

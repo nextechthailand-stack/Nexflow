@@ -695,17 +695,35 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
       </div>
     </div>`;
 
+    const subTd = `padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee`;
+    const subTdR = `${subTd};text-align:right;font-weight:600;min-width:90px`;
+
     let grnPagesHtml = '';
     grnPages.forEach((pageItems, pgIdx) => {
       const isLast = pgIdx === grnTotalPg - 1;
       const rowOffset = grnPages.slice(0,pgIdx).reduce((s,p)=>s+p.length,0);
       const rows = pageItems.map((it,i) => makeGrnRow(it, rowOffset+i)).join('');
-      const pageSubTotal = pageItems.reduce((s,it) => s + Number(it.totalValue||0), 0);
-      const pageSubTotalHtml = `
-        <div style="display:flex;justify-content:flex-end;align-items:center;border-top:1px solid #ddd;padding:6px 12px;background:#fafafa;gap:16px">
-          <span style="font-size:11px;color:#666">ยอดรวมหน้านี้</span>
-          <b style="font-family:monospace;font-size:13px;color:${ACC};min-width:100px;text-align:right">${$n(pageSubTotal)}</b>
-        </div>`;
+      const pageSub = pageItems.reduce((s,it) => s + Number(it.totalValue||0), 0);
+      const subRow = `<tr><td style="${subTd}">ยอดรวมหน้านี้<span style="font-size:9px;color:#888;display:block">Page Subtotal</span></td><td style="${subTdR}">${$n(pageSub)}</td></tr>`;
+      const bottomHtml = isLast
+        ? `<div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
+            <div style="padding:10px 12px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #ddd">
+              ${data.note ? `<div><div style="font-size:10px;color:#777;margin-bottom:2px">หมายเหตุ</div><div style="font-size:11.5px;color:#444">${esc(data.note)}</div></div>` : ''}
+              <div style="margin-top:auto">
+                <div style="font-size:10px;color:#777;margin-bottom:2px">จำนวนเงิน (ตัวอักษร)</div>
+                <div style="font-size:12px;font-weight:600;color:#111">${window.bahtText ? window.bahtText(totV) : ''}</div>
+              </div>
+            </div>
+            <div style="min-width:240px"><table style="width:100%;border-collapse:collapse">
+              ${subRow}
+              <tr><td style="${subTd}">ราคาก่อน VAT<span style="font-size:9px;color:#888;display:block">Taxable Amount</span></td><td style="${subTdR}">${$n(preVat)}</td></tr>
+              <tr><td style="${subTd}">ภาษีมูลค่าเพิ่ม 7%<span style="font-size:9px;color:#888;display:block">VAT 7%</span></td><td style="${subTdR}">${$n(vatAmt)}</td></tr>
+              <tr style="background:${ACC}"><td style="padding:7px 10px;font-size:12.5px;font-weight:800;color:#fff">มูลค่ารวมทั้งสิ้น<span style="font-size:9.5px;font-weight:400;display:block;opacity:.8">Total Amount</span></td><td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:900;color:#fff;min-width:100px">${$n(totV)}</td></tr>
+            </table></div>
+          </div>`
+        : `<div style="display:flex;justify-content:flex-end;border-top:1px solid #ddd">
+            <table style="min-width:240px;border-collapse:collapse">${subRow}</table>
+          </div>`;
       grnPagesHtml += `
       <div class="pg${isLast?' last':''}">
         <div style="position:relative">
@@ -716,8 +734,7 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
           ${grnMetaHtml}
           <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
             <table style="width:100%;border-collapse:collapse;font-size:12px">${grnThead}<tbody>${rows}</tbody></table>
-            ${pageSubTotalHtml}
-            ${isLast ? grnVatSummary : ''}
+            ${bottomHtml}
           </div>
           ${isLast ? grnSig : ''}
         </div>
@@ -1028,11 +1045,41 @@ body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;
       </div>
     </div>`;
 
+    const invSubTd = `padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee`;
+    const invSubTdR = `${invSubTd};text-align:right;font-weight:600;min-width:90px`;
+
     let invPagesHtml = '';
     invPages.forEach((pageItems, pgIdx) => {
       const isLast = pgIdx === invTotalPg - 1;
       const rowOffset = invPages.slice(0,pgIdx).reduce((s,p)=>s+p.length,0);
       const rows = pageItems.map((it,i) => makeInvRow(it, rowOffset+i)).join('');
+      const pageSub = pageItems.reduce((s,it) => {
+        const w=Number(it.indivWeight||it.weight||0), p0=Number(it.price||it.price_per_kg||0);
+        const unit=window.unitOf?window.unitOf(it.code):{unitType:'kg'};
+        const isUnit=unit.unitType==='unit';
+        const qty=isUnit?w*(it.scanCount||1):(it.scanCount||1);
+        return s+(isUnit?qty*p0-Number(it.lineDisc||0):qty*w*p0-Number(it.lineDisc||0));
+      }, 0);
+      const invSubRow = `<tr><td style="${invSubTd}">ยอดรวมหน้านี้<span style="font-size:9px;color:#888;display:block">Page Subtotal</span></td><td style="${invSubTdR}">${nf(pageSub)}</td></tr>`;
+      const invBottomHtml = isLast
+        ? `<div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
+            <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:flex-end;border-right:1px solid #ddd">
+              <div style="font-size:10px;color:#777;margin-bottom:2px">จำนวนเงิน (ตัวอักษร)</div>
+              <div style="font-size:12px;font-weight:600">(${bahtWords})</div>
+              ${data.replaces ? `<div style="margin-top:5px;font-size:11px;color:#555">ออกแทนฉบับเลขที่ <b style="font-family:monospace">${esc(data.replaces)}</b></div>` : ''}
+            </div>
+            <div style="min-width:250px"><table style="width:100%;border-collapse:collapse">
+              ${invSubRow}
+              <tr><td style="${invSubTd}">รวมเป็นเงิน<span style="font-size:9px;color:#888;display:block">Gross Amount</span></td><td style="${invSubTdR}">${nf(grossSale)}</td></tr>
+              ${discRows}
+              <tr><td style="${invSubTd}">ราคาสินค้า (ก่อน VAT)<span style="font-size:9px;color:#888;display:block">Taxable Amount</span></td><td style="${invSubTdR}">${nf(vatBase)}</td></tr>
+              <tr><td style="${invSubTd}">ภาษีมูลค่าเพิ่ม 7%<span style="font-size:9px;color:#888;display:block">VAT 7%</span></td><td style="${invSubTdR}">${nf(vat)}</td></tr>
+              <tr style="background:${ACC}"><td style="padding:7px 10px;font-size:12.5px;font-weight:800;color:#fff">จำนวนเงินรวมทั้งสิ้น<span style="font-size:9.5px;font-weight:400;display:block;opacity:.8">Total Invoice</span></td><td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:900;color:#fff;min-width:100px">${nf(total)}</td></tr>
+            </table></div>
+          </div>`
+        : `<div style="display:flex;justify-content:flex-end;border-top:1px solid #ddd">
+            <table style="min-width:250px;border-collapse:collapse">${invSubRow}</table>
+          </div>`;
       invPagesHtml += `
       <div class="pg${isLast?' last':''}">
         <div style="position:relative">
@@ -1043,7 +1090,7 @@ body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;
           ${invCustHtml}
           <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
             <table style="width:100%;border-collapse:collapse;font-size:12px">${invThead}<tbody>${rows}</tbody></table>
-            ${isLast ? invSummary : ''}
+            ${invBottomHtml}
           </div>
           ${isLast ? invSig : ''}
         </div>
@@ -1187,7 +1234,7 @@ body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;
           ${adjMetaHtml}
           <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
             ${adjThead}<tbody>${rows}</tbody>
-            ${isLast ? `<tfoot>${adjSummary}</tfoot>` : ''}
+            <tfoot>${isLast ? adjSummary : `<tr style="background:${ACC_LIGHT}"><td colspan="5" style="padding:7px 8px;font-size:11px;font-weight:600;text-align:center;color:#555;border-top:1px solid #ccc">รายการหน้านี้ ${pageItems.length} รายการ</td></tr>`}</tfoot>
           </table>
           ${isLast ? adjSig : ''}
         </div>

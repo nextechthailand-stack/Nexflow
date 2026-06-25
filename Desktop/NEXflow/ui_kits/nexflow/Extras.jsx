@@ -149,6 +149,13 @@ function A4Content({ iv }) {
         const isFirst = pageIdx === 0;
         const isLast  = pageIdx === totalInvPages - 1;
         const rowOffset = invPages.slice(0, pageIdx).reduce((s,p)=>s+p.length, 0);
+        const pageSub = pageItems.reduce((s,it) => {
+          const w=Number(it.indivWeight||it.weight||0), p0=Number(it.price||it.price_per_kg||0);
+          const unit=window.unitOf?window.unitOf(it.code):{unitType:'kg'};
+          const isUnit=unit.unitType==='unit';
+          const qty=isUnit?w*(it.scanCount||1):(it.scanCount||1);
+          return s+(isUnit?qty*p0-Number(it.lineDisc||0):qty*w*p0-Number(it.lineDisc||0));
+        }, 0);
         return (
           <div key={pageIdx} style={{ width:'100%', maxWidth:794, minHeight:1123, background:'#fff', margin:'0 auto 8px', boxShadow:'0 2px 16px rgba(0,0,0,.12)', fontFamily:'var(--font-sans)', color:'#111', boxSizing:'border-box', fontSize:12.5, overflow:'hidden', position:'relative' }}>
             {/* Page number */}
@@ -215,6 +222,20 @@ function A4Content({ iv }) {
                   </tbody>
                 </table>
 
+                {/* SUBTOTAL — ทุกหน้า */}
+                {!isLast && (
+                  <div style={{ display:'flex', justifyContent:'flex-end', borderTop:'1px solid #ddd' }}>
+                    <table style={{ minWidth:280, borderCollapse:'collapse' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding:'5px 12px', fontSize:12, color:'#333' }}>ยอดรวมหน้านี้<span style={{ fontSize:10, color:'#888', display:'block' }}>Page Subtotal</span></td>
+                          <td style={{ padding:'5px 12px', textAlign:'right', fontSize:12.5, fontWeight:600, color:'#333', minWidth:110 }}>{pageSub.toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
                 {/* SUMMARY — last page only */}
                 {isLast && (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderTop:'2px solid #ccc' }}>
@@ -228,6 +249,7 @@ function A4Content({ iv }) {
                     <div style={{ minWidth:280 }}>
                       <table style={{ width:'100%', borderCollapse:'collapse' }}>
                         <tbody>
+                          <SumRow label="ยอดรวมหน้านี้" sublabel="Page Subtotal" value={pageSub.toLocaleString('en-US',{minimumFractionDigits:2})} />
                           <SumRow label="รวมเป็นเงิน" sublabel="Gross Amount" value={grossSale.toLocaleString('en-US',{minimumFractionDigits:2})} />
                           {discount > 0 && <SumRow label="หักส่วนลด" sublabel="Less Discount" value={`-${discount.toLocaleString('en-US',{minimumFractionDigits:2})}`} />}
                           {discount > 0 && <SumRow label="ยอดหลังหักส่วนลด" sublabel="After Discount" value={afterDisc.toLocaleString('en-US',{minimumFractionDigits:2})} />}
@@ -4684,9 +4706,13 @@ function AdjDocument({ doc, onClose, toast }) {
                       <tr><td colSpan="5" style={{ padding:20, textAlign:'center', color:'#aaa' }}>ไม่มีรายการ</td></tr>
                     )}
                   </tbody>
-                  {/* tfoot — last page only */}
-                  {isLast && (
-                    <tfoot>
+                  {/* tfoot — ทุกหน้า */}
+                  <tfoot>
+                    {!isLast ? (
+                      <tr style={{ background:ACC_LIGHT }}>
+                        <td colSpan="5" style={{ padding:'7px 10px', fontSize:11.5, fontWeight:600, textAlign:'center', color:'#555', borderTop:'1px solid #ccc' }}>รายการหน้านี้ {pageItems.length} รายการ</td>
+                      </tr>
+                    ) : (
                       <tr style={{ background:ACC_LIGHT }}>
                         <td colSpan="2" style={{ padding:'8px 10px', fontWeight:700, fontSize:12 }}>รวม {items.length} รายการ</td>
                         <td style={{ padding:'8px 10px', textAlign:'right', fontFamily:'var(--font-mono)', fontWeight:700 }}>
@@ -4701,8 +4727,8 @@ function AdjDocument({ doc, onClose, toast }) {
                           {ftEnt.length ? ftEnt.map(([lbl,g])=><div key={lbl}>{fmtFt(g.after,lbl,g.isKg)}</div>) : nf(doc.totalAfter||0)}
                         </td>
                       </tr>
-                    </tfoot>
-                  )}
+                    )}
+                  </tfoot>
                 </table>
 
                 {/* Signatures — last page only */}
