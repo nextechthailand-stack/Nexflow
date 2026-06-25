@@ -589,7 +589,7 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
     const $n = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
     /* ── GRN: paginated print ── */
-    const GRN_ROWS_FIRST = 12, GRN_ROWS_REST = 16;
+    const GRN_ROWS_FIRST = 15, GRN_ROWS_REST = 19;
     const grnPages = []; let grnRem = [...mergedItems];
     do { grnPages.push(grnRem.splice(0, grnPages.length===0 ? GRN_ROWS_FIRST : GRN_ROWS_REST)); } while (grnRem.length > 0);
     if (!grnPages.length) grnPages.push([]);
@@ -665,7 +665,7 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
       </tr>`;
     };
 
-    const grnSummary = `
+    const grnVatSummary = `
     <div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
       <div style="padding:10px 12px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #ddd">
         ${data.note ? `<div><div style="font-size:10px;color:#777;margin-bottom:2px">หมายเหตุ</div><div style="font-size:11.5px;color:#444">${esc(data.note)}</div></div>` : ''}
@@ -700,6 +700,12 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
       const isLast = pgIdx === grnTotalPg - 1;
       const rowOffset = grnPages.slice(0,pgIdx).reduce((s,p)=>s+p.length,0);
       const rows = pageItems.map((it,i) => makeGrnRow(it, rowOffset+i)).join('');
+      const pageSubTotal = pageItems.reduce((s,it) => s + Number(it.totalValue||0), 0);
+      const pageSubTotalHtml = `
+        <div style="display:flex;justify-content:flex-end;align-items:center;border-top:1px solid #ddd;padding:6px 12px;background:#fafafa;gap:16px">
+          <span style="font-size:11px;color:#666">ยอดรวมหน้านี้</span>
+          <b style="font-family:monospace;font-size:13px;color:${ACC};min-width:100px;text-align:right">${$n(pageSubTotal)}</b>
+        </div>`;
       grnPagesHtml += `
       <div class="pg${isLast?' last':''}">
         <div style="position:relative">
@@ -710,7 +716,8 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
           ${grnMetaHtml}
           <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
             <table style="width:100%;border-collapse:collapse;font-size:12px">${grnThead}<tbody>${rows}</tbody></table>
-            ${isLast ? grnSummary : ''}
+            ${pageSubTotalHtml}
+            ${isLast ? grnVatSummary : ''}
           </div>
           ${isLast ? grnSig : ''}
         </div>

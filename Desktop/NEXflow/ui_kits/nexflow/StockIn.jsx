@@ -43,7 +43,7 @@ function GrnDoc({ grn, onClose }) {
   });
 
   /* ── Pagination ── */
-  const ROWS_FIRST = 12, ROWS_REST = 16;
+  const ROWS_FIRST = 15, ROWS_REST = 19;
   const grnPages = (() => {
     const pages = []; let rem = [...mergedItems];
     do { pages.push(rem.splice(0, pages.length === 0 ? ROWS_FIRST : ROWS_REST)); } while (rem.length > 0);
@@ -160,7 +160,13 @@ function GrnDoc({ grn, onClose }) {
                       </tbody>
                     </table>
 
-                    {/* SUMMARY — last page only */}
+                    {/* PAGE SUBTOTAL — ทุกหน้า */}
+                    <div style={{ display:'flex', justifyContent:'flex-end', alignItems:'center', borderTop:'1px solid #ddd', padding:'6px 12px', background:'#fafafa', gap:16 }}>
+                      <span style={{ fontSize:11.5, color:'#666' }}>ยอดรวมหน้านี้</span>
+                      <b style={{ fontFamily:'var(--font-mono)', fontSize:13.5, color:ACC, minWidth:110, textAlign:'right' }}>{fmtN(pageItems.reduce((s,it)=>s+Number(it.totalValue||0),0))}</b>
+                    </div>
+
+                    {/* VAT + GRAND TOTAL — last page only */}
                     {isLast && (
                       <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderTop:'2px solid #ccc' }}>
                         <div style={{ padding:'10px 14px', display:'flex', flexDirection:'column', gap:6, borderRight:'1px solid #ddd' }}>
