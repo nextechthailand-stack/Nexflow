@@ -415,17 +415,9 @@ function Reports() {
         const taxBuyTotVat  = taxBuyRows.reduce((s,r)=>s+r.vatAmt,0);
 
         const THSUB = { fontSize:12, fontWeight:700, padding:'5px 12px', borderRadius:6, border:'none', cursor:'pointer', fontFamily:'inherit' };
+        const EXPBTN = { display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, padding:'5px 10px', borderRadius:6, border:'1px solid var(--bd)', background:'var(--s2)', color:'var(--t2)', cursor:'pointer', fontFamily:'inherit' };
         return (
         <div>
-          <FilterBar showSearch={false}
-            onExport={taxSub==='sale'
-              ? ()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}))
-              : ()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}
-            onPdf={taxSub==='sale'
-              ? ()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)
-              : ()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}
-          />
-
           {/* Sub-tabs */}
           <div style={{ display:'flex', gap:8, marginBottom:16 }}>
             <button style={{ ...THSUB, background:taxSub==='sale'?'var(--ac)':'var(--s2)', color:taxSub==='sale'?'#fff':'var(--t2)' }} onClick={()=>setTaxSub('sale')}>
@@ -439,6 +431,14 @@ function Reports() {
           {/* ── ภาษีขาย ── */}
           {taxSub==='sale' && (
             <div>
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}))}>
+                  <Icon name="download" size={13}/> CSV
+                </button>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)}>
+                  <Icon name="printer" size={13}/> PDF
+                </button>
+              </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
                 <KPI label="จำนวนใบกำกับ" value={taxSaleRows.length+' ใบ'} color="var(--ac)" />
                 <KPI label="มูลค่าสินค้ารวม" sub="รวม VAT" value={$(taxSaleTotIncl)} color="var(--gn)" />
@@ -487,6 +487,14 @@ function Reports() {
           {/* ── ภาษีซื้อ ── */}
           {taxSub==='buy' && (
             <div>
+              <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}>
+                  <Icon name="download" size={13}/> CSV
+                </button>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
+                  <Icon name="printer" size={13}/> PDF
+                </button>
+              </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
                 <KPI label="จำนวนใบรับสินค้า (GRN)" value={taxBuyRows.length+' ใบ'} color="var(--pu)" />
                 <KPI label="มูลค่าสินค้ารวม" sub="รวม VAT" value={$(taxBuyTotIncl)} color="var(--gn)" />
