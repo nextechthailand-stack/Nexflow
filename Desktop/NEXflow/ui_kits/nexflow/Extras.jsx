@@ -2280,7 +2280,6 @@ function StockManage({ toast }) {
 
           <Card title="ประวัติเอกสารปรับปรุงสต็อก" actions={<div style={{display:'flex',gap:6}}>
             <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('adj_logs.csv',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ','หลังปรับ','ผลต่าง','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>CSV</Button>
-            <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายงานการปรับปรุงสต็อก',['เลขที่','วันที่','ประเภท','เหตุผล','รายการ','ก่อนปรับ','หลังปรับ','ผลต่าง','ผู้รับผิดชอบ'],filteredAdjLogs.map(doc=>{const b=doc.totalBefore??doc.items.reduce((s,it)=>s+it.before,0);const a=doc.totalAfter??doc.items.reduce((s,it)=>s+it.after,0);return[doc.id,doc.dateDisplay,doc.adjType,doc.reason,doc.totalItems,b.toFixed(2),a.toFixed(2),(doc.totalAdj>=0?'+':'')+doc.totalAdj.toFixed(2),doc.approver||'']}))}>PDF</Button>
           </div>}>
             <div className="tw"><table>
               <thead><tr>

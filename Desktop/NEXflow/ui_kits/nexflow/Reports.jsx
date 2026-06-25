@@ -934,7 +934,7 @@ function Reports({ toast = ()=>{} }) {
                     <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
                       <td style={{ ...TD, fontWeight:600 }}>{d.date}</td>
                       <td style={TD}>{rangeLabel}</td>
-                      <td style={{ ...TD, textAlign:'center' }}>{dr.length > 0 ? <span style={{ fontWeight:700 }}>{dr.length}</span> : <span style={{ color:'var(--t3)' }}>0</span>} บิล</td>
+                      <td style={{ ...TD, textAlign:'center' }}>{invNos.length > 0 ? <span style={{ fontWeight:700 }}>{invNos.length}</span> : <span style={{ color:'var(--t3)' }}>0</span>} บิล</td>
                       <td style={TDR}>{$(d.gross)}</td>
                       <td style={{ ...TDR, color:'var(--am)', fontWeight:700 }}>{d.disc>0?'-'+$(d.disc):'—'}</td>
                       <td style={{ ...TDR, color:'var(--am)' }}>{d.disc>0?dPct.toFixed(2)+'%':'—'}</td>
@@ -1000,7 +1000,6 @@ function Reports({ toast = ()=>{} }) {
         <div>
           <FilterBar
             onExport={()=>window.exportCSV('report_customers.csv',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','จำนวน','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,qtyMix(c.kgW,c.unitQ),c.disc,$(c.total)]))}
-            onPdf={()=>window.exportPDF('รายงานยอดขายรายลูกค้า',['รหัส','ชื่อลูกค้า','ประเภท','จำนวนบิล','จำนวน','ส่วนลด','ยอดรวม'],custRows.map(c=>[c.code,c.name,c.type,c.cnt,qtyMix(c.kgW,c.unitQ),c.disc,$(c.total)]),`${custRows.length} ราย | รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
           />
           <Card title="ยอดขายรายลูกค้า">
             <div className="tw"><table>
@@ -1066,39 +1065,58 @@ function Reports({ toast = ()=>{} }) {
                   <div style={{ fontSize:13, lineHeight:1.7, color:'var(--t2)' }}>{custModal.addr||'—'}</div>
                 </div>
               </div>
-              <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>ประวัติการซื้อ ({custModal.txns?.length||0} รายการ)</div>
-              <div className="tw"><table>
-                <thead><tr>
-                  <th style={TH}>เลขที่กำกับ</th><th style={TH}>วันที่</th><th style={TH}>รายการ</th>
-                  <th style={THR}>น้ำหนัก</th><th style={THR}>จำนวน</th><th style={THR}>ส่วนลด</th><th style={THR}>ยอดรวม</th>
-                  <th style={TH}>ช่าว</th>
-                </tr></thead>
-                <tbody>
-                  {(custModal.txns||[]).map((r,i)=>{
-                    const isKg = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
-                    return (
-                    <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
-                      <td style={TD}><span style={{ fontFamily:'var(--font-mono)', fontSize:12, color:'var(--ac)' }}>{r.inv}</span></td>
-                      <td style={TD}><span style={{ fontSize:12.5, color:'var(--t2)' }}>{r.date}</span></td>
-                      <td style={{ ...TD, fontWeight:600, fontSize:12.5 }}>{r.prod}</td>
-                      <td style={TDR}>{isKg ? r.w.toFixed(3)+' KG' : '—'}</td>
-                      <td style={TDR}>{isKg ? '—' : window.fmtItemQty(r.w, r.code)}</td>
-                      <td style={{ ...TDR, color:'var(--am)' }}>{r.discount>0?$(r.discount):'—'}</td>
-                      <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(r.total)}</td>
-                      <td style={TD}><Badge kind={r.channel}/></td>
-                    </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot><tr>
-                  <td colSpan="3" style={TF}>รวม {custModal.txns?.length||0} รายการ</td>
-                  <td style={TFR}>{(custModal.txns||[]).filter(r=>window.unitOf?window.unitOf(r.code).unitType==='kg':true).reduce((s,r)=>s+(r.w||0),0).toFixed(3)} KG</td>
-                  <td style={TF}>—</td>
-                  <td style={{ ...TFR, color:'var(--am)' }}>{custModal.disc>0?$(custModal.disc):'—'}</td>
-                  <td style={{ ...TFR, color:'var(--gn)' }}>{$(custModal.total)}</td>
-                  <td style={TF}></td>
-                </tr></tfoot>
-              </table></div>
+              {(()=>{
+                const grp = {};
+                (custModal.txns||[]).forEach(r => {
+                  if (!grp[r.inv]) grp[r.inv] = { inv:r.inv, date:r.date, channel:r.channel||r.pay, kgW:0, unitQ:0, disc:0, total:0 };
+                  const isKg = window.unitOf ? window.unitOf(r.code).unitType === 'kg' : true;
+                  if (isKg) grp[r.inv].kgW += (r.w||0);
+                  else grp[r.inv].unitQ += (r.w||0);
+                  grp[r.inv].disc += (r.discount||0);
+                  grp[r.inv].total += (r.total||0);
+                });
+                const grouped = Object.values(grp);
+                const INVLINK = { background:'none', border:'none', padding:0, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, textDecoration:'underline', textDecorationStyle:'dotted', textUnderlineOffset:3 };
+                return (<React.Fragment>
+                  <div style={{ fontSize:13, fontWeight:700, marginBottom:10 }}>ประวัติการซื้อ ({grouped.length} บิล)</div>
+                  <div className="tw"><table>
+                    <thead><tr>
+                      <th style={TH}>เลขที่กำกับ</th><th style={TH}>วันที่</th>
+                      <th style={THR}>น้ำหนัก / จำนวน</th>
+                      <th style={THR}>ส่วนลด</th><th style={THR}>ยอดรวม</th><th style={TH}>ประเภทชำระ</th>
+                    </tr></thead>
+                    <tbody>
+                      {grouped.map((g,i)=>{
+                        const allInvs = window.SP_STATE?.invoices||[];
+                        const invObj = allInvs.find(iv=>iv.no===g.inv||iv.invoice_no===g.inv)
+                          || allInvs.find(iv=>iv.thermalNo===g.inv);
+                        const isA4 = invObj && (invObj.type==='A4'||invObj.type==='INV');
+                        const openDoc = () => { if (!invObj) return; if (isA4) setTaxA4Modal(invObj); else setTaxDocModal(invObj); };
+                        return (
+                        <tr key={i} style={{ borderBottom:'1px solid var(--bd)' }}>
+                          <td style={TD}>
+                            <button style={{ ...INVLINK, cursor:invObj?'pointer':'default', color:invObj?'var(--ac)':'var(--t2)' }}
+                              onClick={invObj?openDoc:undefined}>{g.inv}</button>
+                          </td>
+                          <td style={TD}><span style={{ fontSize:12.5, color:'var(--t2)' }}>{g.date}</span></td>
+                          <td style={TDR}>{qtyMix(g.kgW, g.unitQ)}</td>
+                          <td style={{ ...TDR, color:'var(--am)' }}>{g.disc>0?'-'+$(g.disc):'—'}</td>
+                          <td style={{ ...TDR, fontWeight:800, color:'var(--gn)' }}>{$(g.total)}</td>
+                          <td style={TD}><Badge kind={g.channel}/></td>
+                        </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot><tr>
+                      <td colSpan="2" style={TF}>รวม {grouped.length} บิล</td>
+                      <td style={TFR}>{qtyMix(custModal.kgW||0, custModal.unitQ||0)}</td>
+                      <td style={{ ...TFR, color:'var(--am)' }}>{custModal.disc>0?'-'+$(custModal.disc):'—'}</td>
+                      <td style={{ ...TFR, color:'var(--gn)' }}>{$(custModal.total)}</td>
+                      <td style={TF}></td>
+                    </tr></tfoot>
+                  </table></div>
+                </React.Fragment>);
+              })()}
             </div>
             <div className="md-f">
               <Button variant="bg2" icon="download">Export</Button>
