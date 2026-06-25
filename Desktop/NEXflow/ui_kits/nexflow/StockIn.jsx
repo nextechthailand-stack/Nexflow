@@ -134,7 +134,6 @@ function GrnDoc({ grn, onClose }) {
                         ))}
                       </div>
                     </div>
-                  </div>
 
                   {/* ITEMS TABLE */}
                   <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>

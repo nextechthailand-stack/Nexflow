@@ -186,7 +186,6 @@ function A4Content({ iv }) {
                     ))}
                   </div>
                 </div>
-              </div>
 
               {/* ITEMS TABLE */}
               <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
@@ -4661,7 +4660,6 @@ function AdjDocument({ doc, onClose, toast }) {
                       <div style={{ fontWeight:700 }}>{doc.dateDisplay || doc.date}</div>
                     </div>
                   </div>
-                </div>
 
                 {/* Items table */}
                 <table style={{ width:'100%', borderCollapse:'collapse', border:'1px solid #ccc', marginBottom: isLast ? 12 : 0 }}>
