@@ -396,19 +396,24 @@ window._printHtmlBrowser = function(html) {
 };
 
 /* ── PDF Export utility ──────────────────────────────────────────
-   exportPDF(title, headers, dataRows, subtitle?)                 */
+   exportPDF(title, headers, dataRows, subtitle?)
+   - แบ่งหน้าใน JS (32 แถว/หน้า) เพื่อควบคุมว่า tfoot แสดงเฉพาะหน้าสุดท้าย
+   - แสดงเลขหน้า X/Y ที่มุมขวาบนของ header ทุกหน้า
+   - อ่านข้อมูลบริษัทจาก SP_DATA.company (อัปเดตจาก Settings+DB)     */
 window.exportPDF = function(title, headers, dataRows, subtitle) {
   const esc = s => String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const now = new Date().toLocaleDateString('th-TH',
     { year:'numeric', month:'long', day:'numeric', weekday:'long' });
-  const co = (window.SP_DATA && window.SP_DATA.company) || {};
-  const n2 = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-  /* คอลัมน์รหัส/ID ไม่ต้อง format เป็น numeric */
+  /* อ่านข้อมูลบริษัท: SP_DATA.company อัปเดตจาก Settings ทุกครั้งที่บันทึก
+     logo: ถ้า SP_DATA.company.logoUrl ว่างให้ fallback ไป localStorage      */
+  const co = (window.SP_DATA && window.SP_DATA.company) || {};
+  const logoUrl = co.logoUrl || (typeof localStorage !== 'undefined' ? localStorage.getItem('sp_company_logo') : '') || '';
+
+  const n2 = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
   const CODE_HDRS = /^(รหัส|รหัสสินค้า|เลขที่|เลข|code|id)$/i;
 
-  /* ── วิเคราะห์ค่าในเซลล์: ตัวเลข + หน่วย (฿ / KG / %) ── */
   const parseCell = (v) => {
     if (v == null) return null;
     const s = String(v).trim();
@@ -429,7 +434,6 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
     return f;
   };
 
-  /* ── คอลัมน์ตัวเลข → จัดทศนิยม 2 ตำแหน่งเสมอ + รวมยอด ── */
   const colIsNumeric = headers.map((h,ci) => {
     if (CODE_HDRS.test(h.trim())) return false;
     const cells = dataRows.map(r => r[ci]);
@@ -443,7 +447,6 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
     dataRows.forEach(r => { const p = parseCell(r[ci]); if (p) { sum += p.num; suffix = p.suffix || suffix; } });
     return { label: h, sum, suffix };
   });
-
   const fmtCell = (v, ci) => {
     if (!colIsNumeric[ci]) return esc(v);
     const p = parseCell(v);
@@ -451,59 +454,83 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
     return fmtBySuffix(p.num, p.suffix);
   };
 
+  /* ── แบ่งหน้า ── */
+  const ROWS_PER_PAGE = 32;
+  const totalPages = Math.max(1, Math.ceil(dataRows.length / ROWS_PER_PAGE));
+
+  /* ── Logo หรือ initials ── */
   const coInitial = (co.name||'SP').replace(/[^A-Za-zก-๙]/g,'').slice(0,2).toUpperCase()||'SP';
-  const hdrHtml = `
-  <div style="display:flex;align-items:center;gap:10px">
-    <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#5b7cff,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px">${coInitial}</div>
-    <div><div class="co-name">${esc(co.name||'NEXflow')}</div>
-    <div class="co-info">${esc(co.addr||'')}${co.addr?'<br>':''}โทร: ${esc(co.tel||'—')} · เลขผู้เสียภาษี: ${esc(co.tax||'—')}</div></div>
-  </div>
-  <div><div class="doc-title">${esc(title)}</div>
-  <div class="sub" style="margin:4px 0 0;text-align:right">${subtitle ? esc(subtitle)+'&ensp;·&ensp;' : ''}พิมพ์เมื่อ ${esc(now)}</div></div>`;
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" style="width:36px;height:36px;border-radius:10px;object-fit:contain;background:#fff;flex-shrink:0">`
+    : `<div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#5b7cff,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;flex-shrink:0">${coInitial}</div>`;
+
+  /* ── สร้าง header HTML สำหรับแต่ละหน้า (มีเลขหน้า X/Y) ── */
+  const makePageHdr = (pageNum) => `
+    <div class="page-hdr">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${logoHtml}
+        <div>
+          <div class="co-name">${esc(co.name||'NEXflow')}</div>
+          <div class="co-info">${esc(co.addr||'')}${co.addr&&(co.tel||co.tax)?'&ensp;·&ensp;':''}${co.tel?'โทร: '+esc(co.tel):''}${co.tel&&co.tax?' · ':''}${co.tax?'เลขผู้เสียภาษี: '+esc(co.tax):''}</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="doc-title">${esc(title)}</div>
+        <div class="sub">${subtitle ? esc(subtitle)+'&ensp;·&ensp;' : ''}พิมพ์เมื่อ ${esc(now)}</div>
+        <div class="pg-num">หน้า ${pageNum} / ${totalPages}</div>
+      </div>
+    </div>`;
+
+  const theadHtml = `<thead><tr>${headers.map((h,ci)=>`<th class="${colIsNumeric[ci]?'num':''}">${esc(h)}</th>`).join('')}</tr></thead>`;
+
+  const tfootHtml = colSums.some(Boolean) ? `<tfoot><tr>${headers.map((h,ci)=>{
+    const cs = colSums[ci];
+    if (cs) return `<td class="num">${fmtBySuffix(cs.sum, cs.suffix)}</td>`;
+    if (ci === 0) return `<td class="lbl">รวมทั้งหมด</td>`;
+    return `<td></td>`;
+  }).join('')}</tr></tfoot>` : '';
+
+  /* ── สร้างทุกหน้า ── */
+  let pagesHtml = '';
+  for (let p = 0; p < totalPages; p++) {
+    const isLast = p === totalPages - 1;
+    const chunk  = dataRows.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+    const tbodyHtml = `<tbody>${chunk.map(r=>`<tr>${r.map((c,ci)=>`<td class="${colIsNumeric[ci]?'num':''}">${fmtCell(c,ci)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    pagesHtml += `
+    <div class="pg${isLast ? ' last' : ''}">
+      ${makePageHdr(p + 1)}
+      <table>${theadHtml}${tbodyHtml}${isLast ? tfootHtml : ''}</table>
+      ${isLast ? `<div class="footer">${esc(co.name||'NEXflow')} &mdash; รวม ${dataRows.length} รายการ</div>` : ''}
+    </div>`;
+  }
 
   const html = `<!DOCTYPE html><html lang="th"><head>
 <meta charset="UTF-8"><title>${esc(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Sarabun',sans-serif;font-size:12px;color:#18171a;padding:0 28px 24px}
-  .page-hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a1826;padding:18px 0 14px;margin-bottom:16px;background:#fff}
-  .co-name{font-size:15px;font-weight:800;color:#3b5bdb;margin-bottom:3px}
+  body{font-family:'Sarabun',sans-serif;font-size:12px;color:#18171a}
+  .pg{padding:18px 28px 20px}
+  .page-hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a1826;padding-bottom:14px;margin-bottom:16px}
+  .co-name{font-size:15px;font-weight:800;color:#3b5bdb;margin-bottom:2px}
   .co-info{font-size:10.5px;color:#555;line-height:1.6}
-  .doc-title{font-size:19px;font-weight:800;text-align:right}
-  .sub{font-size:11px;color:#666}
+  .doc-title{font-size:19px;font-weight:800}
+  .sub{font-size:11px;color:#666;margin-top:2px}
+  .pg-num{font-size:12px;font-weight:700;color:#3b5bdb;margin-top:6px}
   table{width:100%;border-collapse:collapse;margin-top:4px}
-  thead{display:table-header-group}
   th{background:#1a1826;color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;white-space:nowrap}
   td{padding:7px 10px;border-bottom:1px solid #eee;font-size:11.5px;vertical-align:middle}
   td.num,th.num{text-align:right;font-family:monospace}
   tfoot td{background:#f5f4f0;font-weight:800;border-top:2px solid #1a1826;border-bottom:none;font-family:monospace}
   tfoot td.lbl{font-family:'Sarabun',sans-serif;text-align:left}
-  .footer{margin-top:16px;font-size:10.5px;color:#999;border-top:1px solid #ddd;padding-top:8px}
+  .footer{margin-top:14px;font-size:10.5px;color:#999;border-top:1px solid #ddd;padding-top:8px}
   @media print{
     @page{size:A4 portrait;margin:1.2cm 1.5cm}
-    @page{@bottom-right{content:"หน้า " counter(page) " / " counter(pages);font-size:10px;color:#aaa;font-family:'Sarabun',sans-serif}}
-    body{padding:0 0 16px}
-    .page-hdr{position:fixed;top:0;left:0;right:0;padding:12px 1.5cm 10px;border-bottom:2px solid #1a1826;z-index:10}
-    .content{margin-top:90px}
-    .footer{position:fixed;bottom:0;left:0;right:0;padding:6px 1.5cm;background:#fff;border-top:1px solid #ddd}
+    body{padding:0}
+    .pg{padding:0 0 16px;page-break-after:always}
+    .pg.last{page-break-after:avoid}
   }
-</style></head><body>
-<div class="page-hdr">${hdrHtml}</div>
-<div class="content">
-<table>
-  <thead><tr>${headers.map((h,ci)=>`<th class="${colIsNumeric[ci]?'num':''}">${esc(h)}</th>`).join('')}</tr></thead>
-  <tbody>${dataRows.map(r=>`<tr>${r.map((c,ci)=>`<td class="${colIsNumeric[ci]?'num':''}">${fmtCell(c,ci)}</td>`).join('')}</tr>`).join('')}</tbody>
-  ${colSums.some(Boolean) ? `<tfoot><tr>${headers.map((h,ci)=>{
-    const cs = colSums[ci];
-    if (cs) return `<td class="num">${fmtBySuffix(cs.sum, cs.suffix)}</td>`;
-    if (ci === 0) return `<td class="lbl">รวมทั้งหมด</td>`;
-    return `<td></td>`;
-  }).join('')}</tr></tfoot>` : ''}
-</table>
-</div>
-<div class="footer">${esc(co.name||'NEXflow')} &mdash; รวม ${dataRows.length} รายการ</div>
-</body></html>`;
+</style></head><body>${pagesHtml}</body></html>`;
   window._printHtml(html, 'a4');
 };
 
