@@ -342,10 +342,11 @@ function InvoiceList({ toast }) {
         st.auditLog = logs; setAuditLog(logs);
         await window.SP_API.reloadProducts();
 
+        if (isReplace && iv.type !== 'A4') st.pendingReplaceTiv = iv.no;
         refresh(); setVoidModal(null); setVoidNo(''); setVoidPreview(null); setVoidReason('');
         const linked = linkedTiv||linkedInv;
         toast('ok', isReplace
-          ? `ยกเลิก ${iv.no}${linked?' + '+linked.no:''} (ออกใบทดแทน) — บันทึกลง DB แล้ว`
+          ? `ยกเลิก ${iv.no}${linked?' + '+linked.no:''} (ออกใบทดแทน) — ไปขายใหม่เพื่อออกใบแทน`
           : `ยกเลิก ${iv.no}${linked?' + '+linked.no:''} บันทึกลง DB แล้ว — คืนสต็อกเรียบร้อย`);
         /* แสดงใบยกเลิกอัตโนมัติ (TIV ที่ไม่มี INV) */
         if (iv.type !== 'A4' && !linkedInv) {
@@ -373,10 +374,11 @@ function InvoiceList({ toast }) {
     }
     if (window.logAudit) window.logAudit('CANCEL_INVOICE', iv.no, null, voidReason);
     setAuditLog([...st.auditLog]);
+    if (isReplace && iv.type !== 'A4') st.pendingReplaceTiv = iv.no;
     refresh(); setVoidModal(null); setVoidNo(''); setVoidPreview(null); setVoidReason('');
     const linked2 = linkedTiv||linkedInv;
     toast('ok', isReplace
-      ? `ยกเลิก ${iv.no}${linked2?' + '+linked2.no:''} (ออกใบทดแทน) — ไม่คืนสต็อก`
+      ? `ยกเลิก ${iv.no}${linked2?' + '+linked2.no:''} (ออกใบทดแทน) — ไปขายใหม่เพื่อออกใบแทน`
       : `ยกเลิกใบกำกับ ${iv.no}${linked2?' + '+linked2.no:''} เรียบร้อย — คืนสต็อกแล้ว`);
     /* แสดงใบยกเลิกอัตโนมัติ (TIV ที่ไม่มี INV) */
     if (iv.type !== 'A4' && !linkedInv) {

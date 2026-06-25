@@ -357,6 +357,7 @@ function StockOut({ toast }) {
         /* ── DB mode: server สร้างเลขเอกสาร + ตัดสต็อก ── */
         const tivPfx = pfxs.tiv || 'TIV';
         const issPfx = pfxs.iss || 'ISS';
+        const pendingReplace = st.pendingReplaceTiv || null;
         const payload = {
           invoice_type:    typeInfo.hasInv ? 'TIV' : 'ISS',
           prefix:          typeInfo.hasInv ? tivPfx : issPfx,
@@ -372,6 +373,7 @@ function StockOut({ toast }) {
           vat7:            vat,
           total:           afterDisc,
           payment_method:  pay,
+          ...(pendingReplace ? { replaces_no: pendingReplace } : {}),
           items: items.map(it => ({
             code: it.code, name: it.name, weight: it.weight,
             price: it.price, tax: it.tax || 'vat7',
@@ -383,6 +385,7 @@ function StockOut({ toast }) {
 
         await window.SP_API.reloadProducts();
         await window.SP_API.reloadInvoices();
+        if (pendingReplace) st.pendingReplaceTiv = null;
 
       } else {
         /* ── Mock mode: generate เลขใน frontend ── */
@@ -401,6 +404,7 @@ function StockOut({ toast }) {
           st.invCounter++;
         }
         if (typeInfo.hasInv) {
+          const mockReplace = st.pendingReplaceTiv || null;
           st.invoices.unshift({
             id: Date.now(), no: invNo, thermalNo,
             type: 'Thermal', channel: saleType, fullInvNo: null, printCount: 0,
@@ -412,7 +416,9 @@ function StockOut({ toast }) {
             grossSale: subtotal, discount: discAmt, lineDiscount: lineDiscAmt, billDiscount: billDiscAmt,
             netSale: afterDisc, vatBase: afterDisc - vat, vat7: vat, total: afterDisc,
             pay, status:'paid', voided:false,
+            ...(mockReplace ? { replaces: mockReplace } : {}),
           });
+          if (mockReplace) st.pendingReplaceTiv = null;
         }
         /* mock mode: rebuild dashboard + reports */
         if (window.SP_API && typeof window.SP_API.rebuildDashboard === 'function') {
