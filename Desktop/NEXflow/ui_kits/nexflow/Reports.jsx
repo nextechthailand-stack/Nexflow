@@ -507,10 +507,10 @@ function Reports({ toast = ()=>{} }) {
           {taxSub==='buy' && (
             <div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
-                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.note||r.poNo||'—',r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}>
                   <Icon name="download" size={13}/> CSV
                 </button>
-                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,r.note||r.poNo||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,'สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
                   <Icon name="printer" size={13}/> PDF
                 </button>
               </div>
@@ -544,7 +544,7 @@ function Reports({ toast = ()=>{} }) {
                                 {r.id}
                               </button>
                             </td>
-                            <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{r.note||r.poNo||'—'}</td>
+                            <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{D.company.name}</td>
                             <td style={TD}>{r.receiver||'—'}</td>
                             <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
                             <td style={{ ...TDR, fontWeight:700 }}>{$(r.inclTotal)}</td>

@@ -106,7 +106,9 @@ function DateField({ value, onChange, style, className = 'fc', ...rest }) {
 }
 
 function CompanyLogo({ size = 40, radius = 11 }) {
-  const logoUrl = window.SP_DATA?.company?.logoUrl;
+  const logoUrl = window.SP_DATA?.company?.logoUrl
+    || (typeof localStorage !== 'undefined' ? localStorage.getItem('sp_company_logo') : '')
+    || '';
   if (logoUrl) {
     return <img src={logoUrl} alt="logo" style={{ width:size, height:size, borderRadius:radius, objectFit:'contain', background:'#fff', flexShrink:0 }} />;
   }

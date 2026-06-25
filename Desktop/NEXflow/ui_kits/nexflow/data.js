@@ -540,6 +540,7 @@ window.exportPDF = function(title, headers, dataRows, subtitle) {
 window.printDoc = function(type, data) {
   if (!data) return;
   const co  = window.SP_DATA.company;
+  const printLogoUrl = co.logoUrl || (typeof localStorage !== 'undefined' ? localStorage.getItem('sp_company_logo') : '') || '';
   const esc = s => String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const $ = n => '&#3647;' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -622,7 +623,7 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
       <!-- HEADER -->
       <div style="background:#fff;padding:18px 24px 14px;display:flex;justify-content:space-between;align-items:flex-start">
         <div style="display:flex;gap:12px;align-items:flex-start;flex:1">
-          ${co.logoUrl ? `<img src="${esc(co.logoUrl)}" style="width:60px;height:60px;object-fit:contain;border-radius:6px;flex-shrink:0">` : `<div style="width:60px;height:60px;border-radius:6px;background:linear-gradient(135deg,${ACC},#4f7fd4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px;flex-shrink:0">N</div>`}
+          ${printLogoUrl ? `<img src="${esc(printLogoUrl)}" style="width:60px;height:60px;object-fit:contain;border-radius:6px;flex-shrink:0">` : `<div style="width:60px;height:60px;border-radius:6px;background:linear-gradient(135deg,${ACC},#4f7fd4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px;flex-shrink:0">N</div>`}
           <div style="margin-top:4px">
             <div style="font-size:17px;font-weight:800;line-height:1.3;color:#111">${esc(co.name)}</div>
             ${co.nameEn ? `<div style="font-size:12px;font-weight:600;color:#444">${esc(co.nameEn)}</div>` : ''}
@@ -815,7 +816,7 @@ body{font-family:'Sarabun',sans-serif;font-size:12.5px;color:#111;background:#ff
         <span style="font-size:22px;font-weight:900;color:#c0392b;letter-spacing:6px">ยกเลิก</span>
       </div>` : ''}
       <div style="text-align:center;margin-bottom:12px">
-        ${co.showLogoOnReceipt && co.logoUrl ? `<img src="${co.logoUrl}" style="max-width:100%;max-height:60px;margin:0 auto 6px;display:block">` : ''}
+        ${co.showLogoOnReceipt && printLogoUrl ? `<img src="${printLogoUrl}" style="max-width:100%;max-height:60px;margin:0 auto 6px;display:block">` : ''}
         <div style="font-size:14px;font-weight:800;margin-bottom:3px">${esc(co.name)}</div>
         <div style="font-size:10.5px;color:#555;line-height:1.7">${esc(co.addr)}</div>
         <div style="font-size:10.5px;color:#555">เลขประจำตัวผู้เสียภาษี ${esc(co.tax)}</div>
@@ -924,7 +925,7 @@ body{font-family:'Sarabun',sans-serif;font-size:12.5px;color:#111;background:#ff
       <!-- HEADER -->
       <div style="background:#fff;padding:18px 24px 14px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${ACC}">
         <div style="display:flex;gap:12px;align-items:flex-start;flex:1">
-          ${co.logoUrl ? `<img src="${esc(co.logoUrl)}" style="width:56px;height:56px;object-fit:contain;border-radius:6px;flex-shrink:0">` : ''}
+          ${printLogoUrl ? `<img src="${esc(printLogoUrl)}" style="width:56px;height:56px;object-fit:contain;border-radius:6px;flex-shrink:0">` : ''}
           <div>
             <div style="font-size:17px;font-weight:800;line-height:1.3;color:#111">${esc(co.name)}</div>
             ${co.nameEn ? `<div style="font-size:12px;font-weight:600;color:#444">${esc(co.nameEn)}</div>` : ''}
