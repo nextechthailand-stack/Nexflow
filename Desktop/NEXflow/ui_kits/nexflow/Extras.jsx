@@ -548,19 +548,19 @@ function InvoiceList({ toast }) {
               {(dateFrom||dateTo) && <button className="btn bg2 bsm" onClick={()=>{setDateFrom('');setDateTo('');}}>ล้าง</button>}
               <input type="text" className="fc" placeholder="ค้นหา TIV / INV / ลูกค้า…" style={{ width:200 }} value={search} onChange={e=>setSearch(e.target.value)} />
               <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('invoices.csv',
-                ['เลขที่ TIV','เลขที่ INV','วันที่','ลูกค้า','ส่วนลด','ยอดรวม','ยอดชำระ','สถานะ'],
+                ['เลขที่ใบกำกับภาษีอย่างย่อ','เลขที่ใบกำกับภาษีเต็มรูป','วันที่','ลูกค้า','ส่วนลด','ยอดรวม','ยอดชำระ','สถานะ'],
                 tivList.map(({tiv,inv})=>[tiv.no,inv?.no||'',tiv.dateDisplay,tiv.custName,tiv.discount||0,tiv.total,tiv.voided?0:tiv.total,tiv.voided?'ยกเลิก':(inv?.printCount||0)>0?'สำเนา':'ต้นฉบับ'])
               )}>CSV</Button>
               <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการใบกำกับภาษี',
-                ['เลขที่ TIV','เลขที่ INV','วันที่','ลูกค้า','ยอดรวม','ยอดชำระ','สถานะ'],
+                ['เลขที่ใบกำกับภาษีอย่างย่อ','เลขที่ใบกำกับภาษีเต็มรูป','วันที่','ลูกค้า','ยอดรวม','ยอดชำระ','สถานะ'],
                 tivList.map(({tiv,inv})=>[tiv.no,inv?.no||'—',tiv.dateDisplay,tiv.custName,tiv.total,tiv.voided?'—':tiv.total,tiv.voided?'ยกเลิก':(inv?.printCount||0)>0?'สำเนา':'ต้นฉบับ'])
               )}>PDF</Button>
             </div>
           }>
             <div className="tw"><table>
               <thead><tr>
-                <th style={TH}>เลขที่ TIV</th>
-                <th style={TH}>เลขที่ INV</th>
+                <th style={TH}>เลขที่ใบกำกับภาษีอย่างย่อ</th>
+                <th style={TH}>เลขที่ใบกำกับภาษีเต็มรูป</th>
                 <th style={TH}>วันที่</th>
                 <th style={TH}>ลูกค้า</th>
                 <th style={{ ...TH, textAlign:'right' }}>ส่วนลด</th>
@@ -596,11 +596,19 @@ function InvoiceList({ toast }) {
                       {/* INV / CN / DN */}
                       <td style={TD}>
                         {inv ? (
-                          <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                            <button onClick={()=>setA4Modal(inv)} style={{ background:'none',border:'none',cursor:'pointer',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,padding:0,color:invColor }}>
-                              {inv.no}
-                            </button>
-                            {invVoided && <span className="bx xr" style={{ fontSize:10 }}>ยกเลิก</span>}
+                          <div>
+                            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                              <button onClick={()=>setA4Modal(inv)} style={{ background:'none',border:'none',cursor:'pointer',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:700,padding:0,color:invColor }}>
+                                {inv.no}
+                              </button>
+                              {inv.replaces && <span className="bx xa" style={{ fontSize:9.5, padding:'1px 5px' }}>ออกแทน</span>}
+                              {invVoided && <span className="bx xr" style={{ fontSize:10 }}>ยกเลิก</span>}
+                            </div>
+                            {inv.replaces && (
+                              <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t3)', marginTop:2 }}>
+                                {inv.replaces}
+                              </div>
+                            )}
                           </div>
                         ) : <span style={{ color:'var(--t3)',fontSize:12 }}>—</span>}
                       </td>
