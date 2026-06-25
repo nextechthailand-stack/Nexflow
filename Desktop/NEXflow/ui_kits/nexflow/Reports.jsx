@@ -360,7 +360,6 @@ function Reports({ toast = ()=>{} }) {
         const allInvs = window.SP_STATE?.invoices || window.SP_DATA?.invoices || [];
         const taxSaleRows = allInvs
           .filter(iv => {
-            if (iv.voided || iv.is_voided || iv.status==='voided') return false;
             const t = iv.type||'';
             if (t==='A4'||t==='INV') return false;
             const d = (iv.date||'').slice(0,10);
@@ -369,6 +368,7 @@ function Reports({ toast = ()=>{} }) {
             return true;
           })
           .map(iv => {
+            const isVoided = !!(iv.voided || iv.is_voided || iv.status==='voided');
             const items = iv.items||[];
             const disc  = Number(iv.discount||0);
             const totalGross = items.reduce((s,it)=>s+Number(it.weight||0)*Number(it.price||it.price_per_kg||0),0);
@@ -388,11 +388,13 @@ function Reports({ toast = ()=>{} }) {
               no: iv.thermalNo||iv.no||iv.invoice_no||'—',
               custId: iv.custId||iv.customer_id,
               inclTotal, vat: vatAmt,
+              voided: isVoided,
             };
           })
           .sort((a,b)=>a.dateISO.localeCompare(b.dateISO)||a.no.localeCompare(b.no));
-        const taxSaleTotIncl = taxSaleRows.reduce((s,r)=>s+r.inclTotal,0);
-        const taxSaleTotVat  = taxSaleRows.reduce((s,r)=>s+r.vat,0);
+        const taxSaleActive  = taxSaleRows.filter(r=>!r.voided);
+        const taxSaleTotIncl = taxSaleActive.reduce((s,r)=>s+r.inclTotal,0);
+        const taxSaleTotVat  = taxSaleActive.reduce((s,r)=>s+r.vat,0);
 
         /* ── ภาษีซื้อ: from GRN logs (vat7 + vat7_excl) ── */
         const grnAll = window.SP_STATE?.grnLogs || window.SP_DATA?.grnLogs || [];
@@ -444,19 +446,19 @@ function Reports({ toast = ()=>{} }) {
           {taxSub==='sale' && (
             <div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
-                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป',c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}))}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','หมายเหตุ','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,r.voided?'ยกเลิก':'',c?.name||'ลูกค้าทั่วไป','สนญ.',r.voided?'—':$(r.inclTotal),r.voided?'—':$(r.vat)];}))}>
                   <Icon name="download" size={13}/> CSV
                 </button>
-                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',$(r.inclTotal),$(r.vat)];}),`รวม ${taxSaleRows.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)}>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.voided?r.no+' [ยกเลิก]':r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',r.voided?'—':$(r.inclTotal),r.voided?'—':$(r.vat)];}),`รวม ${taxSaleActive.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)}>
                   <Icon name="printer" size={13}/> PDF
                 </button>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-                <KPI label="จำนวนใบกำกับ" value={taxSaleRows.length+' ใบ'} color="var(--ac)" />
+                <KPI label="จำนวนใบกำกับ" value={taxSaleActive.length+' ใบ'} color="var(--ac)" />
                 <KPI label="มูลค่าสินค้ารวม" sub="รวม VAT" value={$(taxSaleTotIncl)} color="var(--gn)" />
                 <KPI label="ภาษีขาย (VAT 7%)" value={$(taxSaleTotVat)} color="var(--pu)" />
               </div>
-              <Card title={`รายงานภาษีขาย — ${taxSaleRows.length} รายการ`}>
+              <Card title={`รายงานภาษีขาย — ${taxSaleRows.length} รายการ${taxSaleRows.length>taxSaleActive.length?' (ยกเลิก '+( taxSaleRows.length-taxSaleActive.length)+' ใบ)':''}`}>
                 <div className="tw"><table>
                   <thead><tr>
                     <th style={{ ...TH, textAlign:'center', width:44 }}>ลำดับ</th>
@@ -474,26 +476,29 @@ function Reports({ toast = ()=>{} }) {
                           const cust = D.customers.find(c=>c.id===r.custId);
                           const invObj = (window.SP_STATE?.invoices||[]).find(iv=>iv.thermalNo===r.no||iv.no===r.no||iv.invoice_no===r.no);
                           return (
-                            <tr key={r.no} style={{ borderBottom:'1px solid var(--bd)' }}>
+                            <tr key={r.no} style={{ borderBottom:'1px solid var(--bd)', opacity: r.voided ? 0.55 : 1, background: r.voided ? 'var(--s2)' : undefined }}>
                               <td style={{ ...TD, textAlign:'center', color:'var(--t3)', fontSize:12 }}>{i+1}</td>
-                              <td style={{ ...TD, fontWeight:600 }}>{r.date}</td>
+                              <td style={{ ...TD, fontWeight:600, color: r.voided ? 'var(--t3)' : undefined }}>{r.date}</td>
                               <td style={TD}>
-                                <button style={{ ...DOCLINK, color:'var(--ac)' }}
-                                  onClick={()=>invObj && setTaxDocModal(invObj)}>
-                                  {r.no}
-                                </button>
+                                <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                                  <button style={{ ...DOCLINK, color: r.voided ? 'var(--t3)' : 'var(--ac)' }}
+                                    onClick={()=>invObj && setTaxDocModal(invObj)}>
+                                    {r.no}
+                                  </button>
+                                  {r.voided && <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'var(--rd)', borderRadius:3, padding:'1px 5px', lineHeight:'14px', letterSpacing:.3 }}>ยกเลิก</span>}
+                                </span>
                               </td>
-                              <td style={TD}>{cust?.name||'ลูกค้าทั่วไป'}</td>
+                              <td style={{ ...TD, color: r.voided ? 'var(--t3)' : undefined }}>{cust?.name||'ลูกค้าทั่วไป'}</td>
                               <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
-                              <td style={{ ...TDR, fontWeight:700 }}>{$(r.inclTotal)}</td>
-                              <td style={{ ...TDR, color:'var(--pu)', fontWeight:700 }}>{$(r.vat)}</td>
+                              <td style={{ ...TDR, fontWeight:700, color: r.voided ? 'var(--t3)' : undefined, textDecoration: r.voided ? 'line-through' : undefined }}>{r.voided ? '—' : $(r.inclTotal)}</td>
+                              <td style={{ ...TDR, color: r.voided ? 'var(--t3)' : 'var(--pu)', fontWeight:700, textDecoration: r.voided ? 'line-through' : undefined }}>{r.voided ? '—' : $(r.vat)}</td>
                             </tr>
                           );
                         })
                     }
                   </tbody>
                   <tfoot><tr>
-                    <td colSpan="4" style={{ ...TF }}>รวมทั้งหมด ({taxSaleRows.length} รายการ)</td>
+                    <td colSpan="4" style={{ ...TF }}>รวมทั้งหมด ({taxSaleActive.length} รายการ)</td>
                     <td style={TF}></td>
                     <td style={{ ...TFR, color:'var(--gn)' }}>{$(taxSaleTotIncl)}</td>
                     <td style={{ ...TFR, color:'var(--pu)' }}>{$(taxSaleTotVat)}</td>
