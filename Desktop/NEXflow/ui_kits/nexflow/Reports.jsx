@@ -390,6 +390,7 @@ function Reports({ toast = ()=>{} }) {
               tivNo: iv.no||'—',
               replaces: iv.replaces||null,
               custId: iv.custId||iv.customer_id,
+              custBranch: iv.custBranch || 'head',
               inclTotal, vat: vatAmt,
               voided: isVoided,
             };
@@ -421,6 +422,7 @@ function Reports({ toast = ()=>{} }) {
         const taxBuyTotIncl = taxBuyRows.reduce((s,r)=>s+r.inclTotal,0);
         const taxBuyTotVat  = taxBuyRows.reduce((s,r)=>s+r.vatAmt,0);
 
+        const branchLabel = b => (!b || b === 'head') ? 'สำนักงานใหญ่' : b;
         const THSUB = { fontSize:12, fontWeight:700, padding:'5px 12px', borderRadius:6, border:'none', cursor:'pointer', fontFamily:'inherit' };
         const EXPBTN = { display:'flex', alignItems:'center', gap:6, fontSize:12, fontWeight:600, padding:'5px 10px', borderRadius:6, border:'1px solid var(--bd)', background:'var(--s2)', color:'var(--t2)', cursor:'pointer', fontFamily:'inherit' };
         const DOCLINK = { background:'none', border:'none', padding:0, cursor:'pointer', fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, textDecoration:'underline', textDecorationStyle:'dotted', textUnderlineOffset:3 };
@@ -449,10 +451,10 @@ function Reports({ toast = ()=>{} }) {
           {taxSub==='sale' && (
             <div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
-                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','หมายเหตุ','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,r.voided?'ยกเลิก':'',c?.name||'ลูกค้าทั่วไป','สนญ.',r.voided?'—':$(r.inclTotal),r.voided?'—':$(r.vat)];}))}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_sale.csv',['ลำดับ','วันที่','เลขที่เอกสาร','หมายเหตุ','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.no,r.voided?'ยกเลิก':'',c?.name||'ลูกค้าทั่วไป',branchLabel(r.custBranch),r.voided?'—':$(r.inclTotal),r.voided?'—':$(r.vat)];}))}>
                   <Icon name="download" size={13}/> CSV
                 </button>
-                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.voided?r.no+' [ยกเลิก]':r.no,c?.name||'ลูกค้าทั่วไป','สนญ.',r.voided?'—':$(r.inclTotal),r.voided?'—':$(r.vat)];}),`รวม ${taxSaleActive.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)}>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีขาย',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อผู้ซื้อ','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxSaleRows.map((r,i)=>{const c=D.customers.find(x=>x.id===r.custId);return[i+1,r.date,r.voided?r.no+' [ยกเลิก]':r.no,c?.name||'ลูกค้าทั่วไป',branchLabel(r.custBranch),r.voided?'—':$(r.inclTotal),r.voided?'—':$(r.vat)];}),`รวม ${taxSaleActive.length} ใบ | VAT ${$(taxSaleTotVat)} | มูลค่ารวม ${$(taxSaleTotIncl)}`)}>
                   <Icon name="printer" size={13}/> PDF
                 </button>
               </div>
@@ -508,7 +510,7 @@ function Reports({ toast = ()=>{} }) {
                                 </div>
                               </td>
                               <td style={{ ...TD, color: r.voided ? 'var(--t3)' : undefined }}>{cust?.name||'ลูกค้าทั่วไป'}</td>
-                              <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
+                              <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>{branchLabel(r.custBranch)}</td>
                               <td style={{ ...TDR, fontWeight:700, color: r.voided ? 'var(--t3)' : undefined, textDecoration: r.voided ? 'line-through' : undefined }}>{r.voided ? '—' : $(r.inclTotal)}</td>
                               <td style={{ ...TDR, color: r.voided ? 'var(--t3)' : 'var(--pu)', fontWeight:700, textDecoration: r.voided ? 'line-through' : undefined }}>{r.voided ? '—' : $(r.vat)}</td>
                             </tr>
@@ -531,10 +533,10 @@ function Reports({ toast = ()=>{} }) {
           {taxSub==='buy' && (
             <div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
-                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,r.receiver||'—','สนญ.',$(r.inclTotal),$(r.vatAmt)]))}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,r.receiver||'—','สำนักงานใหญ่',$(r.inclTotal),$(r.vatAmt)]))}>
                   <Icon name="download" size={13}/> CSV
                 </button>
-                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,'สนญ.',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,'สำนักงานใหญ่',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
                   <Icon name="printer" size={13}/> PDF
                 </button>
               </div>
