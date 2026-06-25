@@ -109,9 +109,8 @@ function GrnDoc({ grn, onClose }) {
                 <GrnHeader />
 
                 <div style={{ padding:'14px 24px 20px' }}>
-                  {/* META — first page only */}
-                  {isFirst && (
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr auto', marginBottom:12, border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
+                  {/* META — แสดงทุกหน้า */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr auto', marginBottom:12, border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
                       <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
                         <div style={{ fontSize:10.5, color:'#777', marginBottom:4 }}>ผู้รับสินค้า / Consignee</div>
                         <div style={{ fontSize:14, fontWeight:800, color:'#111' }}>{co.name}</div>
@@ -135,7 +134,7 @@ function GrnDoc({ grn, onClose }) {
                         ))}
                       </div>
                     </div>
-                  )}
+                  </div>
 
                   {/* ITEMS TABLE */}
                   <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>

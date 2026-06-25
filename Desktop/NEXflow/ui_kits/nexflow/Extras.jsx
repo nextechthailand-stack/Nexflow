@@ -159,9 +159,8 @@ function A4Content({ iv }) {
             <InvHeader pageIdx={pageIdx} />
 
             <div style={{ padding:'14px 24px 20px' }}>
-              {/* CUSTOMER + DOC INFO — first page only */}
-              {isFirst && (
-                <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0, marginBottom:12, ...B, borderRadius:6, overflow:'hidden' }}>
+              {/* CUSTOMER + DOC INFO — แสดงทุกหน้า */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0, marginBottom:12, ...B, borderRadius:6, overflow:'hidden' }}>
                   <div style={{ padding:'10px 14px', borderRight:'1px solid #ccc' }}>
                     <div style={{ fontSize:11, color:'#777', marginBottom:4 }}>ลูกค้า / Customer</div>
                     <div style={{ fontSize:13.5, fontWeight:700, marginBottom:4 }}>{cust?.name || iv.custName || '—'}</div>
@@ -187,7 +186,7 @@ function A4Content({ iv }) {
                     ))}
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* ITEMS TABLE */}
               <div style={{ border:'1px solid #ccc', borderRadius:6, overflow:'hidden' }}>
@@ -4644,10 +4643,9 @@ function AdjDocument({ doc, onClose, toast }) {
 
                 <AdjHeader />
 
-                {/* Meta grid — first page only */}
-                {isFirst && (
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0,
-                    border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginBottom:12 }}>
+                {/* Meta grid — แสดงทุกหน้า */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:0,
+                  border:'1px solid #ccc', borderRadius:6, overflow:'hidden', marginBottom:12 }}>
                     <div style={{ padding:'10px 14px' }}>
                       <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:'4px 12px', fontSize:12.5 }}>
                         <span style={{ color:'#888' }}>ประเภท:</span><b>{adjTypeLabel}</b>
@@ -4663,7 +4661,7 @@ function AdjDocument({ doc, onClose, toast }) {
                       <div style={{ fontWeight:700 }}>{doc.dateDisplay || doc.date}</div>
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Items table */}
                 <table style={{ width:'100%', borderCollapse:'collapse', border:'1px solid #ccc', marginBottom: isLast ? 12 : 0 }}>
