@@ -570,7 +570,6 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
     const ACC       = '#b45309';
     const ACC_LIGHT = '#fef3c7';
     const items   = data.items || [];
-    const totW    = Number(data.totalWeight || 0);
     const totV    = Number(data.totalValue  || 0);
 
     const vatInclBase = items.filter(i=>i.tax==='vat7').reduce((s,i)=>s+Number(i.value||0),0);
@@ -589,145 +588,144 @@ td.r{text-align:right;font-weight:700} tfoot td{background:#f5f4f0;font-weight:7
     const mergedItems = Object.values(mergeMap);
     const $n = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-    const itemRows = mergedItems.map((it,i) => {
-      const bg       = i%2===0 ? '#fff' : '#fafafa';
-      const taxLabel = it.tax==='vat7' ? 'VAT 7%' : it.tax==='vat7_excl' ? 'VAT +7%' : 'Non VAT';
-      const taxBg    = it.tax==='nonvat' ? '#f0efe9' : ACC_LIGHT;
-      const taxClr   = it.tax==='nonvat' ? '#888' : ACC;
-      const isKg     = window.unitOf ? window.unitOf(it.code).unitType === 'kg' : true;
-      const wtPerPack = it.packCount > 0 ? (it.totalWeight / it.packCount).toFixed(3) : '0.000';
-      const nameDisp = isKg && it.totalWeight > 0
-        ? `${esc(it.name)} <span style="font-weight:400;color:#555">@ ${wtPerPack} kg</span>`
-        : esc(it.name);
-      return `<tr style="background:${bg}">
-        <td style="padding:8px 10px;font-size:12px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:center;color:#888">${i+1}</td>
-        <td style="padding:8px 10px;font-size:12px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8">
-          <div style="font-size:10px;color:#888;font-family:monospace;margin-bottom:2px">${esc(it.code)}</div>
-          <div style="font-weight:600">${nameDisp}</div>
-        </td>
-        <td style="padding:8px 10px;font-size:12px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:center;font-weight:600">${it.packCount}</td>
-        <td style="padding:8px 10px;font-size:12px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:right">${$n(it.cost||it.cost_price||0)}</td>
-        <td style="padding:8px 10px;font-size:12px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:700;color:#111">${$n(it.totalValue)}</td>
-      </tr>`;
-    }).join('');
+    /* ── GRN: paginated print ── */
+    const GRN_ROWS_FIRST = 12, GRN_ROWS_REST = 16;
+    const grnPages = []; let grnRem = [...mergedItems];
+    do { grnPages.push(grnRem.splice(0, grnPages.length===0 ? GRN_ROWS_FIRST : GRN_ROWS_REST)); } while (grnRem.length > 0);
+    if (!grnPages.length) grnPages.push([]);
+    const grnTotalPg = grnPages.length;
 
-    const fillers = mergedItems.length < 5
-      ? Array.from({length: 5 - mergedItems.length}).map((_,i) => {
-          const bg = (mergedItems.length+i)%2===0 ? '#fff' : '#fafafa';
-          return `<tr style="background:${bg}"><td style="padding:8px 10px;height:30px;border-bottom:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8"></td></tr>`;
-        }).join('')
-      : '';
-
-    body = `<div style="width:100%;background:#fff;font-family:'Sarabun',sans-serif;font-size:12.5px;color:#111;overflow:hidden">
-
-      <!-- HEADER -->
-      <div style="background:#fff;padding:18px 24px 14px;display:flex;justify-content:space-between;align-items:flex-start">
-        <div style="display:flex;gap:12px;align-items:flex-start;flex:1">
-          ${printLogoUrl ? `<img src="${esc(printLogoUrl)}" style="width:60px;height:60px;object-fit:contain;border-radius:6px;flex-shrink:0">` : `<div style="width:60px;height:60px;border-radius:6px;background:linear-gradient(135deg,${ACC},#4f7fd4);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px;flex-shrink:0">N</div>`}
-          <div style="margin-top:4px">
-            <div style="font-size:17px;font-weight:800;line-height:1.3;color:#111">${esc(co.name)}</div>
-            ${co.nameEn ? `<div style="font-size:12px;font-weight:600;color:#444">${esc(co.nameEn)}</div>` : ''}
-            <div style="font-size:11px;color:#555;line-height:1.8;margin-top:4px">
-              ${co.addr ? `<div>${esc(co.addr)}</div>` : ''}
-              <div>โทร. ${esc(co.tel)}${co.email ? ` | ${esc(co.email)}` : ''}</div>
-              <div>เลขประจำตัวผู้เสียภาษี <b style="color:#111">${esc(co.tax)}</b> &nbsp;สำนักงานใหญ่</div>
-            </div>
+    const grnHdrHtml = `
+    <div style="padding:14px 20px 10px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${ACC}">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        ${printLogoUrl ? `<img src="${esc(printLogoUrl)}" style="width:48px;height:48px;object-fit:contain;border-radius:6px;flex-shrink:0">` : ''}
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#111">${esc(co.name)}</div>
+          ${co.nameEn ? `<div style="font-size:11px;font-weight:600;color:#444">${esc(co.nameEn)}</div>` : ''}
+          <div style="font-size:10.5px;color:#555;line-height:1.7;margin-top:2px">
+            ${co.addr ? `<div>${esc(co.addr)}</div>` : ''}
+            <div>โทร. ${esc(co.tel)}${co.email ? ` | ${esc(co.email)}` : ''}</div>
+            <div>เลขประจำตัวผู้เสียภาษี <b style="color:#111">${esc(co.tax)}</b> สำนักงานใหญ่</div>
           </div>
-        </div>
-        <div style="text-align:right;min-width:210px;flex-shrink:0">
-          <div style="font-size:30px;font-weight:900;color:${ACC};line-height:1.2;letter-spacing:1px">ใบรับสินค้า</div>
-          <div style="font-size:13px;font-weight:600;color:#777;margin-top:4px">Goods Receipt Note</div>
         </div>
       </div>
-
-      <!-- BODY -->
-      <div style="padding:16px 24px 20px">
-
-        <!-- META INFO -->
-        <div style="display:grid;grid-template-columns:1fr auto;margin-bottom:14px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
-          <div style="padding:12px 16px;border-right:1px solid #ccc">
-            <div style="font-size:10.5px;color:#777;margin-bottom:4px">ผู้รับสินค้า / Consignee</div>
-            <div style="font-size:14px;font-weight:800;color:#111">${esc(co.name)}</div>
-            ${co.nameEn ? `<div style="font-size:11.5px;font-weight:600;color:#555">${esc(co.nameEn)}</div>` : ''}
-            <div style="font-size:11px;color:#555;line-height:1.7;margin-top:3px">
-              ${co.addr ? `<div>${esc(co.addr)}</div>` : ''}
-              ${(co.tel||co.email) ? `<div>โทร. ${esc(co.tel||'')}${co.email?` | ${esc(co.email)}`:''}</div>` : ''}
-              ${co.tax ? `<div>เลขประจำตัวผู้เสียภาษี <b style="color:#111">${esc(co.tax)}</b></div>` : ''}
-            </div>
-          </div>
-          <div style="padding:10px 14px;min-width:240px;background:${ACC_LIGHT}">
-            ${[
-              ['เลขที่',   `<b style="font-family:monospace;font-size:13px;color:${ACC}">${esc(data.id||data.grn_no||'')}</b>`],
-              ['วันที่รับ',     `<b>${esc(data.dateDisplay||data.date||'')}</b>`],
-              ...(data.poNo ? [['เลขที่อ้างอิง', `<b style="font-family:monospace">${esc(data.poNo)}</b>`]] : []),
-              ['ผู้รับสินค้า',  `<b>${esc(data.receiver||'')}</b>`],
-            ].map(([l,v],i,a) =>
-              `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0;${i<a.length-1?'border-bottom:1px solid #d0d8e8;':''}font-size:12px">
-                <span style="color:#667;white-space:nowrap">${l}</span>${v}</div>`
-            ).join('')}
-          </div>
-        </div>
-
-        <!-- ITEMS TABLE + SUMMARY -->
-        <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
-          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead>
-              <tr>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);border-right:1px solid rgba(255,255,255,.2);text-align:center;width:34px">ลำดับ<br><span style="font-size:9.5px;font-weight:400">No.</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);border-right:1px solid rgba(255,255,255,.2);text-align:center">รหัสสินค้าและรายละเอียด<br><span style="font-size:9.5px;font-weight:400">Code / Description</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);border-right:1px solid rgba(255,255,255,.2);text-align:center;width:60px">จำนวน<br><span style="font-size:9.5px;font-weight:400">Quantity</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);border-right:1px solid rgba(255,255,255,.2);text-align:center;width:90px">ราคาต้นทุน<br><span style="font-size:9.5px;font-weight:400">Cost Price</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);text-align:center;width:100px">มูลค่า<br><span style="font-size:9.5px;font-weight:400">Amount</span></th>
-              </tr>
-            </thead>
-            <tbody>${itemRows}${fillers}</tbody>
-          </table>
-
-          <!-- SUMMARY -->
-          <div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
-            <div style="padding:10px 14px;display:flex;flex-direction:column;gap:6px;border-right:1px solid #ddd">
-              ${data.note ? `<div><div style="font-size:10.5px;color:#777;margin-bottom:2px">หมายเหตุ</div><div style="font-size:12px;color:#444">${esc(data.note)}</div></div>` : ''}
-              <div style="margin-top:auto">
-                <div style="font-size:10.5px;color:#777;margin-bottom:3px">จำนวนเงิน (ตัวอักษร)</div>
-                <div style="font-size:12.5px;font-weight:600;color:#111">${window.bahtText ? window.bahtText(totV) : ''}</div>
-              </div>
-            </div>
-            <div style="min-width:280px">
-              <table style="width:100%;border-collapse:collapse">
-                <tbody>
-                  <tr><td style="padding:5px 12px;font-size:12px;color:#333;border-bottom:1px solid #eee">ราคาก่อน VAT<span style="font-size:10px;color:#888;display:block">Taxable Amount</span></td><td style="padding:5px 12px;text-align:right;font-size:12.5px;font-weight:600;color:#333;border-bottom:1px solid #eee">${$n(preVat)}</td></tr>
-                  <tr><td style="padding:5px 12px;font-size:12px;color:#333;border-bottom:1px solid #eee">ภาษีมูลค่าเพิ่ม 7%<span style="font-size:10px;color:#888;display:block">VAT 7%</span></td><td style="padding:5px 12px;text-align:right;font-size:12.5px;font-weight:600;color:#333;border-bottom:1px solid #eee">${$n(vatAmt)}</td></tr>
-                  <tr style="background:${ACC}">
-                    <td style="padding:8px 12px;font-size:13px;font-weight:800;color:#fff">มูลค่ารวมทั้งสิ้น<span style="font-size:10px;font-weight:400;display:block;opacity:.8">Total Amount</span></td>
-                    <td style="padding:8px 12px;text-align:right;font-size:16px;font-weight:900;color:#fff;min-width:110px">${$n(totV)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- SIGNATURES -->
-        <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;border:1px solid #ccc;border-radius:6px;overflow:hidden">
-          <div style="padding:10px 14px;border-right:1px solid #ccc">
-            <div style="margin-top:48px;border-top:1px solid #bbb;padding-top:6px;text-align:center;font-size:11.5px;color:#555">ผู้รับสินค้า / Receiver</div>
-            <div style="margin-top:10px;padding-top:5px;text-align:center;font-size:10.5px;color:#888">วันที่ ....... / ....... / .......</div>
-          </div>
-          <div style="padding:10px 14px">
-            <div style="margin-top:48px;border-top:1px solid #bbb;padding-top:6px;text-align:center;font-size:11.5px;color:#555">ผู้มีอำนาจลงนาม / Authorized</div>
-            <div style="margin-top:10px;padding-top:5px;text-align:center;font-size:10.5px;color:#888">วันที่ ....... / ....... / .......</div>
-          </div>
-        </div>
-
+      <div style="text-align:right;min-width:190px;flex-shrink:0">
+        <div style="font-size:26px;font-weight:900;color:${ACC};line-height:1.2">ใบรับสินค้า</div>
+        <div style="font-size:12px;font-weight:600;color:#777;margin-top:2px">Goods Receipt Note</div>
       </div>
     </div>`;
+
+    const grnMetaHtml = `
+    <div style="display:grid;grid-template-columns:1fr auto;margin-bottom:10px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+      <div style="padding:10px 14px;border-right:1px solid #ccc">
+        <div style="font-size:10px;color:#777;margin-bottom:3px">ผู้รับสินค้า / Consignee</div>
+        <div style="font-size:13px;font-weight:800;color:#111">${esc(co.name)}</div>
+        ${co.nameEn ? `<div style="font-size:11px;font-weight:600;color:#555">${esc(co.nameEn)}</div>` : ''}
+        <div style="font-size:10.5px;color:#555;line-height:1.7;margin-top:2px">
+          ${co.addr ? `<div>${esc(co.addr)}</div>` : ''}
+          ${(co.tel||co.email) ? `<div>โทร. ${esc(co.tel||'')}${co.email?` | ${esc(co.email)}`:''}</div>` : ''}
+          ${co.tax ? `<div>เลขประจำตัวผู้เสียภาษี <b style="color:#111">${esc(co.tax)}</b></div>` : ''}
+        </div>
+      </div>
+      <div style="padding:10px 14px;min-width:220px;background:${ACC_LIGHT}">
+        ${[
+          ['เลขที่', `<b style="font-family:monospace;font-size:13px;color:${ACC}">${esc(data.id||data.grn_no||'')}</b>`],
+          ['วันที่รับ', `<b>${esc(data.dateDisplay||data.date||'')}</b>`],
+          ...(data.poNo ? [['เลขที่อ้างอิง', `<b style="font-family:monospace">${esc(data.poNo)}</b>`]] : []),
+          ['ผู้รับสินค้า', `<b>${esc(data.receiver||'')}</b>`],
+        ].map(([l,v],i,a) =>
+          `<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;${i<a.length-1?'border-bottom:1px solid #d0d8e8;':''}font-size:11.5px">
+            <span style="color:#667;white-space:nowrap">${l}</span>${v}</div>`
+        ).join('')}
+      </div>
+    </div>`;
+
+    const grnThead = `<thead><tr>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:32px">ลำดับ<br><span style="font-size:9px;font-weight:400">No.</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center">รหัสสินค้าและรายละเอียด<br><span style="font-size:9px;font-weight:400">Code / Description</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:55px">จำนวน<br><span style="font-size:9px;font-weight:400">Qty</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:85px">ราคาต้นทุน<br><span style="font-size:9px;font-weight:400">Cost Price</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;text-align:center;width:90px">มูลค่า<br><span style="font-size:9px;font-weight:400">Amount</span></th>
+    </tr></thead>`;
+
+    const makeGrnRow = (it, rowIdx) => {
+      const bg = rowIdx%2===0?'#fff':'#fafafa';
+      const isKg = window.unitOf ? window.unitOf(it.code).unitType==='kg' : true;
+      const wpp = it.packCount>0 ? (it.totalWeight/it.packCount).toFixed(3) : '0.000';
+      const nameDisp = isKg&&it.totalWeight>0 ? `${esc(it.name)} <span style="font-weight:400;color:#555">@ ${wpp} kg</span>` : esc(it.name);
+      return `<tr style="background:${bg}">
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:center;color:#888">${rowIdx+1}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8">
+          <div style="font-size:9.5px;color:#888;font-family:monospace;margin-bottom:1px">${esc(it.code)}</div>
+          <div style="font-weight:600">${nameDisp}</div>
+        </td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:center;font-weight:600">${it.packCount}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:right">${$n(it.cost||it.cost_price||0)}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:700;color:#111">${$n(it.totalValue)}</td>
+      </tr>`;
+    };
+
+    const grnSummary = `
+    <div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:4px;border-right:1px solid #ddd">
+        ${data.note ? `<div><div style="font-size:10px;color:#777;margin-bottom:2px">หมายเหตุ</div><div style="font-size:11.5px;color:#444">${esc(data.note)}</div></div>` : ''}
+        <div style="margin-top:auto">
+          <div style="font-size:10px;color:#777;margin-bottom:2px">จำนวนเงิน (ตัวอักษร)</div>
+          <div style="font-size:12px;font-weight:600;color:#111">${window.bahtText ? window.bahtText(totV) : ''}</div>
+        </div>
+      </div>
+      <div style="min-width:240px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee">ราคาก่อน VAT<span style="font-size:9px;color:#888;display:block">Taxable Amount</span></td><td style="padding:5px 10px;text-align:right;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee">${$n(preVat)}</td></tr>
+          <tr><td style="padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee">ภาษีมูลค่าเพิ่ม 7%<span style="font-size:9px;color:#888;display:block">VAT 7%</span></td><td style="padding:5px 10px;text-align:right;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee">${$n(vatAmt)}</td></tr>
+          <tr style="background:${ACC}"><td style="padding:7px 10px;font-size:12.5px;font-weight:800;color:#fff">มูลค่ารวมทั้งสิ้น<span style="font-size:9.5px;font-weight:400;display:block;opacity:.8">Total Amount</span></td><td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:900;color:#fff;min-width:100px">${$n(totV)}</td></tr>
+        </table>
+      </div>
+    </div>`;
+
+    const grnSig = `
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+      <div style="padding:10px 14px;border-right:1px solid #ccc">
+        <div style="margin-top:44px;border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:11px;color:#555">ผู้รับสินค้า / Receiver</div>
+        <div style="margin-top:8px;text-align:center;font-size:10px;color:#888">วันที่ ....... / ....... / .......</div>
+      </div>
+      <div style="padding:10px 14px">
+        <div style="margin-top:44px;border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:11px;color:#555">ผู้มีอำนาจลงนาม / Authorized</div>
+        <div style="margin-top:8px;text-align:center;font-size:10px;color:#888">วันที่ ....... / ....... / .......</div>
+      </div>
+    </div>`;
+
+    let grnPagesHtml = '';
+    grnPages.forEach((pageItems, pgIdx) => {
+      const isLast = pgIdx === grnTotalPg - 1;
+      const rowOffset = grnPages.slice(0,pgIdx).reduce((s,p)=>s+p.length,0);
+      const rows = pageItems.map((it,i) => makeGrnRow(it, rowOffset+i)).join('');
+      grnPagesHtml += `
+      <div class="pg${isLast?' last':''}">
+        <div style="position:relative">
+          <div style="position:absolute;top:6px;right:0;font-size:10px;color:#bbb;font-family:monospace;z-index:1">${pgIdx+1}/${grnTotalPg}</div>
+          ${grnHdrHtml}
+        </div>
+        <div style="padding:10px 16px 14px">
+          ${grnMetaHtml}
+          <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">${grnThead}<tbody>${rows}</tbody></table>
+            ${isLast ? grnSummary : ''}
+          </div>
+          ${isLast ? grnSig : ''}
+        </div>
+      </div>`;
+    });
+
     const grnStyle = `<style>
 *{box-sizing:border-box;margin:0;padding:0}
-@page{size:A4 portrait;margin:1cm}
-body{font-family:'Sarabun',sans-serif;font-size:12.5px;color:#111;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@page{size:A4 portrait;margin:0}
+body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{padding:14px 18px 16px}
+@media print{.pg{page-break-after:always;padding:1cm 1.5cm}.pg.last{page-break-after:avoid}}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">`;
-    const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">${grnStyle}</head><body style="padding:16px 20px">${body}</body></html>`;
+    const html = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">${grnStyle}</head><body>${grnPagesHtml}</body></html>`;
     window._printHtml(html, 'a4');
     return;
   }
@@ -909,132 +907,297 @@ body{font-family:'Sarabun',sans-serif;font-size:12.5px;color:#111;background:#ff
       </tr>`;
     }).join('');
 
-    /* empty filler rows */
-    const fillers = merged.length<5 ? Array.from({length:5-merged.length}).map((_,i)=>{
-      const bg = (merged.length+i)%2===0?'#fff':'#fafafa';
-      return `<tr style="background:${bg}"><td style="padding:8px 10px;height:30px;border-bottom:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8"></td><td style="border-bottom:1px solid #e8e8e8"></td></tr>`;
-    }).join('') : '';
-
+    /* INV disc rows */
     const discRows = disc>0
-      ? `<tr><td style="padding:5px 12px;font-size:12px;color:#333;border-bottom:1px solid #eee">หักส่วนลด<span style="font-size:10px;color:#888;display:block">Less Discount</span></td><td style="padding:5px 12px;text-align:right;font-size:12.5px;font-weight:600;color:#333;border-bottom:1px solid #eee">-${nf(disc)}</td></tr>
-         <tr><td style="padding:5px 12px;font-size:12px;color:#333;border-bottom:1px solid #eee">ยอดหลังหักส่วนลด<span style="font-size:10px;color:#888;display:block">After Discount</span></td><td style="padding:5px 12px;text-align:right;font-size:12.5px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(afterDisc)}</td></tr>`
+      ? `<tr><td style="padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee">หักส่วนลด<span style="font-size:9px;color:#888;display:block">Less Discount</span></td><td style="padding:5px 10px;text-align:right;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee">-${nf(disc)}</td></tr>
+         <tr><td style="padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee">ยอดหลังหักส่วนลด<span style="font-size:9px;color:#888;display:block">After Discount</span></td><td style="padding:5px 10px;text-align:right;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(afterDisc)}</td></tr>`
       : '';
 
-    body = `<div style="width:100%;max-width:680px;background:#fff;margin:0 auto;font-family:'Sarabun',sans-serif;font-size:12.5px;color:#111;overflow:hidden;border:1px solid #ddd">
+    /* ── INV: paginated print ── */
+    const INV_ROWS_FIRST = 10, INV_ROWS_REST = 16;
+    const invPages = []; let invRem = [...merged];
+    do { invPages.push(invRem.splice(0, invPages.length===0 ? INV_ROWS_FIRST : INV_ROWS_REST)); } while (invRem.length > 0);
+    if (!invPages.length) invPages.push([]);
+    const invTotalPg = invPages.length;
 
-      <!-- HEADER -->
-      <div style="background:#fff;padding:18px 24px 14px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${ACC}">
-        <div style="display:flex;gap:12px;align-items:flex-start;flex:1">
-          ${printLogoUrl ? `<img src="${esc(printLogoUrl)}" style="width:56px;height:56px;object-fit:contain;border-radius:6px;flex-shrink:0">` : ''}
-          <div>
-            <div style="font-size:17px;font-weight:800;line-height:1.3;color:#111">${esc(co.name)}</div>
-            ${co.nameEn ? `<div style="font-size:12px;font-weight:600;color:#444">${esc(co.nameEn)}</div>` : ''}
-            <div style="font-size:11px;color:#555;line-height:1.8;margin-top:3px">
-              ${co.addr ? `<div>${esc(co.addr)}</div>` : ''}
-              <div>โทร. ${esc(co.tel)}${co.email ? ` | ${esc(co.email)}` : ''}</div>
-              <div>เลขประจำตัวผู้เสียภาษี <b style="color:#111">${esc(co.tax)}</b> &nbsp;สำนักงานใหญ่</div>
-            </div>
+    const invHdrHtml = `
+    <div style="padding:14px 20px 10px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${ACC}">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        ${printLogoUrl ? `<img src="${esc(printLogoUrl)}" style="width:48px;height:48px;object-fit:contain;border-radius:6px;flex-shrink:0">` : ''}
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#111">${esc(co.name)}</div>
+          ${co.nameEn ? `<div style="font-size:11px;font-weight:600;color:#444">${esc(co.nameEn)}</div>` : ''}
+          <div style="font-size:10.5px;color:#555;line-height:1.7;margin-top:2px">
+            ${co.addr ? `<div>${esc(co.addr)}</div>` : ''}
+            <div>โทร. ${esc(co.tel)}${co.email ? ` | ${esc(co.email)}` : ''}</div>
+            <div>เลขประจำตัวผู้เสียภาษี <b style="color:#111">${esc(co.tax)}</b> สำนักงานใหญ่</div>
           </div>
-        </div>
-        <div style="text-align:right;min-width:200px;flex-shrink:0">
-          <div style="display:inline-block;padding:5px 18px;background:${ACC_LIGHT};color:${ACC};border-radius:4px;font-size:15px;font-weight:800;margin-bottom:8px;letter-spacing:.5px">${copyLabel}</div>
-          <div style="font-size:22px;font-weight:800;color:${ACC};line-height:1.4">ใบกำกับภาษี/ ใบเสร็จรับเงิน</div>
-          <div style="font-size:13px;font-weight:600;color:#555;margin-top:3px">Tax Invoice / Receipt</div>
         </div>
       </div>
-
-      <!-- BODY -->
-      <div style="padding:16px 24px 20px">
-
-        <!-- CUSTOMER + DOC INFO -->
-        <div style="display:grid;grid-template-columns:1fr auto;margin-bottom:14px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
-          <div style="padding:10px 14px;border-right:1px solid #ccc">
-            <div style="font-size:11px;color:#777;margin-bottom:4px">ลูกค้า / Customer</div>
-            <div style="font-size:13.5px;font-weight:700;margin-bottom:4px">${esc(cust.name||data.custName||'—')}</div>
-            ${(cust.addr||data.custAddr) ? `<div style="font-size:11.5px;color:#444;line-height:1.7;margin-bottom:3px">${esc(cust.addr||data.custAddr)}</div>` : ''}
-            <div style="font-size:11.5px;color:#444;margin-bottom:2px"><span style="color:#888">เลขประจำตัวผู้เสียภาษี </span><b style="font-family:monospace">${esc(data.custTax||cust.tax||'—')}</b>${(()=>{const b=data.custBranch||cust.branch||'head';return(!b||b==='head')?'<span style="margin-left:6px;color:#666">สำนักงานใหญ่</span>':`<span style="margin-left:6px;color:#666">สาขา ${esc(b)}</span>`;})()}</div>
-            ${cust.phone ? `<div style="font-size:11.5px;color:#444">โทร. ${esc(cust.phone)}</div>` : ''}
-          </div>
-          <div style="padding:10px 14px;min-width:210px;background:${ACC_LIGHT}">
-            ${(()=>{
-              const PAY_LBL = { cash:'เงินสด', transfer:'เงินโอน', credit:'เครดิต' };
-              const payLabel = data.pay ? (PAY_LBL[data.pay] || data.pay) : null;
-              return [
-                ['เลขที่ / No.', `<b style="font-family:monospace;font-size:13px;color:${ACC}">${esc(data.no||data.invoice_no||'')}</b>`],
-                ['วันที่ / Date', `<b>${esc(data.dateDisplay||data.date||'')}</b>`],
-                data.thermalNo ? ['อ้างอิง', `<span style="font-family:monospace;font-size:11.5px;color:#555">${esc(data.thermalNo)}</span>`] : null,
-                data.replaces ? ['ออกแทนใบ', `<span style="font-family:monospace;font-size:11.5px;color:#c0392b;font-weight:700">${esc(data.replaces)}</span>`] : null,
-                payLabel ? ['ชำระเงิน', `<span style="font-weight:600">${esc(payLabel)}</span>`] : null,
-              ].filter(Boolean).map(([l,v])=>`
-              <div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #d0d8e8;font-size:12px">
-                <span style="color:#667;white-space:nowrap">${l}</span>${v}
-              </div>`).join('');
-            })()}
-          </div>
-        </div>
-
-        <!-- ITEMS TABLE + SUMMARY in one border box -->
-        <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
-          <table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead>
-              <tr>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);text-align:center;width:34px">ลำดับ<br><span style="font-size:9.5px;font-weight:400">No.</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);border-right:1px solid rgba(255,255,255,.2);text-align:center">รหัสสินค้าและรายละเอียด<br><span style="font-size:9.5px;font-weight:400">Code / Descriptions</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);border-right:1px solid rgba(255,255,255,.2);text-align:center;width:90px">จำนวน<br><span style="font-size:9.5px;font-weight:400">Quantity</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);border-right:1px solid rgba(255,255,255,.2);text-align:center;width:90px">หน่วยละ<br><span style="font-size:9.5px;font-weight:400">Unit Price</span></th>
-                <th style="padding:8px 10px;background:${ACC};color:#fff;font-weight:700;font-size:11.5px;border-bottom:1px solid rgba(0,0,0,.15);text-align:center;width:100px">จำนวนเงิน<br><span style="font-size:9.5px;font-weight:400">Amount</span></th>
-              </tr>
-            </thead>
-            <tbody>${itemRows}${fillers}</tbody>
-          </table>
-
-          <!-- SUMMARY + AMOUNT WORDS -->
-          <div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
-            <div style="padding:10px 14px;display:flex;flex-direction:column;justify-content:flex-end;border-right:1px solid #ddd">
-              <div style="font-size:10.5px;color:#777;margin-bottom:3px">จำนวนเงิน (ตัวอักษร)</div>
-              <div style="font-size:12.5px;font-weight:600">(${bahtWords})</div>
-              ${data.replaces ? `<div style="margin-top:6px;font-size:11px;color:#555">ออกแทนฉบับเลขที่ <b style="font-family:monospace">${esc(data.replaces)}</b></div>` : ''}
-            </div>
-            <div style="min-width:280px">
-              <table style="width:100%;border-collapse:collapse">
-                <tbody>
-                  <tr><td style="padding:5px 12px;font-size:12px;color:#333;border-bottom:1px solid #eee">รวมเป็นเงิน<span style="font-size:10px;color:#888;display:block">Gross Amount</span></td><td style="padding:5px 12px;text-align:right;font-size:12.5px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(grossSale)}</td></tr>
-                  ${discRows}
-                  <tr><td style="padding:5px 12px;font-size:12px;color:#333;border-bottom:1px solid #eee">ราคาสินค้า (ก่อน VAT)<span style="font-size:10px;color:#888;display:block">Taxable Amount</span></td><td style="padding:5px 12px;text-align:right;font-size:12.5px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(vatBase)}</td></tr>
-                  <tr><td style="padding:5px 12px;font-size:12px;color:#333;border-bottom:1px solid #eee">ภาษีมูลค่าเพิ่ม 7%<span style="font-size:10px;color:#888;display:block">VAT 7%</span></td><td style="padding:5px 12px;text-align:right;font-size:12.5px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(vat)}</td></tr>
-                  <tr style="background:${ACC}">
-                    <td style="padding:8px 12px;font-size:13px;font-weight:800;color:#fff">จำนวนเงินรวมทั้งสิ้น<span style="font-size:10px;font-weight:400;display:block;opacity:.8">Total Invoice</span></td>
-                    <td style="padding:8px 12px;text-align:right;font-size:16px;font-weight:900;color:#fff;min-width:110px">${nf(total)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- BOTTOM: RECEIVED + PAYMENT + SIGNATURES -->
-        <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;border:1px solid #ccc;border-radius:6px;overflow:hidden">
-          <div style="padding:10px 14px;border-right:1px solid #ccc">
-            <div style="font-size:12px;font-weight:600;margin-bottom:8px">ได้รับสินค้าตามรายการถูกต้องแล้ว</div>
-            <div style="margin-top:48px;border-top:1px solid #bbb;padding-top:6px;text-align:center;font-size:11.5px;color:#555">
-              ผู้รับสินค้า / Goods Received by
-            </div>
-            <div style="margin-top:10px;padding-top:5px;text-align:center;font-size:10.5px;color:#888">วันที่ ....... / ....... / .......</div>
-          </div>
-          <div style="padding:10px 14px;display:flex;flex-direction:column;justify-content:space-between">
-            <div style="font-size:12px;font-weight:600;text-align:center">${esc(co.name)}</div>
-            <div>
-              <div style="text-align:center;margin-top:32px;border-top:1px solid #bbb;padding-top:6px;font-size:11.5px;color:#555">
-                ผู้รับมอบอำนาจ / Authorized Signature
-              </div>
-              <div style="margin-top:10px;padding-top:5px;text-align:center;font-size:10.5px;color:#888">วันที่ ....... / ....... / .......</div>
-            </div>
-          </div>
-        </div>
-
-
-      </div><!-- end body -->
+      <div style="text-align:right;min-width:195px;flex-shrink:0">
+        <div style="display:inline-block;padding:3px 14px;background:${ACC_LIGHT};color:${ACC};border-radius:4px;font-size:13px;font-weight:800;margin-bottom:5px">${copyLabel}</div>
+        <div style="font-size:20px;font-weight:800;color:${ACC};line-height:1.3">ใบกำกับภาษี/ ใบเสร็จรับเงิน</div>
+        <div style="font-size:11px;font-weight:600;color:#555;margin-top:2px">Tax Invoice / Receipt</div>
+      </div>
     </div>`;
+
+    const invCustHtml = `
+    <div style="display:grid;grid-template-columns:1fr auto;margin-bottom:10px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+      <div style="padding:10px 14px;border-right:1px solid #ccc">
+        <div style="font-size:10px;color:#777;margin-bottom:3px">ลูกค้า / Customer</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:3px">${esc(cust.name||data.custName||'—')}</div>
+        ${(cust.addr||data.custAddr) ? `<div style="font-size:11px;color:#444;line-height:1.7;margin-bottom:2px">${esc(cust.addr||data.custAddr)}</div>` : ''}
+        <div style="font-size:11px;color:#444;margin-bottom:2px"><span style="color:#888">เลขประจำตัวผู้เสียภาษี </span><b style="font-family:monospace">${esc(data.custTax||cust.tax||'—')}</b>${(()=>{const b=data.custBranch||cust.branch||'head';return(!b||b==='head')?'<span style="margin-left:6px;color:#666">สำนักงานใหญ่</span>':`<span style="margin-left:6px;color:#666">สาขา ${esc(b)}</span>`;})()}</div>
+        ${cust.phone ? `<div style="font-size:11px;color:#444">โทร. ${esc(cust.phone)}</div>` : ''}
+      </div>
+      <div style="padding:10px 14px;min-width:200px;background:${ACC_LIGHT}">
+        ${(()=>{const PAY_LBL={cash:'เงินสด',transfer:'เงินโอน',credit:'เครดิต'};const pLbl=data.pay?(PAY_LBL[data.pay]||data.pay):null;
+          return [['เลขที่ / No.',`<b style="font-family:monospace;font-size:13px;color:${ACC}">${esc(data.no||data.invoice_no||'')}</b>`],['วันที่ / Date',`<b>${esc(data.dateDisplay||data.date||'')}</b>`],
+          data.thermalNo?['อ้างอิง',`<span style="font-family:monospace;font-size:11px;color:#555">${esc(data.thermalNo)}</span>`]:null,
+          data.replaces?['ออกแทนใบ',`<span style="font-family:monospace;font-size:11px;color:#c0392b;font-weight:700">${esc(data.replaces)}</span>`]:null,
+          pLbl?['ชำระเงิน',`<span style="font-weight:600">${esc(pLbl)}</span>`]:null,
+          ].filter(Boolean).map(([l,v])=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid #d0d8e8;font-size:11.5px"><span style="color:#667;white-space:nowrap">${l}</span>${v}</div>`).join('');})()}
+      </div>
+    </div>`;
+
+    const invThead = `<thead><tr>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:32px">ลำดับ<br><span style="font-size:9px;font-weight:400">No.</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center">รหัสสินค้าและรายละเอียด<br><span style="font-size:9px;font-weight:400">Code / Description</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:70px">จำนวน<br><span style="font-size:9px;font-weight:400">Quantity</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:80px">หน่วยละ<br><span style="font-size:9px;font-weight:400">Unit Price</span></th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;text-align:center;width:90px">จำนวนเงิน<br><span style="font-size:9px;font-weight:400">Amount</span></th>
+    </tr></thead>`;
+
+    const makeInvRow = (it, rowIdx) => {
+      const w=Number(it.indivWeight||it.weight||0), p=Number(it.price||it.price_per_kg||0);
+      const unit=window.unitOf?window.unitOf(it.code):{unitType:'kg',unitLabel:'KG'};
+      const isUnit=unit.unitType==='unit';
+      const qty=isUnit?w*(it.scanCount||1):(it.scanCount||1);
+      const lineTotal=isUnit?qty*p-Number(it.lineDisc||0):qty*w*p-Number(it.lineDisc||0);
+      const bg=rowIdx%2===0?'#fff':'#fafafa';
+      return `<tr style="background:${bg}">
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;text-align:center;color:#888">${rowIdx+1}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8">
+          <div style="font-size:9.5px;color:#888;font-family:monospace;margin-bottom:1px">${esc(it.code)}</div>
+          <div style="font-weight:600">${esc(it.name)}${unit.unitType!=='unit'&&w>0?' @ '+w.toFixed(3)+' kg.':''}</div>
+        </td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:center;font-weight:600">${qty}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:right">${nf(p)}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;text-align:right;font-weight:700">${nf(lineTotal)}</td>
+      </tr>`;
+    };
+
+    const invSummary = `
+    <div style="display:grid;grid-template-columns:1fr auto;border-top:2px solid #ccc">
+      <div style="padding:10px 12px;display:flex;flex-direction:column;justify-content:flex-end;border-right:1px solid #ddd">
+        <div style="font-size:10px;color:#777;margin-bottom:2px">จำนวนเงิน (ตัวอักษร)</div>
+        <div style="font-size:12px;font-weight:600">(${bahtWords})</div>
+        ${data.replaces ? `<div style="margin-top:5px;font-size:11px;color:#555">ออกแทนฉบับเลขที่ <b style="font-family:monospace">${esc(data.replaces)}</b></div>` : ''}
+      </div>
+      <div style="min-width:250px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr><td style="padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee">รวมเป็นเงิน<span style="font-size:9px;color:#888;display:block">Gross Amount</span></td><td style="padding:5px 10px;text-align:right;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(grossSale)}</td></tr>
+          ${discRows}
+          <tr><td style="padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee">ราคาสินค้า (ก่อน VAT)<span style="font-size:9px;color:#888;display:block">Taxable Amount</span></td><td style="padding:5px 10px;text-align:right;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(vatBase)}</td></tr>
+          <tr><td style="padding:5px 10px;font-size:11.5px;color:#333;border-bottom:1px solid #eee">ภาษีมูลค่าเพิ่ม 7%<span style="font-size:9px;color:#888;display:block">VAT 7%</span></td><td style="padding:5px 10px;text-align:right;font-size:12px;font-weight:600;color:#333;border-bottom:1px solid #eee">${nf(vat)}</td></tr>
+          <tr style="background:${ACC}"><td style="padding:7px 10px;font-size:12.5px;font-weight:800;color:#fff">จำนวนเงินรวมทั้งสิ้น<span style="font-size:9.5px;font-weight:400;display:block;opacity:.8">Total Invoice</span></td><td style="padding:7px 10px;text-align:right;font-size:15px;font-weight:900;color:#fff;min-width:100px">${nf(total)}</td></tr>
+        </table>
+      </div>
+    </div>`;
+
+    const invSig = `
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+      <div style="padding:10px 14px;border-right:1px solid #ccc">
+        <div style="font-size:11.5px;font-weight:600;margin-bottom:6px">ได้รับสินค้าตามรายการถูกต้องแล้ว</div>
+        <div style="margin-top:40px;border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:11px;color:#555">ผู้รับสินค้า / Goods Received by</div>
+        <div style="margin-top:8px;text-align:center;font-size:10px;color:#888">วันที่ ....... / ....... / .......</div>
+      </div>
+      <div style="padding:10px 14px;display:flex;flex-direction:column;justify-content:space-between">
+        <div style="font-size:11.5px;font-weight:600;text-align:center">${esc(co.name)}</div>
+        <div>
+          <div style="text-align:center;margin-top:32px;border-top:1px solid #bbb;padding-top:5px;font-size:11px;color:#555">ผู้รับมอบอำนาจ / Authorized Signature</div>
+          <div style="margin-top:8px;text-align:center;font-size:10px;color:#888">วันที่ ....... / ....... / .......</div>
+        </div>
+      </div>
+    </div>`;
+
+    let invPagesHtml = '';
+    invPages.forEach((pageItems, pgIdx) => {
+      const isLast = pgIdx === invTotalPg - 1;
+      const rowOffset = invPages.slice(0,pgIdx).reduce((s,p)=>s+p.length,0);
+      const rows = pageItems.map((it,i) => makeInvRow(it, rowOffset+i)).join('');
+      invPagesHtml += `
+      <div class="pg${isLast?' last':''}">
+        <div style="position:relative">
+          <div style="position:absolute;top:6px;right:0;font-size:10px;color:#bbb;font-family:monospace;z-index:1">${pgIdx+1}/${invTotalPg}</div>
+          ${invHdrHtml}
+        </div>
+        <div style="padding:10px 16px 14px">
+          ${invCustHtml}
+          <div style="border:1px solid #ccc;border-radius:6px;overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:12px">${invThead}<tbody>${rows}</tbody></table>
+            ${isLast ? invSummary : ''}
+          </div>
+          ${isLast ? invSig : ''}
+        </div>
+      </div>`;
+    });
+
+    const invStyle = `<style>
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4 portrait;margin:0}
+body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{padding:14px 18px 16px}
+@media print{.pg{page-break-after:always;padding:1cm 1.5cm}.pg.last{page-break-after:avoid}}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">`;
+    const invHtml = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">${invStyle}</head><body>${invPagesHtml}</body></html>`;
+    window._printHtml(invHtml, 'a4');
+    return;
+  }
+
+  if (type === 'adj') {
+    const ACC       = '#0f766e';
+    const ACC_LIGHT = '#f0fdfa';
+    const items   = data.items || [];
+    const nf3 = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:3,maximumFractionDigits:3});
+    const adjTypeLabel = {expired:'หมดอายุ',damage:'เสียหาย',recount:'นับใหม่',other:'อื่นๆ'}[data.adjType]||data.adjType||'—';
+
+    const ftMap = {};
+    items.forEach(it => {
+      const u = window.unitOf ? window.unitOf(it.code) : {unitType:'kg',unitLabel:'KG'};
+      const lbl = u.unitType==='kg' ? 'KG' : (u.unitLabel||'หน่วย');
+      if (!ftMap[lbl]) ftMap[lbl] = {before:0,adj:0,after:0,isKg:u.unitType==='kg'};
+      ftMap[lbl].before += Number(it.before||0);
+      ftMap[lbl].adj    += Number(it.adj||0);
+      ftMap[lbl].after  += Number(it.after||0);
+    });
+    const ftEnt = Object.entries(ftMap);
+    const fmtFt = (v,lbl,isKg) => isKg ? Math.abs(Number(v)).toFixed(3)+' '+lbl : Math.abs(Number(v)).toFixed(0)+' '+lbl;
+
+    const adjFmtU = (val, code) => {
+      const u = window.unitOf ? window.unitOf(code) : {unitType:'kg',unitLabel:'KG'};
+      const n = Number(val);
+      return u.unitType==='kg' ? Math.abs(n).toFixed(3)+' KG' : Math.abs(n)+' '+(u.unitLabel||'หน่วย');
+    };
+
+    const ADJ_ROWS_FIRST = 10, ADJ_ROWS_REST = 14;
+    const adjPages = []; let adjRem = [...items];
+    do { adjPages.push(adjRem.splice(0, adjPages.length===0 ? ADJ_ROWS_FIRST : ADJ_ROWS_REST)); } while (adjRem.length > 0);
+    if (!adjPages.length) adjPages.push([]);
+    const adjTotalPg = adjPages.length;
+
+    const adjHdrHtml = `
+    <div style="padding:14px 20px 10px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid ${ACC}">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        ${printLogoUrl ? `<img src="${esc(printLogoUrl)}" style="width:48px;height:48px;object-fit:contain;border-radius:6px;flex-shrink:0">` : ''}
+        <div>
+          <div style="font-size:16px;font-weight:800;color:#111">${esc(co.name)}</div>
+          ${co.nameEn ? `<div style="font-size:11px;font-weight:600;color:#444">${esc(co.nameEn)}</div>` : ''}
+          <div style="font-size:10.5px;color:#555;line-height:1.7;margin-top:2px">
+            ${co.addr ? `<div>${esc(co.addr)}</div>` : ''}
+            <div>โทร. ${esc(co.tel)}${co.email ? ` | ${esc(co.email)}` : ''}</div>
+            <div>เลขประจำตัวผู้เสียภาษี <b style="color:#111">${esc(co.tax)}</b> สำนักงานใหญ่</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:right;min-width:190px;flex-shrink:0">
+        <div style="font-size:22px;font-weight:900;color:${ACC};line-height:1.2">เอกสารปรับปรุงสต็อก</div>
+        <div style="font-size:11px;font-weight:600;color:#777;margin-top:2px">Stock Adjustment Document</div>
+      </div>
+    </div>`;
+
+    const adjMetaHtml = `
+    <div style="display:grid;grid-template-columns:1fr auto;margin-bottom:10px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+      <div style="padding:10px 14px">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:11.5px">
+          <span style="color:#888">ประเภท:</span><b>${esc(adjTypeLabel)}</b>
+          <span style="color:#888">เหตุผล:</span><span>${esc(data.reason||'—')}</span>
+          ${data.note ? `<span style="color:#888">หมายเหตุ:</span><span>${esc(data.note)}</span>` : ''}
+          <span style="color:#888">ผู้อนุมัติ:</span><span>${esc(data.approver||'—')}</span>
+        </div>
+      </div>
+      <div style="padding:10px 14px;background:${ACC_LIGHT};min-width:170px;border-left:1px solid #ccc">
+        <div style="font-size:10px;color:#666;margin-bottom:2px">เลขที่เอกสาร</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:800;color:${ACC};margin-bottom:6px">${esc(data.id||'')}</div>
+        <div style="font-size:10px;color:#666;margin-bottom:2px">วันที่</div>
+        <div style="font-weight:700;font-size:12px">${esc(data.dateDisplay||data.date||'')}</div>
+      </div>
+    </div>`;
+
+    const adjThead = `<thead><tr>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:32px">ลำดับ</th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center">รหัสสินค้า / รายละเอียดสินค้า</th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:110px">ก่อนปรับ</th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;border-right:1px solid rgba(255,255,255,.2);text-align:center;width:110px">ปรับ (+/-)</th>
+      <th style="padding:7px 8px;background:${ACC};color:#fff;font-weight:700;font-size:11px;text-align:center;width:110px">หลังปรับ</th>
+    </tr></thead>`;
+
+    const makeAdjRow = (it, rowIdx) => {
+      const bg = rowIdx%2===0?'#fff':'#fafafa';
+      const adjNum = Number(it.adj);
+      return `<tr style="background:${bg}">
+        <td style="padding:7px 8px;font-size:11px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:center;color:#999">${rowIdx+1}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8">
+          <div style="font-size:9.5px;color:#777;font-family:monospace;margin-bottom:1px">${esc(it.code)}</div>
+          <div style="font-weight:600">${esc(it.name)}</div>
+        </td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:right;font-family:monospace">${adjFmtU(it.before,it.code)}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;border-right:1px solid #e8e8e8;text-align:right;font-family:monospace;font-weight:700;color:${adjNum>=0?'#15803d':'#dc2626'}">${adjNum>=0?'+':'-'}${adjFmtU(it.adj,it.code)}</td>
+        <td style="padding:7px 8px;font-size:11.5px;border-bottom:1px solid #e8e8e8;text-align:right;font-family:monospace;font-weight:700">${adjFmtU(it.after,it.code)}</td>
+      </tr>`;
+    };
+
+    const adjSummary = `
+    <tr style="background:${ACC_LIGHT}">
+      <td colspan="2" style="padding:7px 8px;font-weight:700;font-size:11.5px;border-right:1px solid #ccc">รวม ${items.length} รายการ</td>
+      <td style="padding:7px 8px;text-align:right;font-family:monospace;font-weight:700;border-right:1px solid #ccc">${ftEnt.length?ftEnt.map(([lbl,g])=>`<div>${fmtFt(g.before,lbl,g.isKg)}</div>`).join(''):nf3(data.totalBefore||0)}</td>
+      <td style="padding:7px 8px;text-align:right;font-family:monospace;font-weight:800;border-right:1px solid #ccc">${ftEnt.length?ftEnt.map(([lbl,g])=>`<div style="color:${g.adj>=0?'#15803d':'#dc2626'}">${(g.adj>=0?'+':'-')+fmtFt(g.adj,lbl,g.isKg)}</div>`).join(''):nf3(data.totalAdj||0)}</td>
+      <td style="padding:7px 8px;text-align:right;font-family:monospace;font-weight:700">${ftEnt.length?ftEnt.map(([lbl,g])=>`<div>${fmtFt(g.after,lbl,g.isKg)}</div>`).join(''):nf3(data.totalAfter||0)}</td>
+    </tr>`;
+
+    const adjSig = `
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+      ${['ผู้จัดทำ / Prepared by','ผู้ตรวจสอบ / Checked by','ผู้อนุมัติ / Approved by'].map((lbl,i)=>`
+      <div style="padding:10px 14px;${i<2?'border-right:1px solid #ccc':''}">
+        <div style="margin-top:44px;border-top:1px solid #bbb;padding-top:5px;text-align:center;font-size:11px;color:#555">${lbl}</div>
+        <div style="margin-top:8px;text-align:center;font-size:10px;color:#888">วันที่ ....... / ....... / .......</div>
+      </div>`).join('')}
+    </div>`;
+
+    let adjPagesHtml = '';
+    adjPages.forEach((pageItems, pgIdx) => {
+      const isLast = pgIdx === adjTotalPg - 1;
+      const rowOffset = adjPages.slice(0,pgIdx).reduce((s,p)=>s+p.length,0);
+      const rows = pageItems.map((it,i) => makeAdjRow(it, rowOffset+i)).join('');
+      adjPagesHtml += `
+      <div class="pg${isLast?' last':''}">
+        <div style="position:relative">
+          <div style="position:absolute;top:6px;right:0;font-size:10px;color:#bbb;font-family:monospace;z-index:1">${pgIdx+1}/${adjTotalPg}</div>
+          ${adjHdrHtml}
+        </div>
+        <div style="padding:10px 16px 14px">
+          ${adjMetaHtml}
+          <table style="width:100%;border-collapse:collapse;font-size:12px;border:1px solid #ccc;border-radius:6px;overflow:hidden">
+            ${adjThead}<tbody>${rows}</tbody>
+            ${isLast ? `<tfoot>${adjSummary}</tfoot>` : ''}
+          </table>
+          ${isLast ? adjSig : ''}
+        </div>
+      </div>`;
+    });
+
+    const adjStyle = `<style>
+*{box-sizing:border-box;margin:0;padding:0}
+@page{size:A4 portrait;margin:0}
+body{font-family:'Sarabun',sans-serif;font-size:12px;color:#111;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{padding:14px 18px 16px}
+@media print{.pg{page-break-after:always;padding:1cm 1.5cm}.pg.last{page-break-after:avoid}}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">`;
+    const adjHtml = `<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">${adjStyle}</head><body>${adjPagesHtml}</body></html>`;
+    window._printHtml(adjHtml, 'a4');
+    return;
   }
 
   if (!body) return;

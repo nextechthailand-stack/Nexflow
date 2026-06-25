@@ -4621,7 +4621,7 @@ function AdjDocument({ doc, onClose, toast }) {
             เอกสารปรับปรุงสต็อก · <span style={{ fontFamily:'var(--font-mono)' }}>{doc.id}</span>
           </span>
           <div style={{ display:'flex', gap:8 }}>
-            <Button variant="bp" size="sm" icon="printer" onClick={()=>toast('info','กำลังพิมพ์เอกสาร ADJ…')}>พิมพ์</Button>
+            <Button variant="bp" size="sm" icon="printer" onClick={()=>window.printDoc('adj', doc)}>พิมพ์</Button>
             <button type="button" className="md-x" aria-label="ปิด" onClick={onClose}>✕</button>
           </div>
         </div>
@@ -4729,7 +4729,7 @@ function AdjDocument({ doc, onClose, toast }) {
 
         <div className="md-f">
           <Button variant="bg2" onClick={onClose}>ปิด</Button>
-          <Button variant="bp" icon="printer" onClick={()=>toast('info','กำลังพิมพ์เอกสาร ADJ…')}>พิมพ์ A4</Button>
+          <Button variant="bp" icon="printer" onClick={()=>window.printDoc('adj', doc)}>พิมพ์ A4</Button>
         </div>
       </div>
     </Overlay>
