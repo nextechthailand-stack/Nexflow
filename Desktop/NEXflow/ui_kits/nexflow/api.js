@@ -27,6 +27,7 @@
   /* ── map a stock_ledger row, converting 'adj' movement_type to 'in'/'out' ── */
   function mapLedgerRow(l, adjSignMap) {
     let type = l.type;
+    let refType = l.refType;
     if (type === 'adj') {
       const ch = l.channel;
       if (ch === 'increase') type = 'in';
@@ -35,12 +36,17 @@
         const signed = adjSignMap ? adjSignMap[`${l.ref}_${l.code}`] : undefined;
         type = (signed === undefined || signed >= 0) ? 'in' : 'out';
       }
+      /* Always derive refType from channel so old/new records display correctly */
+      const adjLabel = ch === 'recount' ? 'นับสต็อกใหม่'
+                     : ch === 'increase' ? 'เพิ่มสต็อก'
+                     : ch === 'decrease' ? 'ลดสต็อก' : ch;
+      refType = `ปรับปรุงสต็อก (${adjLabel})`;
     }
     return {
       dateISO: l.dateISO, date: l.date,
       time: l.time ? String(l.time).slice(0,8) : '—',
       type, code: l.code, prod: l.prod,
-      w: Number(l.w), ref: l.ref, refType: l.refType,
+      w: Number(l.w), ref: l.ref, refType,
       channel: l.channel || '—', bal: Number(l.bal),
     };
   }
