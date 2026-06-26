@@ -1184,9 +1184,9 @@ function InvoiceList({ toast }) {
 
 /* ── Adjustment type config ── */
 const ADJ_TYPES = [
-  { id:'recount',  label:'นับสต็อก',    iconName:'search',    desc:'เปรียบเทียบสต็อกจริงกับระบบ (ผลต่าง +/-)' },
-  { id:'increase', label:'เพิ่มสต็อก+', icon:'▲',             desc:'พบสต็อกเพิ่ม / รับคืน / แก้ไข' },
-  { id:'decrease', label:'ลดสต็อก−',   icon:'▼',             desc:'หมดอายุ / เสียหาย / สูญหาย' },
+  { id:'recount',  label:'นับสต็อกใหม่', iconName:'search',    desc:'เปรียบเทียบสต็อกจริงกับระบบ (ผลต่าง +/-)' },
+  { id:'increase', label:'เพิ่มสต็อก',  icon:'▲',             desc:'พบสต็อกเพิ่ม / รับคืน / แก้ไข' },
+  { id:'decrease', label:'ลดสต็อก',    icon:'▼',             desc:'หมดอายุ / เสียหาย / สูญหาย' },
 ];
 const REASON_BY_TYPE = {
   recount:  ['นับสต็อกใหม่','ตรวจนับประจำงวด','ตรวจนับประจำปี','อื่นๆ'],
@@ -1414,16 +1414,17 @@ function StockManage({ toast }) {
     if (adjType === 'recount') {
       const newCount = Math.max(0, qty);
       if (newCount <= 0) { toast('err','กรุณาใส่จำนวนที่นับได้'); return; }
-      const adj = +newCount.toFixed(4);
+      const prodStock = prod.stock || 0;
+      const adj = +(newCount - prodStock).toFixed(4);
       setAdjItems(prev => {
         const existing = prev.find(it => it.code === prod.code);
         if (existing) {
           return prev.map(it => it.code === prod.code
-            ? { ...it, newCount, adj: +newCount.toFixed(4) }
+            ? { ...it, newCount, adj: +(newCount - it.before).toFixed(4) }
             : it);
         }
         return [...prev, { key: Date.now(), code: prod.code, name: prod.name,
-                           before: 0, scannedTotal: null, newCount, adj, mode:'search' }];
+                           before: prodStock, scannedTotal: null, newCount, adj, mode:'search' }];
       });
     } else {
       if (qty === 0) { toast('err','กรุณาเลือกสินค้าและใส่ปริมาณ'); return; }
@@ -1528,7 +1529,7 @@ function StockManage({ toast }) {
           dateISO: now.toISOString().slice(0,10), date: window.fmtDate(), time: timeStr,
           type: it.adj >= 0 ? 'in' : 'out', code: it.code, prod: it.name,
           w: Math.abs(it.adj), ref: docId,
-          refType: `ปรับปรุงสต็อก (${adjReason})`, channel: adjType, bal: it.after,
+          refType: `ปรับปรุงสต็อก (${adjType==='recount'?'นับสต็อกใหม่':adjType==='increase'?'เพิ่มสต็อก':'ลดสต็อก'})`, channel: adjType, bal: it.after,
         }));
         if (!st.adjLedger) st.adjLedger = [];
         st.adjLedger = [...ledgerEntries, ...st.adjLedger];
@@ -1568,7 +1569,7 @@ function StockManage({ toast }) {
     st.adjLedger = [...resolvedItems.map(it=>({
       dateISO:now.toISOString().slice(0,10),date:window.fmtDate(),time:timeStr,
       type:it.adj>=0?'in':'out',code:it.code,prod:it.name,w:Math.abs(it.adj),
-      ref:docId,refType:`ปรับปรุงสต็อก (${adjReason})`,channel:adjType,bal:it.after,
+      ref:docId,refType:`ปรับปรุงสต็อก (${adjType==='recount'?'นับสต็อกใหม่':adjType==='increase'?'เพิ่มสต็อก':'ลดสต็อก'})`,channel:adjType,bal:it.after,
     })), ...st.adjLedger];
     const doc = {
       id:docId,date:now.toISOString().slice(0,10),dateDisplay:window.fmtDate(),
@@ -2158,7 +2159,22 @@ function StockManage({ toast }) {
                     </div>
                     {/* Running summary bar — signed net change */}
                     {(() => {
-                      const netChange = adjItems.reduce((s,it)=>s+it.adj,0);
+                      let netChange;
+                      if (adjType === 'recount') {
+                        const codeMap = {};
+                        adjItems.forEach(it => {
+                          const scanned = it.scannedTotal != null ? it.scannedTotal
+                                        : it.newCount != null ? it.newCount
+                                        : Math.abs(it.adj);
+                          codeMap[it.code] = (codeMap[it.code] || 0) + scanned;
+                        });
+                        netChange = Object.entries(codeMap).reduce((s,[code,scanned]) => {
+                          const p = D.products.find(x=>x.code===code);
+                          return s + (scanned - (p ? p.stock : 0));
+                        }, 0);
+                      } else {
+                        netChange = adjItems.reduce((s,it)=>s+it.adj,0);
+                      }
                       const isPos = netChange > 0;
                       return (
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:10, padding:'10px 12px', background:isPos?'var(--gbg)':'var(--rbg)', borderRadius:'var(--rs)', border:`1px solid ${isPos?'rgba(13,146,114,.2)':'rgba(208,48,48,.15)'}` }}>
@@ -2320,7 +2336,7 @@ function StockManage({ toast }) {
                         <td style={TD}><span style={{fontFamily:'var(--font-mono)',fontSize:12,color:'var(--rd)',fontWeight:700}}>{doc.id}</span></td>
                         <td style={{...TD,fontSize:12.5,color:'var(--t2)'}}>{doc.dateDisplay}</td>
                         <td style={TD}><span className={'bx '+(doc.adjType==='expired'?'xr':doc.adjType==='damage'?'xa':'xx')}>
-                          {{expired:'หมดอายุ',damage:'เสียหาย',recount:'นับใหม่',other:'อื่นๆ'}[doc.adjType]||doc.adjType}
+                          {{expired:'หมดอายุ',damage:'เสียหาย',recount:'นับสต็อกใหม่',increase:'เพิ่มสต็อก',decrease:'ลดสต็อก',other:'อื่นๆ'}[doc.adjType]||doc.adjType}
                         </span></td>
                         <td style={{...TD,fontSize:13,color:'var(--t2)'}}>{doc.reason}</td>
                         <td style={{...TD,textAlign:'center',fontWeight:700}}>{doc.totalItems}</td>
@@ -2457,10 +2473,10 @@ function StockManage({ toast }) {
               <div style={{ fontSize:17, fontWeight:800, marginBottom:4 }}>ยืนยันการปรับปรุงสต็อก</div>
               <div style={{ fontSize:13, color:'var(--t2)', marginBottom:12 }}>ระบบจะสร้างเอกสาร ADJ และลดสต็อกทันที</div>
               <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'12px 14px', fontSize:13, textAlign:'left', margin:'0 0 4px' }}>
-                {[['ประเภท', {expired:'หมดอายุ',damage:'เสียหาย',recount:'นับสต็อกใหม่',other:'อื่นๆ'}[adjType]||adjType],
+                {[['ประเภท', {expired:'หมดอายุ',damage:'เสียหาย',recount:'นับสต็อกใหม่',increase:'เพิ่มสต็อก',decrease:'ลดสต็อก',other:'อื่นๆ'}[adjType]||adjType],
                   ['เหตุผล', adjReason],
                   ['จำนวนรายการ', adjItems.length+' รายการ / '+new Set(adjItems.map(it=>it.code)).size+' ชนิด'],
-                  ['รวมปรับลด', '-'+window.fmtKg(adjItems.reduce((s,it)=>s+it.adj,0))],
+                  ['ผลต่างสุทธิ', (()=>{ const n=adjItems.reduce((s,it)=>s+it.adj,0); return (n>=0?'+':'')+window.fmtKg(n); })()],
                   ['ผู้รับผิดชอบ', adjApprover],
                 ].map(([l,v]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
@@ -2677,7 +2693,7 @@ function Users({ toast }) {
               <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'14px 16px', marginBottom:14, border:'1px solid var(--bd)' }}>
                 <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', marginBottom:10, letterSpacing:.4, textTransform:'uppercase' }}>ข้อมูลบัญชี</div>
                 <div className="gr c2">
-                  <Field label="ชื่อ-นามสกุล" required><input className="fc" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="ชื่อผู้ใช้งาน" /></Field>
+                  <Field label="ชื่อ" required><input className="fc" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="ชื่อผู้ใช้งาน" /></Field>
                   <Field label="Username" required><input className="fc" value={form.user} onChange={e=>setForm(f=>({...f,user:e.target.value}))} placeholder="login username" style={{ fontFamily:'var(--font-mono)' }} /></Field>
                   <div style={{ gridColumn:'1/-1' }}>
                     <Field label="อีเมล" optional><input className="fc" type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} placeholder="email@example.com (สำหรับรีเซ็ตรหัสผ่าน)" /></Field>
@@ -2693,13 +2709,13 @@ function Users({ toast }) {
               <div style={{ background:'var(--s2)', borderRadius:'var(--rs)', padding:'14px 16px', border:'1px solid var(--bd)' }}>
                 <div style={{ fontSize:12, fontWeight:700, color:'var(--t3)', marginBottom:10, letterSpacing:.4, textTransform:'uppercase' }}>รหัสผ่าน</div>
                 <div className="gr c2">
-                  <Field label="รหัสผ่าน" optional>
+                  <Field label="รหัสผ่าน" required>
                     <div style={{ position:'relative' }}>
                       <input className="fc" type={showPw?'text':'password'} value={form.password} placeholder="พิมพ์รหัสผ่าน" onChange={e=>setForm(f=>({...f,password:e.target.value}))} style={{ paddingRight:40 }} />
                       <span onClick={()=>setShowPw(s=>!s)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', cursor:'pointer', color:'var(--t3)', fontSize:11.5, userSelect:'none' }}>{showPw?'ซ่อน':'แสดง'}</span>
                     </div>
                   </Field>
-                  <Field label="ยืนยันรหัสผ่าน" optional><input className="fc" type={showPw?'text':'password'} value={form.confirmPw} placeholder="พิมพ์รหัสผ่านอีกครั้ง" onChange={e=>setForm(f=>({...f,confirmPw:e.target.value}))} /></Field>
+                  <Field label="ยืนยันรหัสผ่าน" required><input className="fc" type={showPw?'text':'password'} value={form.confirmPw} placeholder="พิมพ์รหัสผ่านอีกครั้ง" onChange={e=>setForm(f=>({...f,confirmPw:e.target.value}))} /></Field>
                 </div>
               </div>
             </div>
@@ -4558,7 +4574,7 @@ function AdjDocument({ doc, onClose, toast }) {
   const ACC_LIGHT = 'var(--abg)';
   const items = doc.items || [];
 
-  const adjTypeLabel = { expired:'หมดอายุ', damage:'เสียหาย', recount:'นับใหม่', other:'อื่นๆ' }[doc.adjType] || doc.adjType;
+  const adjTypeLabel = { expired:'หมดอายุ', damage:'เสียหาย', recount:'นับสต็อกใหม่', increase:'เพิ่มสต็อก', decrease:'ลดสต็อก', other:'อื่นๆ' }[doc.adjType] || doc.adjType;
   const netAdj = Number(doc.totalAdj || 0);
 
   const TH = { padding:'8px 10px', background:ACC, color:'#fff', fontWeight:700, fontSize:11.5,
