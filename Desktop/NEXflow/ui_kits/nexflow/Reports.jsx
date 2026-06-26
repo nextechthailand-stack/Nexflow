@@ -390,7 +390,7 @@ function Reports({ toast = ()=>{} }) {
               tivNo: iv.no||'—',
               replaces: iv.replaces||null,
               custId: iv.custId||iv.customer_id,
-              custBranch: iv.custBranch || D.customers?.find(c=>c.id===(iv.custId||iv.customer_id))?.branch || 'head',
+              custBranch: D.customers?.find(c=>c.id==(iv.custId||iv.customer_id))?.branch || iv.custBranch || 'head',
               inclTotal, vat: vatAmt,
               voided: isVoided,
             };
@@ -533,10 +533,10 @@ function Reports({ toast = ()=>{} }) {
           {taxSub==='buy' && (
             <div>
               <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginBottom:12 }}>
-                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,r.receiver||'—','สำนักงานใหญ่',$(r.inclTotal),$(r.vatAmt)]))}>
+                <button style={EXPBTN} onClick={()=>window.exportCSV('vat_buy.csv',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','ผู้รับสินค้า','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,r.receiver||'—',branchLabel(D.company?.branch||'head'),$(r.inclTotal),$(r.vatAmt)]))}>
                   <Icon name="download" size={13}/> CSV
                 </button>
-                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,'สำนักงานใหญ่',$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
+                <button style={EXPBTN} onClick={()=>window.exportPDF('รายงานภาษีซื้อ',['ลำดับ','วันที่','เลขที่เอกสาร','ชื่อบริษัท','สาขาที่','มูลค่าสินค้า','จำนวนเงินภาษี'],taxBuyRows.map((r,i)=>[i+1,r.dateDisplay||r.date,r.id,D.company.name,branchLabel(D.company?.branch||'head'),$(r.inclTotal),$(r.vatAmt)]),`รวม ${taxBuyRows.length} ใบ | VAT ${$(taxBuyTotVat)} | มูลค่ารวม ${$(taxBuyTotIncl)}`)}>
                   <Icon name="printer" size={13}/> PDF
                 </button>
               </div>
@@ -572,7 +572,7 @@ function Reports({ toast = ()=>{} }) {
                             </td>
                             <td style={{ ...TD, fontSize:12, color:'var(--t2)' }}>{D.company.name}</td>
                             <td style={TD}>{r.receiver||'—'}</td>
-                            <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>สนญ.</td>
+                            <td style={{ ...TD, textAlign:'center', fontSize:12, color:'var(--t2)' }}>{branchLabel(D.company?.branch||'head')}</td>
                             <td style={{ ...TDR, fontWeight:700 }}>{$(r.inclTotal)}</td>
                             <td style={{ ...TDR, color:'var(--ac)', fontWeight:700 }}>{$(r.vatAmt)}</td>
                           </tr>
