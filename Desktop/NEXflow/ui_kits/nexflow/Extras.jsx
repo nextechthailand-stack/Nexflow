@@ -2972,6 +2972,7 @@ function Settings({ toast }) {
           await window.SP_API.saveCompany({
             name: co.name, address: co.addr, tax_id: co.tax,
             tel: co.tel, email: co.email || '', vat_rate: parseFloat(co.vat) || 0,
+            logo_url: logoUrl || null,
             receipt_printer: co.receiptPrinter || '',
             a4_printer: co.a4Printer || '',
             prefix_grn: docPfx.grn, prefix_adj: docPfx.adj, prefix_iss: docPfx.iss,
