@@ -124,13 +124,16 @@
         // Allocate invoice-level discount proportionally
         const lineDisc   = totalItemGross > 0 ? invDisc * (lineGross / totalItemGross) : 0;
         const lineNet    = lineGross - lineDisc;
-        const lineVat    = it.tax === 'vat7' ? lineNet * 7 / 107 : 0;
+        const lineVat    = it.tax === 'vat7'      ? lineNet * 7 / 107   // VAT included → extract
+                         : it.tax === 'vat7_excl' ? lineNet * 0.07      // VAT excluded → add on top
+                         : 0;
+        const lineTotal  = it.tax === 'vat7_excl' ? lineNet + lineVat : lineNet;
         rows.push({
           dateISO, date: dateDisplay, inv: invNo,
           thermalInv: inv.thermalNo || invNo,
           code: it.code || '—', prod: it.name || '—', channel, custId,
           w, grossSale: lineGross, discount: lineDisc,
-          netSale: lineNet, vat: lineVat, total: lineNet, pay,
+          netSale: lineNet, vat: lineVat, total: lineTotal, pay,
         });
       });
     });
