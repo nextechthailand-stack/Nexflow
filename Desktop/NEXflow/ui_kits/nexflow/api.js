@@ -124,8 +124,8 @@
         // Allocate invoice-level discount proportionally
         const lineDisc   = totalItemGross > 0 ? invDisc * (lineGross / totalItemGross) : 0;
         const lineNet    = lineGross - lineDisc;
-        const lineVat    = it.tax === 'vat7'      ? lineNet * 7 / 107   // VAT included → extract
-                         : it.tax === 'vat7_excl' ? lineNet * 0.07      // VAT excluded → add on top
+        const lineVat    = it.tax === 'vat7'      ? lineNet   * 7 / 107  // VAT included → extract
+                         : it.tax === 'vat7_excl' ? lineGross * 0.07    // VAT excluded → on gross (pre-discount)
                          : 0;
         const lineTotal  = it.tax === 'vat7_excl' ? lineNet + lineVat : lineNet;
         rows.push({
