@@ -2026,17 +2026,17 @@ function StockManage({ toast }) {
                           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginTop:4, marginBottom:14 }}>
                             <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', padding:'8px 10px', textAlign:'center' }}>
                               <div style={{ fontSize:10.5, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>ของเดิม</div>
-                              <div style={{ fontSize:15, fontWeight:800, color:'var(--t2)', marginTop:2 }}>{before.toFixed(2)}</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:'var(--t2)', marginTop:2 }}>{before.toFixed(3)}</div>
                             </div>
                             <div style={{ background:'var(--sur)', border:'1px solid var(--bd)', borderRadius:'var(--rs)', padding:'8px 10px', textAlign:'center' }}>
                               <div style={{ fontSize:10.5, fontWeight:700, color:'var(--t3)', textTransform:'uppercase', letterSpacing:'.04em' }}>หลังปรับ</div>
-                              <div style={{ fontSize:15, fontWeight:800, color:'var(--ac)', marginTop:2 }}>{Math.max(0,after).toFixed(2)}</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:'var(--ac)', marginTop:2 }}>{Math.max(0,after).toFixed(3)}</div>
                             </div>
                             <div style={{ background:toneBg, border:`1px solid ${toneColor}33`, borderRadius:'var(--rs)', padding:'8px 10px', textAlign:'center' }}>
                               <div style={{ fontSize:10.5, fontWeight:700, color:toneColor, textTransform:'uppercase', letterSpacing:'.04em' }}>
                                 {diff>0?'เพิ่มขึ้น':diff<0?'ลดลง':'ไม่เปลี่ยน'}
                               </div>
-                              <div style={{ fontSize:15, fontWeight:800, color:toneColor, marginTop:2 }}>{Math.abs(diff).toFixed(2)}</div>
+                              <div style={{ fontSize:15, fontWeight:800, color:toneColor, marginTop:2 }}>{Math.abs(diff).toFixed(3)}</div>
                             </div>
                           </div>
                           <Button variant="bp" onClick={addSearchItem} icon="check" style={{ width:'100%', justifyContent:'center' }}>เพิ่มรายการนี้</Button>
