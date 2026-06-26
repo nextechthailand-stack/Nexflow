@@ -1890,7 +1890,7 @@ function StockManage({ toast }) {
                               </span>
                             </td>
                             <td style={{ padding:'9px 12px' }}>
-                              <span style={{ fontSize:11.5, fontWeight:700, color:doc.type==='in'?'var(--gn)':doc.type==='adj'?'var(--pu)':'var(--rd)' }}>
+                              <span style={{ fontSize:11.5, fontWeight:700, color:doc.type==='in'?'var(--gn)':'var(--rd)' }}>
                                 {doc.refType}
                               </span>
                             </td>
@@ -1901,7 +1901,7 @@ function StockManage({ toast }) {
                               }
                             </td>
                             <td style={{ padding:'9px 14px', textAlign:'right', color:'var(--gn)', fontWeight:700, whiteSpace:'nowrap' }}>
-                              {doc.type==='in'||doc.type==='adj'?window.fmtItemQty(doc.totalW,pg.code):'—'}
+                              {doc.type==='in'?window.fmtItemQty(doc.totalW,pg.code):'—'}
                             </td>
                             <td style={{ padding:'9px 14px', textAlign:'right', color:'var(--rd)', fontWeight:700, whiteSpace:'nowrap' }}>
                               {doc.type==='out'?window.fmtItemQty(doc.totalW,pg.code):'—'}
@@ -2012,14 +2012,14 @@ function StockManage({ toast }) {
                       let after, diff, qtyLabel, qtyPlaceholder, tone;
                       if (adjType === 'recount') {
                         after = qtyNum; diff = qtyNum - before;
-                        qtyLabel = 'สต็อกใหม่ที่นับได้ (KG)'; qtyPlaceholder = 'ระบุจำนวนที่นับได้จริง';
+                        qtyLabel = 'สต็อกใหม่ที่นับได้'; qtyPlaceholder = 'ระบุจำนวนที่นับได้จริง';
                         tone = diff > 0 ? 'gn' : diff < 0 ? 'rd' : 't3';
                       } else if (adjType === 'increase') {
                         after = before + Math.abs(qtyNum); diff = Math.abs(qtyNum);
-                        qtyLabel = 'จำนวนที่เพิ่ม (KG) ▲'; qtyPlaceholder = 'เช่น 5.000'; tone = 'gn';
+                        qtyLabel = 'จำนวนที่เพิ่ม ▲'; qtyPlaceholder = 'เช่น 5.000'; tone = 'gn';
                       } else {
                         after = Math.max(0, before - Math.abs(qtyNum)); diff = -Math.abs(qtyNum);
-                        qtyLabel = 'จำนวนที่ลด (KG) ▼'; qtyPlaceholder = 'เช่น 5.000'; tone = 'rd';
+                        qtyLabel = 'จำนวนที่ลด ▼'; qtyPlaceholder = 'เช่น 5.000'; tone = 'rd';
                       }
                       const toneColor = tone==='gn' ? 'var(--gn)' : tone==='rd' ? 'var(--rd)' : 'var(--t3)';
                       const toneBg    = tone==='gn' ? 'var(--gbg)' : tone==='rd' ? 'var(--rbg)' : 'var(--s2)';
@@ -2043,8 +2043,10 @@ function StockManage({ toast }) {
                               <div style={{ fontSize:15, fontWeight:800, color:'var(--ac)', marginTop:2 }}>{Math.max(0,after).toFixed(2)}</div>
                             </div>
                             <div style={{ background:toneBg, border:`1px solid ${toneColor}33`, borderRadius:'var(--rs)', padding:'8px 10px', textAlign:'center' }}>
-                              <div style={{ fontSize:10.5, fontWeight:700, color:toneColor, textTransform:'uppercase', letterSpacing:'.04em' }}>ผลต่าง</div>
-                              <div style={{ fontSize:15, fontWeight:800, color:toneColor, marginTop:2 }}>{diff>0?'+':''}{diff.toFixed(2)}</div>
+                              <div style={{ fontSize:10.5, fontWeight:700, color:toneColor, textTransform:'uppercase', letterSpacing:'.04em' }}>
+                                {diff>0?'เพิ่มขึ้น':diff<0?'ลดลง':'ไม่เปลี่ยน'}
+                              </div>
+                              <div style={{ fontSize:15, fontWeight:800, color:toneColor, marginTop:2 }}>{Math.abs(diff).toFixed(2)}</div>
                             </div>
                           </div>
                           <Button variant="bp" onClick={addSearchItem} icon="check" style={{ width:'100%', justifyContent:'center' }}>เพิ่มรายการนี้</Button>
@@ -2140,7 +2142,7 @@ function StockManage({ toast }) {
                             {adjType === 'recount' ? (
                               <div style={{ padding:'4px 6px', background:isInc?'var(--gbg)':isDec?'var(--rbg)':'var(--s2)', borderRadius:'var(--rs)', fontSize:12.5, fontWeight:800, color:isInc?'var(--gn)':isDec?'var(--rd)':'var(--t3)', textAlign:'center', letterSpacing:'.02em' }}>
                                 {it.adj!==0
-                                  ? `${it.adj>0?'+':'-'}${window.fmtItemQty(Math.abs(it.adj),it.code)}`
+                                  ? window.fmtItemQty(Math.abs(it.adj),it.code)
                                   : `±${window.fmtItemQty(0,it.code)}`}
                               </div>
                             ) : (
