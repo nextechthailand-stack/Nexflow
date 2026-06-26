@@ -3,11 +3,17 @@ chcp 65001 >nul
 setlocal EnableDelayedExpansion
 title NEXflow - Step 1: Install Software
 
-:: ขอสิทธิ์ Admin อัตโนมัติ
+:: โหมด auto (เรียกจากตัวติดตั้ง .exe) = ไม่ pause ไม่ถามอะไร
+set "NOPAUSE="
+if /i "%~1"=="auto" set "NOPAUSE=1"
+
+:: ขอสิทธิ์ Admin อัตโนมัติ (เฉพาะตอน double-click เอง)
 net session >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo กำลังขอสิทธิ์ผู้ดูแลระบบ...
-    powershell -Command "Start-Process cmd -ArgumentList '/c \"%~f0\"' -Verb RunAs"
+    if not defined NOPAUSE (
+        echo กำลังขอสิทธิ์ผู้ดูแลระบบ...
+        powershell -Command "Start-Process cmd -ArgumentList '/c \"%~f0\"' -Verb RunAs"
+    )
     exit /b
 )
 
@@ -21,19 +27,21 @@ echo   [1] Node.js LTS     -- สำหรับ API server ของ NEXflow
 echo   [2] Git for Windows -- มี Perl ในตัว สำหรับ Web server
 echo   [3] PostgreSQL 18   -- ฐานข้อมูล (รหัสผ่าน postgres: 1234)
 echo.
-echo กด Enter เพื่อเริ่มติดตั้ง...
-pause >nul
+
+if not defined NOPAUSE (
+    echo กด Enter เพื่อเริ่มติดตั้ง...
+    pause >nul
+)
 
 :: ตรวจสอบ winget
 where winget >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [!] ไม่พบ winget บนเครื่องนี้
-    echo     กรุณาทำอย่างใดอย่างหนึ่ง:
-    echo     - อัปเดต Windows ให้เป็นเวอร์ชันล่าสุด
-    echo     - หรือค้นหา "App Installer" ใน Microsoft Store แล้วติดตั้ง
+    echo     กรุณาอัปเดต Windows หรือติดตั้ง "App Installer" จาก Microsoft Store
     echo.
-    pause & exit /b 1
+    if not defined NOPAUSE pause
+    exit /b 1
 )
 
 echo.
@@ -74,22 +82,19 @@ if %PG_ERR% equ 0 (
     echo.
     echo ============================================================
     echo  [!] PostgreSQL ติดตั้งอัตโนมัติไม่สำเร็จ
-    echo      กรุณาติดตั้งด้วยตนเอง:
-    echo.
-    echo  1. ไปที่: https://www.postgresql.org/download/windows/
-    echo  2. ดาวน์โหลด PostgreSQL 18 ^(Windows x86-64^)
-    echo  3. ติดตั้ง -- ตั้งรหัสผ่าน postgres เป็น: 1234
-    echo  4. Port: 5432 ^(ค่าเริ่มต้น อย่าเปลี่ยน^)
-    echo  5. กลับมารัน 2_setup_database.bat หลังติดตั้งเสร็จ
+    echo      ติดตั้งเองจาก https://www.postgresql.org/download/windows/
+    echo      ตั้งรหัสผ่าน postgres = 1234, Port = 5432
     echo ============================================================
-    pause & exit /b 1
+    if not defined NOPAUSE pause
+    exit /b 1
 )
 
 echo.
 echo ============================================================
 echo  ติดตั้งโปรแกรมทั้งหมดเสร็จสิ้น!
-echo.
-echo  ขั้นตอนต่อไป:
-echo  ดับเบิลคลิกที่ 2_setup_database.bat
 echo ============================================================
-pause
+if not defined NOPAUSE (
+    echo  ขั้นตอนต่อไป: ดับเบิลคลิก 2_setup_database.bat
+    pause
+)
+exit /b 0

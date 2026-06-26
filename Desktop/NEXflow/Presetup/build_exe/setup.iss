@@ -1,4 +1,4 @@
-; ============================================================
+﻿; ============================================================
 ;  NEXflow Setup Script — Inno Setup 6.x
 ;  วิธีใช้: ดู HOW_TO_BUILD_EXE.md
 ;  Output: Presetup\build_exe\Output\NEXflow_Setup.exe
@@ -59,25 +59,21 @@ Name: "{group}\เปิด NEXflow";           Filename: "{app}\start-desktop.b
 Name: "{group}\ถอนการติดตั้ง NEXflow"; Filename: "{uninstallexe}"
 
 [Run]
-; ขั้นที่ 1: ติดตั้ง Node.js, Git, PostgreSQL (ต้องการ Internet)
-Filename: "{app}\Presetup\1_install_software.bat"; \
-  Description: "ติดตั้งโปรแกรมที่จำเป็น (Node.js, Git, PostgreSQL 18)"; \
-  Flags: postinstall runascurrentuser waituntilterminated; \
-  Check: IsFirstSetup
+; รันอัตโนมัติระหว่างติดตั้ง (เฉพาะครั้งแรก) — ผู้ใช้แค่กด Next > Next > Finish
+; Parameters "auto" = สคริปต์จะไม่ pause/ไม่ถามอะไร
+Filename: "{app}\Presetup\1_install_software.bat"; Parameters: "auto"; \
+  StatusMsg: "กำลังติดตั้ง Node.js, Git, PostgreSQL 18 (อาจใช้เวลาหลายนาที กรุณารอ)..."; \
+  Flags: waituntilterminated; Check: IsFirstSetup
 
-; ขั้นที่ 2: สร้างฐานข้อมูล
-Filename: "{app}\Presetup\2_setup_database.bat"; \
-  Description: "ตั้งค่าฐานข้อมูล (ทำครั้งเดียว)"; \
-  Flags: postinstall runascurrentuser waituntilterminated; \
-  Check: IsFirstSetup
+Filename: "{app}\Presetup\2_setup_database.bat"; Parameters: "auto"; \
+  StatusMsg: "กำลังตั้งค่าฐานข้อมูล..."; \
+  Flags: waituntilterminated; Check: IsFirstSetup
 
-; ขั้นที่ 3: เปิด Firewall port
-Filename: "{app}\Presetup\3_open_firewall.bat"; \
-  Description: "เปิด Port สำหรับเครื่องอื่นในร้าน"; \
-  Flags: postinstall runascurrentuser waituntilterminated; \
-  Check: IsFirstSetup
+Filename: "{app}\Presetup\3_open_firewall.bat"; Parameters: "auto"; \
+  StatusMsg: "กำลังเปิด Port สำหรับเครือข่ายในร้าน..."; \
+  Flags: waituntilterminated; Check: IsFirstSetup
 
-; เปิดแอปทันทีหลังติดตั้ง
+; เปิดแอปทันที — เป็น checkbox บนหน้า Finish
 Filename: "{app}\start-desktop.bat"; \
   Description: "เปิด NEXflow ทันที"; \
   Flags: postinstall nowait skipifsilent
