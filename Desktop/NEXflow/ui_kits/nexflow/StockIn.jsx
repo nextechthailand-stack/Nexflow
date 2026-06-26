@@ -10,9 +10,12 @@ function GrnDoc({ grn, onClose }) {
 
   const vatInclBase = grn.items.filter(i => i.tax === 'vat7').reduce((s,i) => s + i.value, 0);
   const vatExclBase = grn.items.filter(i => i.tax === 'vat7_excl').reduce((s,i) => s + i.value, 0);
-  const vat       = (vatInclBase * 7 / 107) + (vatExclBase * 7 / 100);
+  const vatExclVAT = vatExclBase * 7 / 100;
+  const vat        = (vatInclBase * 7 / 107) + vatExclVAT;
   const totalValue = Number(grn.totalValue || 0);
-  const preVat    = totalValue - vat;
+  // vat7_excl: ราคาในไอเทมคือ Net (excl VAT) ดังนั้น grand total ต้องบวก VAT เพิ่ม
+  const grandTotal = totalValue + vatExclVAT;
+  const preVat     = grandTotal - vat;
 
   const mergeMap = {};
   const orderedKeys = [];
@@ -182,7 +185,7 @@ function GrnDoc({ grn, onClose }) {
                           )}
                           <div style={{ marginTop:'auto' }}>
                             <div style={{ fontSize:10.5, color:'#777', marginBottom:3 }}>จำนวนเงิน (ตัวอักษร)</div>
-                            <div style={{ fontSize:12.5, fontWeight:600, color:'#111' }}>{window.bahtText ? window.bahtText(totalValue) : ''}</div>
+                            <div style={{ fontSize:12.5, fontWeight:600, color:'#111' }}>{window.bahtText ? window.bahtText(grandTotal) : ''}</div>
                           </div>
                         </div>
                         <div style={{ width:250, flexShrink:0 }}>
@@ -202,7 +205,7 @@ function GrnDoc({ grn, onClose }) {
                               </tr>
                               <tr style={{ background:ACC }}>
                                 <td style={{ padding:'8px 12px', fontSize:13, fontWeight:800, color:'#fff' }}>มูลค่ารวมทั้งสิ้น<span style={{ fontSize:10, fontWeight:400, display:'block', opacity:.8 }}>Total Amount</span></td>
-                                <td style={{ padding:'8px 12px', textAlign:'right', fontSize:16, fontWeight:900, color:'#fff', minWidth:110 }}>{fmtN(totalValue)}</td>
+                                <td style={{ padding:'8px 12px', textAlign:'right', fontSize:16, fontWeight:900, color:'#fff', minWidth:110 }}>{fmtN(grandTotal)}</td>
                               </tr>
                             </tbody>
                           </table>
