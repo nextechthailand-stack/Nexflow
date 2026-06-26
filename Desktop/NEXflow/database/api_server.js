@@ -248,7 +248,7 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
                  THEN ROUND((ii.line_gross - CASE WHEN i.gross_sale>0 THEN ROUND(i.discount*ii.line_gross/i.gross_sale,4) ELSE 0 END)*7/107,4)
                  ELSE 0 END AS vat7
      FROM invoices i JOIN invoice_items ii ON ii.invoice_id=i.id
-     WHERE i.is_voided=FALSE AND i.invoice_type NOT IN ('INV')`,
+     WHERE i.is_voided=FALSE AND i.invoice_type NOT IN ('INV') AND i.channel NOT IN ('sample','expired','other')`,
 
     /* Tab 2: ภาษีซื้อ-ขาย */
     `CREATE OR REPLACE VIEW v_rpt_tax AS
@@ -258,7 +258,8 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
             COALESCE(i.customer_tax_id,'') AS customer_tax_id,
             i.gross_sale, i.discount, i.net_sale, i.vat_base, i.vat7, i.total,
             i.payment_method, i.status, i.ref_invoice_no, i.note
-     FROM invoices i WHERE i.is_voided=FALSE
+     FROM invoices i
+     WHERE i.is_voided=FALSE AND i.invoice_type NOT IN ('INV') AND i.channel NOT IN ('sample','expired','other')
      ORDER BY i.invoice_date DESC, i.invoice_no`,
 
     /* Tab 3: Daily Sale */
@@ -271,11 +272,9 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
             SUM(CASE WHEN payment_method='transfer' THEN total ELSE 0 END) AS transfer,
             SUM(CASE WHEN payment_method='credit'   THEN total ELSE 0 END) AS credit,
             SUM(CASE WHEN channel='wholesale' THEN total ELSE 0 END) AS wholesale,
-            SUM(CASE WHEN channel='online'    THEN total ELSE 0 END) AS online,
-            SUM(CASE WHEN channel='sample'    THEN total ELSE 0 END) AS sample,
-            SUM(CASE WHEN channel='expired'   THEN total ELSE 0 END) AS expired,
-            SUM(CASE WHEN channel='other'     THEN total ELSE 0 END) AS other
-     FROM invoices WHERE is_voided=FALSE AND invoice_type NOT IN ('INV')
+            SUM(CASE WHEN channel='online'    THEN total ELSE 0 END) AS online
+     FROM invoices
+     WHERE is_voided=FALSE AND invoice_type NOT IN ('INV') AND channel NOT IN ('sample','expired','other')
      GROUP BY invoice_date ORDER BY invoice_date DESC`,
 
     /* Tab 4: Payment */
@@ -284,7 +283,8 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
             COUNT(DISTINCT invoice_no) AS bill_count,
             SUM(net_sale) AS net, SUM(vat7) AS vat, SUM(total) AS total,
             ROUND(SUM(total)*100.0/NULLIF(SUM(SUM(total)) OVER(),0),2) AS pct
-     FROM invoices WHERE is_voided=FALSE AND invoice_type NOT IN ('INV')
+     FROM invoices
+     WHERE is_voided=FALSE AND invoice_type NOT IN ('INV') AND channel NOT IN ('sample','expired','other')
      GROUP BY payment_method ORDER BY total DESC`,
 
     /* Tab 5: % Discount */
@@ -295,7 +295,7 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
             CASE WHEN i.gross_sale>0 THEN ROUND(i.discount/i.gross_sale*100,2) ELSE 0 END AS discount_pct,
             i.payment_method
      FROM invoices i
-     WHERE i.is_voided=FALSE AND i.discount>0 AND i.invoice_type NOT IN ('INV')
+     WHERE i.is_voided=FALSE AND i.discount>0 AND i.invoice_type NOT IN ('INV') AND i.channel NOT IN ('sample','expired','other')
      ORDER BY i.invoice_date DESC`,
 
     /* Tab 6: รายลูกค้า */
@@ -315,7 +315,7 @@ if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
      FROM invoices i
      LEFT JOIN customers     c  ON c.id=i.customer_id
      LEFT JOIN invoice_items ii ON ii.invoice_id=i.id
-     WHERE i.is_voided=FALSE AND i.invoice_type NOT IN ('INV')
+     WHERE i.is_voided=FALSE AND i.invoice_type NOT IN ('INV') AND i.channel NOT IN ('sample','expired','other')
      GROUP BY i.customer_id,c.code,i.customer_name,c.type,i.customer_tax_id,c.tel,c.address
      ORDER BY total_amount DESC`,
   ];

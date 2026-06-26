@@ -363,6 +363,8 @@ function Reports({ toast = ()=>{} }) {
           .filter(iv => {
             const t = iv.type||'';
             if (t==='A4'||t==='INV') return false;
+            const ch = iv.channel||'';
+            if (ch==='sample'||ch==='expired'||ch==='other') return false;
             const d = (iv.date||'').slice(0,10);
             if (dateFrom && d < dateFrom) return false;
             if (dateTo   && d > dateTo)   return false;
