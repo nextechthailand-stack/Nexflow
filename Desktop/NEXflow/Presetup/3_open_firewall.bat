@@ -1,5 +1,6 @@
 @echo off
-title NEXflow -- ขั้นที่ 3: เปิด Port สำหรับ LAN
+chcp 65001 >nul
+title NEXflow - Step 3: Open Firewall Ports
 
 :: ขอสิทธิ์ Admin อัตโนมัติ
 net session >nul 2>&1

@@ -1,6 +1,7 @@
 @echo off
+chcp 65001 >nul
 setlocal EnableDelayedExpansion
-title NEXflow -- ขั้นที่ 2: ตั้งค่าฐานข้อมูล
+title NEXflow - Step 2: Setup Database
 
 :: ขอสิทธิ์ Admin อัตโนมัติ
 net session >nul 2>&1

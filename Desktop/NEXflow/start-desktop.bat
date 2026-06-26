@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 title NexFlow Desktop
 
 set ROOT=%~dp0
@@ -8,28 +9,28 @@ echo  NexFlow Desktop - Starting...
 echo ============================================
 echo.
 
-:: โหลด PATH ล่าสุดจาก registry (กรณีเพิ่ง install Node.js มา)
-for /f "usebackq tokens=2,*" %%A in (`reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul`) do set "SYS_PATH=%%B"
-if defined SYS_PATH set "PATH=%SYS_PATH%;%PATH%"
+:: Refresh system PATH via PowerShell (handles fresh winget installs)
+for /f "delims=" %%i in ('powershell -NoProfile -Command "[System.Environment]::ExpandEnvironmentVariables([System.Environment]::GetEnvironmentVariable(\"PATH\",\"Machine\"))" 2^>nul') do set "MACHINE_PATH=%%i"
+if defined MACHINE_PATH set "PATH=%MACHINE_PATH%;%PATH%"
 
-:: หา node.exe — ลอง PATH ก่อน แล้ว fallback ไป install path ตรงๆ
-where node >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    if exist "C:\Program Files\nodejs\node.exe" (
-        set "PATH=C:\Program Files\nodejs;%PATH%"
-    ) else if exist "%ProgramFiles%\nodejs\node.exe" (
-        set "PATH=%ProgramFiles%\nodejs;%PATH%"
-    ) else (
-        echo.
-        echo ERROR: Node.js not found.
-        echo กรุณาติดตั้ง Node.js ก่อน:
-        echo   1. เปิดโฟลเดอร์ Presetup
-        echo   2. ดับเบิลคลิก 1_install_software.bat
-        echo   3. รอให้เสร็จแล้วเปิด start-desktop.bat ใหม่
-        echo.
-        pause
-        exit /b 1
-    )
+:: Find node.exe — check PATH, then common install locations
+set NODE_OK=0
+where node >nul 2>&1 && set NODE_OK=1
+if "%NODE_OK%"=="0" if exist "C:\Program Files\nodejs\node.exe"       set "PATH=C:\Program Files\nodejs;%PATH%" & set NODE_OK=1
+if "%NODE_OK%"=="0" if exist "%ProgramFiles%\nodejs\node.exe"         set "PATH=%ProgramFiles%\nodejs;%PATH%"   & set NODE_OK=1
+if "%NODE_OK%"=="0" if exist "C:\Program Files (x86)\nodejs\node.exe" set "PATH=C:\Program Files (x86)\nodejs;%PATH%" & set NODE_OK=1
+
+if "%NODE_OK%"=="0" (
+    echo.
+    echo ERROR: Node.js not found.
+    echo.
+    echo Please open the Presetup folder and run:
+    echo   1_install_software.bat
+    echo.
+    echo Then close this window and run start-desktop.bat again.
+    echo.
+    pause
+    exit /b 1
 )
 
 if not exist "%ROOT%database\node_modules" (

@@ -1,5 +1,6 @@
 @echo off
-title NEXflow -- IP เครื่อง Server นี้
+chcp 65001 >nul
+title NEXflow - Server IP
 
 powershell -NoProfile -Command ^
   "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -ne 'WellKnown'} | Select-Object -First 1).IPAddress" ^

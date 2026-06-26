@@ -1,6 +1,7 @@
 @echo off
+chcp 65001 >nul
 setlocal EnableDelayedExpansion
-title NEXflow — ขั้นที่ 1: ติดตั้งโปรแกรมที่จำเป็น
+title NEXflow - Step 1: Install Software
 
 :: ขอสิทธิ์ Admin อัตโนมัติ
 net session >nul 2>&1
