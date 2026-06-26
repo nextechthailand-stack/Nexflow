@@ -127,13 +127,16 @@
         const lineVat    = it.tax === 'vat7'      ? lineNet   * 7 / 107  // VAT included → extract
                          : it.tax === 'vat7_excl' ? lineGross * 0.07    // VAT excluded → on gross (pre-discount)
                          : 0;
-        const lineTotal  = it.tax === 'vat7_excl' ? lineNet + lineVat : lineNet;
+        // Normalize report columns to excl-VAT basis so Gross-Disc=Net and Net+VAT=Total for all tax types
+        // vat7: price contains VAT → scale by 100/107; vat7_excl/nonvat: already excl-VAT → factor=1
+        const f          = it.tax === 'vat7' ? 100 / 107 : 1;
+        const lineTotal  = lineNet * f + lineVat;   // = lineNet (vat7) or lineNet+lineVat (excl/nonvat)
         rows.push({
           dateISO, date: dateDisplay, inv: invNo,
           thermalInv: inv.thermalNo || invNo,
           code: it.code || '—', prod: it.name || '—', channel, custId,
-          w, grossSale: lineGross, discount: lineDisc,
-          netSale: lineNet, vat: lineVat, total: lineTotal, pay,
+          w, grossSale: lineGross * f, discount: lineDisc * f,
+          netSale: lineNet * f, vat: lineVat, total: lineTotal, pay,
         });
       });
     });
