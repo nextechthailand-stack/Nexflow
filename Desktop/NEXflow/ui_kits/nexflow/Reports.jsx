@@ -378,8 +378,8 @@ function Reports({ toast = ()=>{} }) {
               const gross    = Number(it.weight||0)*Number(it.price||it.price_per_kg||0);
               const lineDisc = totalGross>0 ? disc*(gross/totalGross) : 0;
               const lineNet  = gross - lineDisc;
-              if (it.tax==='vat7')      { inclTotal+=lineNet;        vatAmt+=lineNet*7/107; }
-              else if (it.tax==='vat7_excl') { inclTotal+=lineNet*1.07; vatAmt+=lineNet*0.07; }
+              if (it.tax==='vat7')      { inclTotal+=lineNet;             vatAmt+=lineNet*7/107; }
+              else if (it.tax==='vat7_excl') { inclTotal+=lineNet+gross*0.07; vatAmt+=gross*0.07; }
               else                        { inclTotal+=lineNet; }
             });
             if (!items.length) { inclTotal=Number(iv.total||0); vatAmt=Number(iv.vat7||0); }
@@ -390,7 +390,7 @@ function Reports({ toast = ()=>{} }) {
               tivNo: iv.no||'—',
               replaces: iv.replaces||null,
               custId: iv.custId||iv.customer_id,
-              custBranch: iv.custBranch || 'head',
+              custBranch: iv.custBranch || D.customers?.find(c=>c.id===(iv.custId||iv.customer_id))?.branch || 'head',
               inclTotal, vat: vatAmt,
               voided: isVoided,
             };
