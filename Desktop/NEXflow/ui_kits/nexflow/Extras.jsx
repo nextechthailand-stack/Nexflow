@@ -1488,9 +1488,11 @@ function StockManage({ toast }) {
     const resolvedItems = itemsToResolve.map(it => {
       const prod   = D.products.find(p => p.code === it.code);
       const before = prod ? prod.stock : (it.before || 0);
-      /* recount: adj = scannedTotal (absolute count from 0), so after = scannedTotal */
+      /* recount: after = scannedTotal (scan mode) OR newCount (search mode) */
       const after  = adjType === 'recount'
-        ? Math.max(0, it.scannedTotal != null ? it.scannedTotal : Math.abs(it.adj))
+        ? Math.max(0, it.scannedTotal != null ? it.scannedTotal
+                     : it.newCount    != null ? it.newCount
+                     : Math.abs(it.adj))
         : Math.max(0, before + it.adj);
       const adj    = +(after - before).toFixed(4);
       return { ...it, before, after, adj };
