@@ -255,7 +255,7 @@ function StockOut({ toast }) {
   const inputRef = React.useRef(null);
   const seqRef = React.useRef(0);
 
-  const filteredCusts = D.customers.filter(c => custSearch === '' || c.name.toLowerCase().includes(custSearch.toLowerCase()));
+  const filteredCusts = D.customers.filter(c => c.is_active !== false && (custSearch === '' || c.name.toLowerCase().includes(custSearch.toLowerCase())));
   const selectedCust = D.customers.find(c => c.id === custId);
   const typeInfo = SALE_TYPES.find(t => t.id === saleType);
 

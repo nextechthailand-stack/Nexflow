@@ -648,10 +648,14 @@ app.post('/api/invoices', async (req, res) => {
           );
           // Ledger entry
           const bal = await client.query(`SELECT stock_qty FROM products WHERE code = $1`, [it.code]);
+          const outRefType = channel === 'sample'  ? 'ตัดสต็อก (Sample)'
+                           : channel === 'expired' ? 'ตัดสต็อก (Expired)'
+                           : channel === 'other'   ? 'ตัดสต็อก (Other)'
+                           : 'ขายออก';
           await client.query(
             `INSERT INTO stock_ledger (product_code, product_name, movement_type, quantity, balance, ref_no, ref_type, channel, movement_date, movement_time)
-             VALUES ($1,$2,'out',$3,$4,$5,'ขายออก',$6,$7,CURRENT_TIME)`,
-            [it.code, it.name, it.weight, bal.rows[0]?.stock_qty ?? 0, invoice_no, channel, invoice_date]
+             VALUES ($1,$2,'out',$3,$4,$5,$8,$6,$7,CURRENT_TIME)`,
+            [it.code, it.name, it.weight, bal.rows[0]?.stock_qty ?? 0, invoice_no, channel, invoice_date, outRefType]
           );
         }
       }

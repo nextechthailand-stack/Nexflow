@@ -41,6 +41,13 @@
                      : ch === 'increase' ? 'เพิ่มสต็อก'
                      : ch === 'decrease' ? 'ลดสต็อก' : ch;
       refType = `ปรับปรุงสต็อก (${adjLabel})`;
+    } else if (type === 'out') {
+      /* Derive correct label for sale/stock-deduct channel */
+      const ch = l.channel || '';
+      if      (ch === 'sample')   refType = 'ตัดสต็อก (Sample)';
+      else if (ch === 'expired')  refType = 'ตัดสต็อก (Expired)';
+      else if (ch === 'other')    refType = 'ตัดสต็อก (Other)';
+      else                        refType = refType || 'ขายออก';
     }
     return {
       dateISO: l.dateISO, date: l.date,
@@ -83,6 +90,9 @@
       // Skip INV / A4 เพราะซ้ำกับ TIV (ใบเดียวกัน ออกสองรูปแบบ)
       const itype = inv.type || inv.invoice_type || '';
       if (itype === 'INV' || itype === 'A4') return;
+      // Skip sample/expired/other — ตัดสต็อกเฉยๆ ไม่บันทึกยอดขาย
+      const ch0 = inv.channel || '';
+      if (ch0 === 'sample' || ch0 === 'expired' || ch0 === 'other') return;
 
       const rawDate = inv.date || inv.invoice_date || '';
       const dateISO = typeof rawDate === 'string'
