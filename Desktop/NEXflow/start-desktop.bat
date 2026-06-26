@@ -8,12 +8,28 @@ echo  NexFlow Desktop - Starting...
 echo ============================================
 echo.
 
+:: โหลด PATH ล่าสุดจาก registry (กรณีเพิ่ง install Node.js มา)
+for /f "usebackq tokens=2,*" %%A in (`reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul`) do set "SYS_PATH=%%B"
+if defined SYS_PATH set "PATH=%SYS_PATH%;%PATH%"
+
+:: หา node.exe — ลอง PATH ก่อน แล้ว fallback ไป install path ตรงๆ
 where node >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-    echo ERROR: Node.js not found.
-    echo Please install from https://nodejs.org
-    pause
-    exit /b 1
+    if exist "C:\Program Files\nodejs\node.exe" (
+        set "PATH=C:\Program Files\nodejs;%PATH%"
+    ) else if exist "%ProgramFiles%\nodejs\node.exe" (
+        set "PATH=%ProgramFiles%\nodejs;%PATH%"
+    ) else (
+        echo.
+        echo ERROR: Node.js not found.
+        echo กรุณาติดตั้ง Node.js ก่อน:
+        echo   1. เปิดโฟลเดอร์ Presetup
+        echo   2. ดับเบิลคลิก 1_install_software.bat
+        echo   3. รอให้เสร็จแล้วเปิด start-desktop.bat ใหม่
+        echo.
+        pause
+        exit /b 1
+    )
 )
 
 if not exist "%ROOT%database\node_modules" (
