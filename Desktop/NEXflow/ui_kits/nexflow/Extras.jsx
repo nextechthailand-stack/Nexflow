@@ -456,11 +456,10 @@ function InvoiceList({ toast }) {
       const d = iv.dateDisplay || iv.date;
       if (!byDate[d]) byDate[d] = { date:d, dateISO:iv.date, cnt:0, w:0, total:0, tivNos:[], invNos:[] };
       const g = byDate[d];
-      g.cnt++;
       g.w += (iv.items||[]).reduce((s,it)=>s+Number(it.weight||0),0);
       g.total += Number(iv.total||0);
-      if (iv.thermalNo) g.tivNos.push(iv.thermalNo);
-      if (iv.type==='A4') g.invNos.push(iv.no);
+      if (iv.type === 'Thermal') { g.cnt++; g.tivNos.push(iv.no); }
+      if (iv.type === 'A4') g.invNos.push(iv.no);
     });
     return Object.values(byDate).sort((a,b)=>b.dateISO?.localeCompare(a.dateISO));
   }, [invs]);
@@ -505,11 +504,11 @@ function InvoiceList({ toast }) {
               <div style={{ fontSize:22, fontWeight:800, color:'var(--ac)' }}>{dailyBillCnt} <span style={{ fontSize:13, fontWeight:600 }}>บิล</span></div>
             </div>
             <div className="card" style={{ padding:'14px 18px' }}>
-              <div style={{ fontSize:12, color:'var(--t2)', marginBottom:5 }}>TIV (อย่างย่อ)</div>
+              <div style={{ fontSize:12, color:'var(--t2)', marginBottom:5 }}>ใบกำกับภาษีอย่างย่อ</div>
               <div style={{ fontSize:22, fontWeight:800, color:'var(--t2)' }}>{dailyTivCnt} <span style={{ fontSize:13, fontWeight:600 }}>ฉบับ</span></div>
             </div>
             <div className="card" style={{ padding:'14px 18px' }}>
-              <div style={{ fontSize:12, color:'var(--t2)', marginBottom:5 }}>INV (เต็มรูปแบบ)</div>
+              <div style={{ fontSize:12, color:'var(--t2)', marginBottom:5 }}>ใบกำกับภาษีเต็มรูป</div>
               <div style={{ fontSize:22, fontWeight:800, color:'var(--gn)' }}>{dailyInvCnt} <span style={{ fontSize:13, fontWeight:600 }}>ฉบับ</span></div>
             </div>
           </div>
@@ -526,8 +525,8 @@ function InvoiceList({ toast }) {
             <div className="tw"><table>
               <thead><tr>
                 <th style={TH}>วันที่</th>
-                <th style={TH}>เลขที่ TIV (อย่างย่อ)</th>
-                <th style={TH}>เลขที่ INV (เต็มรูปแบบ)</th>
+                <th style={TH}>เลขที่ใบกำกับภาษีอย่างย่อ</th>
+                <th style={TH}>เลขที่ใบกำกับภาษีเต็มรูป</th>
                 <th style={{ ...TH, textAlign:'center' }}>จำนวนบิล</th>
                 <th style={{ ...TH, textAlign:'right' }}>ยอดรวม (฿)</th>
               </tr></thead>
@@ -1201,7 +1200,6 @@ function StockManage({ toast }) {
   /* ── Balance tab ── */
   const [balSearch,      setBalSearch]      = React.useState('');
   const [balPage,        setBalPage]        = React.useState(1);
-  const [balCat,         setBalCat]         = React.useState('all');
   const [balStockFilter, setBalStockFilter] = React.useState('all');
   const BAL_PAGE_SIZE = 20;
   /* ── GRN tab ── */
@@ -1523,16 +1521,11 @@ function StockManage({ toast }) {
           if (sp) sp.stock = it.after;
         });
 
-        /* Push to local ledger */
-        const timeStr = now.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-        const ledgerEntries = resolvedItems.map(it => ({
-          dateISO: now.toISOString().slice(0,10), date: window.fmtDate(), time: timeStr,
-          type: it.adj >= 0 ? 'in' : 'out', code: it.code, prod: it.name,
-          w: Math.abs(it.adj), ref: docId,
-          refType: `ปรับปรุงสต็อก (${adjType==='recount'?'นับสต็อกใหม่':adjType==='increase'?'เพิ่มสต็อก':'ลดสต็อก'})`, channel: adjType, bal: it.after,
-        }));
+        /* Remove any stale local ledger entries for this doc, then reload from DB */
         if (!st.adjLedger) st.adjLedger = [];
-        st.adjLedger = [...ledgerEntries, ...st.adjLedger];
+        st.adjLedger = st.adjLedger.filter(l => l.ref !== docId);
+        try { await window.SP_API.reloadLedger(); } catch(e) {}
+        setLedgerVer(v => v + 1);
 
         const doc = {
           id: docId, date: now.toISOString().slice(0,10), dateDisplay: window.fmtDate(),
@@ -1655,7 +1648,6 @@ function StockManage({ toast }) {
 
       {/* ── Tab: ยอดคงเหลือ ── */}
       {tab==='balance' && (() => {
-        const balCats = ['all', ...Array.from(new Set(D.products.map(p=>p.cat).filter(Boolean))).sort()];
         const BAL_STOCK_OPTS = [
           { value:'all',  label:'ทั้งหมด' },
           { value:'ok',   label:'ปกติ (มีสต็อก)' },
@@ -1664,7 +1656,6 @@ function StockManage({ toast }) {
           { value:'pos',  label:'มีสต็อก (> 0)' },
         ];
         const balFiltered = D.products.filter(p => {
-          if (balCat !== 'all' && p.cat !== balCat) return false;
           if (balStockFilter === 'zero' && p.stock > 0) return false;
           if (balStockFilter === 'pos'  && p.stock <= 0) return false;
           if (balStockFilter === 'low'  && p.stock >= p.min) return false;
@@ -1675,7 +1666,7 @@ function StockManage({ toast }) {
           }
           return true;
         });
-        const balFilterActive = balSearch || balCat !== 'all' || balStockFilter !== 'all';
+        const balFilterActive = balSearch || balStockFilter !== 'all';
         const balTotalPages = Math.max(1, Math.ceil(balFiltered.length / BAL_PAGE_SIZE));
         const balSafePage   = Math.min(balPage, balTotalPages);
         const balSlice      = balFiltered.slice((balSafePage-1)*BAL_PAGE_SIZE, balSafePage*BAL_PAGE_SIZE);
@@ -1693,24 +1684,21 @@ function StockManage({ toast }) {
               <input className="fc" placeholder="รหัส / ชื่อสินค้า…" style={{ paddingLeft:30, width:190 }} value={balSearch} onChange={e=>{ setBalSearch(e.target.value); setBalPage(1); }} />
               <Icon name="search" size={13} style={{ position:'absolute', left:9, top:'50%', transform:'translateY(-50%)', color:'var(--t3)' }} />
             </div>
-            <select className="fc" style={{ width:150 }} value={balCat} onChange={e=>{ setBalCat(e.target.value); setBalPage(1); }}>
-              {balCats.map(c=><option key={c} value={c}>{c==='all'?'ทุกหมวด':c}</option>)}
-            </select>
             <select className="fc" style={{ width:170 }} value={balStockFilter} onChange={e=>{ setBalStockFilter(e.target.value); setBalPage(1); }}>
               {BAL_STOCK_OPTS.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             {balFilterActive && (
-              <button className="btn bg2 bsm" onClick={()=>{ setBalSearch(''); setBalCat('all'); setBalStockFilter('all'); setBalPage(1); }}>ล้างตัวกรอง</button>
+              <button className="btn bg2 bsm" onClick={()=>{ setBalSearch(''); setBalStockFilter('all'); setBalPage(1); }}>ล้างตัวกรอง</button>
             )}
             <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-              <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('stock_balance.csv',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย/หน่วย','ราคาทุน/หน่วย','คงเหลือ','ขั้นต่ำ','สถานะ','มูลค่าสต็อก'],balFiltered.map(p=>{const ul=p.unitLabel||'KG';return[p.code,p.name,p.cat,p.sell,p.cost,window.fmtQty(p.stock,ul),window.fmtQty(p.min,ul),p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]}))}>CSV</Button>
-              <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('ยอดคงเหลือสต็อก',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย/หน่วย','ราคาทุน/หน่วย','คงเหลือ','ขั้นต่ำ','สถานะ','มูลค่าสต็อก'],balFiltered.map(p=>{const ul=p.unitLabel||'KG';return[p.code,p.name,p.cat,p.sell,p.cost,window.fmtQty(p.stock,ul),window.fmtQty(p.min,ul),p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]}))}>PDF</Button>
+              <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('stock_balance.csv',['รหัส','ชื่อสินค้า','ราคาขาย/หน่วย','ราคาทุน/หน่วย','คงเหลือ','ขั้นต่ำ','สถานะ','มูลค่าสต็อก'],balFiltered.map(p=>{const ul=p.unitLabel||'KG';return[p.code,p.name,p.sell,p.cost,window.fmtQty(p.stock,ul),window.fmtQty(p.min,ul),p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]}))}>CSV</Button>
+              <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('ยอดคงเหลือสต็อก',['รหัส','ชื่อสินค้า','ราคาขาย/หน่วย','ราคาทุน/หน่วย','คงเหลือ','ขั้นต่ำ','สถานะ','มูลค่าสต็อก'],balFiltered.map(p=>{const ul=p.unitLabel||'KG';return[p.code,p.name,p.sell,p.cost,window.fmtQty(p.stock,ul),window.fmtQty(p.min,ul),p.stock<=0?'หมดสต็อก':p.stock<p.min?'ต่ำกว่าขั้นต่ำ':'ปกติ',(p.stock*p.cost).toFixed(2)]}))}>PDF</Button>
             </div>
           </div>
           <Card title={`ยอดคงเหลือสต็อก · ${balFiltered.length} รายการ`}>
             <div className="tw"><table>
               <thead><tr>
-                <th style={TH}>รหัส</th><th style={TH}>ชื่อสินค้า</th><th style={TH}>หมวด</th>
+                <th style={TH}>รหัส</th><th style={TH}>ชื่อสินค้า</th>
                 <th style={THR}>ราคาขาย/หน่วย</th><th style={THR}>ราคาทุน/หน่วย</th>
                 <th style={TH}>คงเหลือ</th><th style={TH}>ขั้นต่ำ</th><th style={TH}>สถานะ</th><th style={THR}>มูลค่าสต็อก</th>
               </tr></thead>
@@ -1718,7 +1706,6 @@ function StockManage({ toast }) {
                 <tr key={p.id} style={{ borderBottom:'1px solid var(--bd)' }}>
                   <td style={TD}><span className="mono">{p.code}</span></td>
                   <td style={{ ...TD, fontWeight:600 }}>{p.name}</td>
-                  <td style={TD}>{p.cat}</td>
                   <td style={TDR}>{$(p.sell)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
                   <td style={{ ...TDR, color:'var(--t2)' }}>{$(p.cost)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
                   <td style={{ ...TD, fontWeight:700 }}>{window.fmtQty(p.stock, uLabel)}</td>
@@ -1995,7 +1982,7 @@ function StockManage({ toast }) {
                                 onMouseEnter={e=>e.currentTarget.style.background='var(--s2)'} onMouseLeave={e=>e.currentTarget.style.background=''}>
                                 <div>
                                   <div style={{ fontWeight:600 }}>{p.name}</div>
-                                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t3)' }}>{p.code} · {p.cat}</div>
+                                  <div style={{ fontFamily:'var(--font-mono)', fontSize:11, color:'var(--t3)' }}>{p.code}</div>
                                 </div>
                                 <span style={{ fontSize:11.5, fontWeight:700, padding:'3px 8px', borderRadius:100, background: low?'var(--ambg)':'var(--gbg)', color: low?'var(--amt)':'var(--gt)', whiteSpace:'nowrap' }}>
                                   คงเหลือ {window.fmtItemQty(p.stock, p.code)}
@@ -2912,6 +2899,32 @@ function Settings({ toast }) {
     return o;
   });
 
+  /* โหลด counter จริงจาก DB ทุกครั้งที่เปิด Settings */
+  React.useEffect(() => {
+    if (!window.SP_API?.getCounters) return;
+    (async () => {
+      try {
+        const rows = await window.SP_API.getCounters();
+        const ymNowStr = (() => { const d = new Date(); return String(d.getFullYear()).slice(-2) + String(d.getMonth()+1).padStart(2,'0'); })();
+        setDocNum(prev => {
+          const o = { ...prev };
+          PFX_DOCS.forEach(({ key, counterKey, ym }) => {
+            const pfx = (docPfx[key] || key).toUpperCase();
+            const row = rows.find(r =>
+              r.prefix === pfx && (!ym || String(r.year_month) === '20' + ymNowStr)
+            );
+            if (row) {
+              const next = (Number(row.last_counter) || 0) + 1;
+              o[key] = next;
+              window.SP_STATE[counterKey] = next;
+            }
+          });
+          return o;
+        });
+      } catch(e) {}
+    })();
+  }, []);
+
   const ymNow = (() => {
     const d = new Date();
     return String(d.getFullYear()).slice(-2) + String(d.getMonth()+1).padStart(2,'0');
@@ -2919,6 +2932,12 @@ function Settings({ toast }) {
   const previewNo = ({key,ym}) => {
     const p = docPfx[key] || key.toUpperCase();
     const n = String(parseInt(docNum[key],10) || 1).padStart(3,'0');
+    return ym ? `${p}${ymNow}${n}` : `${p}${n}`;
+  };
+  const currentNo = ({key,ym}) => {
+    const p = docPfx[key] || key.toUpperCase();
+    const last = Math.max(0, (parseInt(docNum[key],10) || 1) - 1);
+    const n = String(last).padStart(3,'0');
     return ym ? `${p}${ymNow}${n}` : `${p}${n}`;
   };
 
@@ -3108,7 +3127,7 @@ function Settings({ toast }) {
                         </div>
                       </div>
                       <div style={{ fontSize:10.5, color:'var(--ac)', marginTop:8, fontFamily:'var(--font-mono)', fontWeight:600 }}>
-                        ▸ ตัวอย่าง: {previewNo(d)}
+                        ▸ หมายเลขปัจจุบัน: {currentNo(d)}
                       </div>
                     </div>
                   ))}
@@ -3175,7 +3194,7 @@ function Products({ toast }) {
   const [products, setProducts]   = React.useState(D.products);
   const [importResult, setImportResult] = React.useState(null);
   const [showAdd, setShowAdd]     = React.useState(false);
-  const [form, setForm]           = React.useState({ code:'', name:'', cat:'ปลา', sell:'', cost:'', stock:'0', min:'10', tax:'vat7', unitType:'kg', unitLabel:'KG' });
+  const [form, setForm]           = React.useState({ code:'', name:'', sell:'', cost:'', stock:'0', min:'10', tax:'vat7', unitType:'kg', unitLabel:'KG' });
   const [editProd, setEditProd]   = React.useState(null);
   const [editForm, setEditForm]   = React.useState({});
   const [deleteConfirm,     setDeleteConfirm]     = React.useState(null);
@@ -3183,16 +3202,16 @@ function Products({ toast }) {
   const [prodSearch, setProdSearch] = React.useState('');
   const csvRef = React.useRef(null);
   const filteredProds = prodSearch.trim()
-    ? products.filter(p => p.name.toLowerCase().includes(prodSearch.toLowerCase()) || p.code.includes(prodSearch) || (p.cat||'').toLowerCase().includes(prodSearch.toLowerCase()))
+    ? products.filter(p => p.name.toLowerCase().includes(prodSearch.toLowerCase()) || p.code.includes(prodSearch))
     : products;
   const { slice: prodSlice, page: prodPage, totalPages: prodTotalPages, setPage: setProdPage, total: prodTotal } = usePagination(filteredProds, 20);
 
   /* ── Download CSV template ── */
   const downloadTemplate = () => {
     window.exportCSV('products_template.csv',
-      ['code','name','cat','sell','cost','stock','min','tax'],
-      [['000007','สินค้าใหม่','ปลา','150','100','0.000','10','vat7'],
-       ['00008','สินค้าตัวอย่าง','กุ้ง','200','140','0.000','5','nonvat']]
+      ['code','name','sell','cost','stock','min','tax'],
+      [['000007','สินค้าใหม่','150','100','0.000','10','vat7'],
+       ['000008','สินค้าตัวอย่าง','200','140','0.000','5','nonvat']]
     );
   };
 
@@ -3204,7 +3223,7 @@ function Products({ toast }) {
       try {
         const lines   = ev.target.result.replace(/\r/g,'').split('\n').filter(l=>l.trim());
         const headers = lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
-        const need    = ['code','name','cat','sell','cost','tax'];
+        const need    = ['code','name','sell','cost','tax'];
         const missing = need.filter(k=>!headers.includes(k));
         if (missing.length) { if(toast)toast('err',`ขาดคอลัมน์: ${missing.join(', ')}`); return; }
 
@@ -3220,7 +3239,6 @@ function Products({ toast }) {
             id:    existing?.id || Date.now()+Math.random(),
             code:  row.code,
             name:  row.name,
-            cat:   row.cat,
             sell:  parseFloat(row.sell)||0,
             cost:  parseFloat(row.cost)||0,
             stock: parseFloat(row.stock)||0,
@@ -3242,15 +3260,15 @@ function Products({ toast }) {
   /* ── Open edit modal ── */
   const openEdit = (p) => {
     setEditProd(p);
-    setEditForm({ code:p.code, name:p.name, cat:p.cat||'ปลา', sell:String(p.sell||''), cost:String(p.cost||''), min:String(p.min||''), tax:p.tax||'vat7', unitType:p.unitType||'kg', unitLabel:p.unitLabel||'KG' });
+    setEditForm({ code:p.code, name:p.name, sell:String(p.sell||''), cost:String(p.cost||''), min:String(p.min||''), tax:p.tax||'vat7', unitType:p.unitType||'kg', unitLabel:p.unitLabel||'KG' });
   };
 
   /* ── Save edit ── */
   const saveEdit = async () => {
     if (!editForm.name) { if (toast) toast('err','กรุณากรอกชื่อสินค้า'); return; }
     const uLabel = editForm.unitType === 'kg' ? 'KG' : (editForm.unitLabel||'หน่วย');
-    const payload = { name:editForm.name, cat:editForm.cat, sell:parseFloat(editForm.sell)||0, cost:parseFloat(editForm.cost)||0, min:parseFloat(editForm.min)||0, tax:editForm.tax, unitType:editForm.unitType, unitLabel:uLabel };
-    const dbPayload = { name:payload.name, category:payload.cat, sell_price:payload.sell, cost_price:payload.cost, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:uLabel };
+    const payload = { name:editForm.name, sell:parseFloat(editForm.sell)||0, cost:parseFloat(editForm.cost)||0, min:parseFloat(editForm.min)||0, tax:editForm.tax, unitType:editForm.unitType, unitLabel:uLabel };
+    const dbPayload = { name:payload.name, sell_price:payload.sell, cost_price:payload.cost, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:uLabel };
 
     const finish = async (msg) => {
       if (window.SP_API && typeof window.SP_API.reloadProducts === 'function') {
@@ -3329,16 +3347,16 @@ function Products({ toast }) {
     if (!form.code||!form.name) { if (toast) toast('err','กรุณากรอกรหัสและชื่อสินค้า'); return; }
     if (D.products.find(p=>p.code===form.code)) { if (toast) toast('err',`รหัส ${form.code} มีอยู่แล้ว`); return; }
     const addULabel = form.unitType === 'kg' ? 'KG' : (form.unitLabel||'หน่วย');
-    const payload = { code:form.code, name:form.name, cat:form.cat, sell:parseFloat(form.sell)||0, cost:parseFloat(form.cost)||0, stock:parseFloat(form.stock)||0, min:parseFloat(form.min)||0, tax:form.tax, unitType:form.unitType||'kg', unitLabel:addULabel };
+    const payload = { code:form.code, name:form.name, sell:parseFloat(form.sell)||0, cost:parseFloat(form.cost)||0, stock:parseFloat(form.stock)||0, min:parseFloat(form.min)||0, tax:form.tax, unitType:form.unitType||'kg', unitLabel:addULabel };
     /* backend ใช้ชื่อ field ต่างจาก mock data — ต้อง map ก่อนส่ง */
-    const dbPayload = { code:payload.code, name:payload.name, category:payload.cat, sell_price:payload.sell, cost_price:payload.cost, stock_qty:payload.stock, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:addULabel };
+    const dbPayload = { code:payload.code, name:payload.name, sell_price:payload.sell, cost_price:payload.cost, stock_qty:payload.stock, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:addULabel };
 
     const finishAdd = (id, okMsg) => {
       const p = { id, ...payload };
       D.products.push(p);
       setProducts([...D.products]);
       setShowAdd(false);
-      setForm({ code:'', name:'', cat:'ปลา', sell:'', cost:'', stock:'0', min:'10', tax:'vat7' });
+      setForm({ code:'', name:'', sell:'', cost:'', stock:'0', min:'10', tax:'vat7' });
       if (toast) toast('ok', okMsg);
     };
 
@@ -3368,19 +3386,19 @@ function Products({ toast }) {
             <Icon name="download" size={14} />Import CSV
             <input ref={csvRef} type="file" accept=".csv,text/csv" style={{ display:'none' }} onChange={importCSV} />
           </label>
-          <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('products.csv',['รหัส','ชื่อสินค้า','หมวด','ราคาขาย','ราคาทุน','สต็อก (KG)','ขั้นต่ำ (KG)','ภาษี'],products.map(p=>[p.code,p.name,p.cat,p.sell,p.cost,p.stock.toFixed(2),p.min,p.tax]))}>CSV</Button>
-          <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้า',['รหัส','ชื่อสินค้า','หมวด','หน่วย','ราคาขาย','ราคาทุน','คงเหลือ','ขั้นต่ำ','ภาษี'],products.map(p=>{const uLabel=p.unitLabel||'KG';const isKg=window.unitOf?window.unitOf(p.code).unitType==='kg':true;const fmtQ=(n,dp)=>isKg?Number(n).toFixed(dp||2)+' KG':Math.round(n)+' '+uLabel;const taxLbl=p.tax==='vat7'?'Incl VAT':p.tax==='vat7_excl'?'Exclude VAT':p.tax==='nonvat'?'Non VAT':'—';return[p.code,p.name,p.cat||'—',uLabel,'฿'+Number(p.sell).toFixed(2),'฿'+Number(p.cost).toFixed(2),fmtQ(p.stock,3),fmtQ(p.min,2),taxLbl];}))}>PDF</Button>
+          <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('products.csv',['รหัส','ชื่อสินค้า','ราคาขาย','ราคาทุน','สต็อก (KG)','ขั้นต่ำ (KG)','ภาษี'],products.map(p=>[p.code,p.name,p.sell,p.cost,p.stock.toFixed(2),p.min,p.tax]))}>CSV</Button>
+          <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('รายการสินค้า',['รหัส','ชื่อสินค้า','หน่วย','ราคาขาย','ราคาทุน','คงเหลือ','ขั้นต่ำ','ภาษี'],products.map(p=>{const uLabel=p.unitLabel||'KG';const isKg=window.unitOf?window.unitOf(p.code).unitType==='kg':true;const fmtQ=(n,dp)=>isKg?Number(n).toFixed(dp||2)+' KG':Math.round(n)+' '+uLabel;const taxLbl=p.tax==='vat7'?'Incl VAT':p.tax==='vat7_excl'?'Exclude VAT':p.tax==='nonvat'?'Non VAT':'—';return[p.code,p.name,uLabel,'฿'+Number(p.sell).toFixed(2),'฿'+Number(p.cost).toFixed(2),fmtQ(p.stock,3),fmtQ(p.min,2),taxLbl];}))}>PDF</Button>
           <Button variant="bp" size="sm" onClick={()=>setShowAdd(true)}>+ เพิ่มสินค้า</Button>
         </div>
       }>
         <div className="tw"><table>
           <thead><tr>
-            <th>รหัส</th><th>ชื่อสินค้า</th><th>หมวด</th>
+            <th>รหัส</th><th>ชื่อสินค้า</th>
             <th style={{textAlign:'right'}}>ราคาขาย</th><th style={{textAlign:'right'}}>ราคาทุน</th>
             <th>คงเหลือ</th><th>ขั้นต่ำ</th><th>ภาษี</th><th></th>
           </tr></thead>
           <tbody>{prodSlice.length===0
-            ? <tr><td colSpan={9} style={{ textAlign:'center', padding:'24px 0', color:'var(--t3)' }}>ไม่พบสินค้าที่ตรงกับคำค้นหา</td></tr>
+            ? <tr><td colSpan={8} style={{ textAlign:'center', padding:'24px 0', color:'var(--t3)' }}>ไม่พบสินค้าที่ตรงกับคำค้นหา</td></tr>
             : prodSlice.map(p=>{
             const uLabel = p.unitLabel || 'KG';
             const fmtAmt = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' ' + uLabel;
@@ -3391,7 +3409,6 @@ function Products({ toast }) {
                 {p.name}
                 {p.is_active === false && <span style={{ marginLeft:7, fontSize:10.5, padding:'2px 6px', borderRadius:4, background:'var(--s3,#e5e5e5)', color:'var(--t3)', fontWeight:600, verticalAlign:'middle' }}>ระงับ</span>}
               </td>
-              <td>{p.cat}</td>
               <td style={{ textAlign:'right' }}>{window.fmtMoney(p.sell)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
               <td style={{ textAlign:'right', color:'var(--t2)' }}>{window.fmtMoney(p.cost)}<span style={{ fontSize:11, color:'var(--t3)' }}>/{uLabel}</span></td>
               <td><StockPill stock={p.stock} min={p.min} unitLabel={uLabel}/></td>
@@ -3455,11 +3472,6 @@ function Products({ toast }) {
             <div className="md-h"><span className="md-t">แก้ไขสินค้า <span style={{ fontFamily:'var(--font-mono)', fontSize:13, color:'var(--t2)' }}>{editProd.code}</span></span><button type="button" className="md-x" aria-label="ปิด" onClick={()=>setEditProd(null)}>✕</button></div>
             <div className="md-b">
               <div className="gr c2">
-                <Field label="หมวดหมู่">
-                  <select className="fc" value={editForm.cat} onChange={e=>setEditForm(f=>({...f,cat:e.target.value}))}>
-                    <option>ปลา</option><option>กุ้ง</option><option>หอย</option><option>อื่นๆ</option>
-                  </select>
-                </Field>
                 <div style={{ gridColumn:'1/-1' }}>
                   <Field label="ชื่อสินค้า" required><input className="fc" value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} /></Field>
                 </div>
@@ -3510,11 +3522,6 @@ function Products({ toast }) {
             <div className="md-b">
               <div className="gr c2">
                 <Field label="รหัสสินค้า" required><input className="fc" value={form.code} onChange={e=>setForm(f=>({...f,code:e.target.value}))} placeholder="000007" maxLength={6} style={{ fontFamily:'var(--font-mono)' }} /></Field>
-                <Field label="หมวดหมู่" required>
-                  <select className="fc" value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))}>
-                    <option>ปลา</option><option>กุ้ง</option><option>หอย</option><option>อื่นๆ</option>
-                  </select>
-                </Field>
                 <div style={{ gridColumn:'1/-1' }}>
                   <Field label="ชื่อสินค้า" required><input className="fc" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="ชื่อสินค้า..." /></Field>
                 </div>

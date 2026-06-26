@@ -1061,7 +1061,7 @@ app.post('/api/adj', async (req, res) => {
         `INSERT INTO stock_ledger (product_code, product_name, movement_type, quantity, balance, ref_no, ref_type, channel, movement_date, movement_time)
          VALUES ($1,$2,'adj',$3,$4,$5,$6,$7,$8,CURRENT_TIME)`,
         [it.code, it.name, Math.abs(qty_adjust), qty_after, adj_no,
-         `ปรับปรุงสต็อก (${reason})`, adj_type, adj_date || localISODate(now)]
+         `ปรับปรุงสต็อก (${adj_type==='recount'?'นับสต็อกใหม่':adj_type==='increase'?'เพิ่มสต็อก':'ลดสต็อก'})`, adj_type, adj_date || localISODate(now)]
       );
     }
 
