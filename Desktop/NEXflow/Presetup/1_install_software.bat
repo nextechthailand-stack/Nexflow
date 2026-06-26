@@ -69,7 +69,7 @@ if %PG_ERR% neq 0 (
 )
 
 if %PG_ERR% equ 0 (
-    echo       PostgreSQL 18: สำเร็จ! (รหัสผ่าน postgres = 1234)
+    echo       PostgreSQL 18: สำเร็จ! ^(รหัสผ่าน postgres = 1234^)
 ) else (
     echo.
     echo ============================================================
@@ -77,9 +77,9 @@ if %PG_ERR% equ 0 (
     echo      กรุณาติดตั้งด้วยตนเอง:
     echo.
     echo  1. ไปที่: https://www.postgresql.org/download/windows/
-    echo  2. ดาวน์โหลด PostgreSQL 18 (Windows x86-64)
+    echo  2. ดาวน์โหลด PostgreSQL 18 ^(Windows x86-64^)
     echo  3. ติดตั้ง -- ตั้งรหัสผ่าน postgres เป็น: 1234
-    echo  4. Port: 5432 (ค่าเริ่มต้น อย่าเปลี่ยน)
+    echo  4. Port: 5432 ^(ค่าเริ่มต้น อย่าเปลี่ยน^)
     echo  5. กลับมารัน 2_setup_database.bat หลังติดตั้งเสร็จ
     echo ============================================================
     pause & exit /b 1

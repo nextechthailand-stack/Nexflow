@@ -20,7 +20,7 @@ if defined MY_IP (
     echo.
     echo     http://%MY_IP%:3000
     echo.
-    echo  (เครื่อง Server ต้องเปิด start-desktop.bat ไว้ก่อน)
+    echo  ^(เครื่อง Server ต้องเปิด start-desktop.bat ไว้ก่อน^)
 ) else (
     echo  [!] ไม่พบ IP address
     echo      ตรวจสอบการเชื่อมต่อ LAN/WiFi

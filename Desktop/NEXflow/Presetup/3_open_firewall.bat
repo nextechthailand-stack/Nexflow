@@ -45,7 +45,7 @@ if defined MY_IP (
 ) else (
     echo  เครื่องอื่นในร้านเปิด Browser แล้วพิมพ์:
     echo  http://[IP เครื่องนี้]:3000
-    echo  (ดู IP ได้จาก 4_show_server_ip.bat)
+    echo  ^(ดู IP ได้จาก 4_show_server_ip.bat^)
 )
 echo.
 echo  ขั้นตอนต่อไป:
