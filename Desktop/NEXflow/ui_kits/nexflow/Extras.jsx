@@ -2972,6 +2972,8 @@ function Settings({ toast }) {
           await window.SP_API.saveCompany({
             name: co.name, address: co.addr, tax_id: co.tax,
             tel: co.tel, email: co.email || '', vat_rate: parseFloat(co.vat) || 0,
+            receipt_printer: co.receiptPrinter || '',
+            a4_printer: co.a4Printer || '',
             prefix_grn: docPfx.grn, prefix_adj: docPfx.adj, prefix_iss: docPfx.iss,
             prefix_tiv: docPfx.tiv, prefix_inv: docPfx.inv,
             prefix_cn:  docPfx.cn,  prefix_dn:  docPfx.dn,
@@ -3152,7 +3154,6 @@ function Settings({ toast }) {
           <Card title="การตั้งค่าทั่วไป" className="stg-card">
             <div className="cb"><div className="gr c2">
               <Field label="รูปแบบวันที่"><select className="fc"><option>พ.ศ. (Buddhist Era)</option><option>ค.ศ.</option></select></Field>
-              <Field label="ธีมสี / Tweaks"><div className="nc nc-b" style={{ fontSize:12 }}>เปิดได้จากปุ่ม Tweaks Panel มุมขวาล่างของหน้าจอ — ปรับธีม สี ความหนาแน่น และสไตล์ KPI ได้แบบเรียลไทม์</div></Field>
             </div></div>
           </Card>
           <Card title="เครื่องพิมพ์" className="stg-card">
