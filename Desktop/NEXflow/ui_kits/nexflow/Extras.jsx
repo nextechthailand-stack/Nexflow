@@ -2973,6 +2973,7 @@ function Settings({ toast }) {
             name: co.name, address: co.addr, tax_id: co.tax,
             tel: co.tel, email: co.email || '', vat_rate: parseFloat(co.vat) || 0,
             logo_url: logoUrl || null,
+            show_logo_receipt: co.showLogoOnReceipt !== false,
             receipt_printer: co.receiptPrinter || '',
             a4_printer: co.a4Printer || '',
             prefix_grn: docPfx.grn, prefix_adj: docPfx.adj, prefix_iss: docPfx.iss,
@@ -3067,6 +3068,13 @@ function Settings({ toast }) {
                     )}
                   </div>
                   <input ref={logoInputRef} type="file" accept=".jpg,.jpeg,.png" style={{ display:'none' }} onChange={handleLogoFile} />
+                  {/* Toggle: show logo on receipt */}
+                  <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', fontSize:12.5, color:'var(--t1)', fontWeight:500 }}>
+                    <input type="checkbox" checked={co.showLogoOnReceipt !== false}
+                      onChange={e => setCo(c => ({...c, showLogoOnReceipt: e.target.checked}))}
+                      style={{ width:15, height:15, cursor:'pointer' }} />
+                    แสดงโลโก้บนใบเสร็จ
+                  </label>
                 </div>
               </div>
             </Card>

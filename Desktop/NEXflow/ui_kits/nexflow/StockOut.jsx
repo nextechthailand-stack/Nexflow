@@ -307,7 +307,7 @@ function StockOut({ toast }) {
       vat = base * 7 / 107;   // ดึง VAT ออกจากราคารวม
       net = base;
     } else if (it.tax === 'vat7_excl') {
-      vat = base * 7 / 100;   // บวก VAT เพิ่ม 7%
+      vat = gross * 7 / 100;  // VAT คำนวณบน gross (ก่อนส่วนลด) ตามกฎหมายภาษีไทย
       net = base + vat;
     } else {
       vat = 0;
@@ -382,10 +382,14 @@ function StockOut({ toast }) {
         const result = await window.SP_API.createInvoice(payload);
         invNo     = result.invoice_no;
         thermalNo = typeInfo.hasInv ? invNo : null;
-
-        await window.SP_API.reloadProducts();
-        await window.SP_API.reloadInvoices();
         if (pendingReplace) st.pendingReplaceTiv = null;
+
+        try {
+          await window.SP_API.reloadProducts();
+          await window.SP_API.reloadInvoices();
+        } catch (reloadErr) {
+          console.warn('[StockOut] reload หลัง save ไม่สำเร็จ:', reloadErr.message);
+        }
 
       } else {
         /* ── Mock mode: generate เลขใน frontend ── */
