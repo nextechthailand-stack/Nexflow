@@ -262,6 +262,61 @@ consolog.md                — บันทึก session นี้
 
 ---
 
+## Session 007 — 2026-06-09
+
+### ภาพรวม
+Rewrite ThermalReceipt component จาก dark-theme → white receipt ตามภาพที่ user ให้มา
+พร้อม print button ที่ทำงานได้จริง + ตรวจสอบ receiptData ครบถ้วน + InvoiceList sync
+
+### งานที่ทำ
+
+#### 1. ThermalReceipt — White Receipt (StockOut.jsx lines 21–168)
+**ก่อน:** dark background `#1a1826`, ไม่มี onClick บน Print button
+**หลัง:** white receipt paper สไตล์เดียวกับ screenshot ที่ user ให้มา
+
+Layout ใหม่:
+- Header: company name (bold), address, เลขภาษี, (สำนักงานใหญ่)
+- Title: "ใบเสร็จรับเงิน/ใบกำกับภาษีแบบย่อ"
+- Doc info: เลขที่เอกสาร, วันที่ขาย + เวลา, พนักงานขาย, ลูกค้า
+- Items grid (4 columns): รายการ | จำนวน | หน่วยละ | รวมเงิน (merged via `mergeInvItems`)
+- Summary: รายการ count · น้ำหนักรวม
+- Totals: รวมเป็นเงิน / ส่วนลด / **รวมทั้งสิ้น** (bold, larger)
+- VAT breakdown: รวมมูลค่าสินค้า (ก่อน VAT) / ภาษีมูลค่าเพิ่ม 7%
+- Payment: เงินสด/เงินโอน + amount (green)
+- Footer: ขอบคุณที่ใช้บริการ
+
+Print button (บน modal header):
+```jsx
+const handlePrint = () => {
+  const inv = st.invoices.find(x => x.no === (data.thermalNo || data.no));
+  if (inv) inv.printCount = (inv.printCount || 0) + 1;
+  window.printDoc('tiv', { ...data, items: data.items });
+};
+```
+
+#### 2. doSave() receiptData — ตรวจสอบครบ (StockOut.jsx lines 317–330)
+ยืนยัน fields ครบ: `no, thermalNo, type, channel, items, totalW, subtotal, discount, afterDisc, vat, vat7, grossSale, netSale, custId, custName, custTax, pay, date, dateDisplay, time`
+
+#### 3. InvoiceList sync
+เมื่อ user navigate มาที่ InvoiceList หลังขาย:
+- Component mount ใหม่ → `useState(() => window.SP_STATE.invoices)` ดึง data ล่าสุด
+- `doSave()` ทำ `st.invoices.unshift(...)` ก่อน setReceipt → ข้อมูลอยู่ใน SP_STATE แล้ว
+- ไม่ต้องเพิ่ม event listener เพิ่มเติม
+
+### Files Modified
+```
+ui_kits/stockpro/StockOut.jsx  — ThermalReceipt component rewritten (lines 21–168)
+consolog.md                    — บันทึก session นี้
+```
+
+### Verified
+- `window.fmtDate()` ✓ exists in data.js line 191
+- `window.mergeInvItems()` ✓ exists in data.js line 261
+- `window.printDoc('tiv', data)` ✓ exists in data.js line 394+
+- receipt field mapping ถูกต้องทุก field ✓
+
+---
+
 ## Template สำหรับ Session ใหม่
 
 ```markdown

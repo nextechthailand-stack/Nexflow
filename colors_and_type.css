@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
-   StockPro — Colors & Type Foundations
-   Source of truth: nextechthailand-stack/Stockpro (stockpro-v50new1.html)
+   NEXflow — Colors & Type Foundations
+   Source of truth: nextechthailand-stack/NEXflow (nexflow-v50new1.html)
    A Thai seafood inventory / stock-management web app.
    ═══════════════════════════════════════════════════════════════ */
 
@@ -47,31 +47,45 @@
   --tracking-mono:  0.07em; /* barcode digits        */
 
   /* ─── COLOR — neutrals / surfaces ─────────────────────────────
-     Warm "paper" greys, not pure greyscale. The whole app sits on
-     a warm off-white (#f0efe9) with white cards.                 */
-  --bg:  #f0efe9;  /* app canvas — warm paper            */
+     Cool, airy teal/mint/white theme matching the brand mark —
+     light cards on a faint cyan-tinted canvas, soft shadows.    */
+  --bg:  #f8fafc;  /* app canvas — cool white            */
   --sur: #ffffff;  /* card / panel surface               */
-  --s2:  #f7f6f2;  /* subtle fill, hover, table stripe   */
-  --s3:  #eeecea;  /* deeper fill                        */
+  --s2:  #f1f5f9;  /* subtle fill, hover, table stripe   */
+  --s3:  #e2e8f0;  /* deeper fill                        */
   --bd:  rgba(0,0,0,.08);  /* hairline border            */
   --b2:  rgba(0,0,0,.14);  /* stronger border / inputs   */
 
-  /* ─── COLOR — text ─── */
-  --tx: #18171a;   /* primary ink (near-black, warm)     */
-  --t2: #6a6870;   /* secondary text                     */
-  --t3: #a09fa8;   /* tertiary / placeholder / meta      */
+  /* table header / summary row — deep violet-black, white text
+     (echoes the dark sidebar; contrasts cleanly with the canvas) */
+  --thd:    #241d3d;
+  --thd-fg: #ffffff;
 
-  /* ─── COLOR — dark sidebar ─── */
-  --nav-bg:    #1a1826;          /* sidebar + thermal/invoice header */
-  --nav-fg:    rgba(255,255,255,.6);
-  --nav-fg-on: #ffffff;
-  --nav-line:  rgba(255,255,255,.07);
+  /* ─── COLOR — text ───
+     Darker, higher-contrast greys — secondary/tertiary text reads
+     clearly on the warm paper canvas.                            */
+  --tx: #141318;   /* primary ink (near-black, warm)     */
+  --t2: #4d4b56;   /* secondary text — strengthened      */
+  --t3: #6b6977;   /* tertiary / placeholder / meta      */
+
+  /* ─── COLOR — sidebar (DAY = white) ───
+     Sidebar follows day/night: white in day, near-black at night.
+     Only the sidebar consumes these tokens.                      */
+  --nav-bg:       #ffffff;
+  --nav-fg:       #56546a;        /* nav item label              */
+  --nav-fg-on:    #141318;        /* hovered / active label      */
+  --nav-line:     rgba(0,0,0,.07);
+  --nav-muted:    #9492a0;        /* version / section / role    */
+  --nav-hover:    #f1f0f6;        /* row hover fill              */
+  --nav-ic:       #f0eff5;        /* icon tile (resting)         */
+  --nav-active:   #f0f9ff;        /* active row fill — sky blue tint */
+  --nav-active-fg:#0369a1;        /* active label — sky blue         */
 
   /* ─── COLOR — brand gradient ──────────────────────────────────
      The signature mark: a blue→violet gradient used on the logo,
      active nav item icon, avatars, and primary CTA washes.       */
   --grad-brand: linear-gradient(135deg, #5b7cff, #8b5cf6);
-  --grad-login: linear-gradient(135deg, #1e1b4b 0%, #3b2f8a 50%, #1e3a5f 100%);
+  --grad-login: #e0f2fe;
   --brand-blue:   #5b7cff;
   --brand-violet: #8b5cf6;
 
@@ -79,7 +93,7 @@
      Each role = a strong tone + a tinted background + a dark text
      tone, used together for badges, pills, notices.              */
   /* Accent / primary action (indigo-blue) */
-  --ac:  #3b5bdb;  --abg: #edf2ff;  --at: #2c44a8;
+  --ac:  #0EA5E9;  --abg: #f0f9ff;  --at: #0369a1;
   /* Success / stock-in / money (green) */
   --gn:  #0d9272;  --gbg: #e6f6f2;  --gt: #075c48;
   /* Warning / low-stock / discount (amber) */
@@ -90,16 +104,17 @@
   --pu:  #6741d9;  --pbg: #f3effe;  --pt: #4a2fa8;
 
   /* ─── RADII ─── */
-  --r:  12px;  /* cards, modals, scan zones */
-  --rs: 8px;   /* buttons, inputs, badges-bg */
-  --r4: 4px;   /* tiny chips, demo buttons   */
+  --r-lg: 16px; /* hero cards, KPI tiles       */
+  --r:  12px;  /* cards, modals, scan zones   */
+  --rs: 8px;   /* buttons, inputs, badges-bg  */
+  --r4: 4px;   /* tiny chips, demo buttons    */
   --r-pill: 100px;
 
   /* ─── SHADOWS ─── */
   --sh:  0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04); /* resting card */
   --sh2: 0 4px 20px rgba(0,0,0,.1);                            /* toast / modal / float */
   --sh-modal: 0 12px 60px rgba(0,0,0,.18);
-  --sh-brand: 0 4px 16px rgba(59,91,219,.35);                 /* primary CTA glow */
+  --sh-brand: 0 4px 16px rgba(59,91,219,.35);                  /* primary CTA glow */
 
   /* ─── SPACING (4px base grid) ─── */
   --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 14px;
@@ -111,6 +126,42 @@
   --dur-fast: .13s;
   --dur:      .18s;
   --dur-slow: .25s;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NIGHT MODE — toggled via <html data-theme="dark">.
+   Overrides only the colour tokens; the same blue→violet brand and
+   semantic hues carry through, re-tinted for dark surfaces.       */
+:root[data-theme="dark"] {
+  --bg:  #13121a;  --sur: #1c1b27;  --s2: #262433;  --s3: #2f2c3d;
+  --bd:  rgba(255,255,255,.10);     --b2: rgba(255,255,255,.18);
+
+  --thd:    #2b2440;   --thd-fg: #ffffff;
+
+  --tx: #f3f2f8;  --t2: #bcbac8;  --t3: #908d9c;
+
+  /* sidebar (NIGHT = near-black) */
+  --nav-bg:       #0e0d16;
+  --nav-fg:       rgba(255,255,255,.62);
+  --nav-fg-on:    #ffffff;
+  --nav-line:     rgba(255,255,255,.07);
+  --nav-muted:    rgba(255,255,255,.34);
+  --nav-hover:    rgba(255,255,255,.08);
+  --nav-ic:       rgba(255,255,255,.08);
+  --nav-active:   linear-gradient(90deg,rgba(91,124,255,.30),rgba(139,92,246,.16));
+  --nav-active-fg:#ffffff;
+
+  /* tinted chip backgrounds + lighter text tones for contrast on dark */
+  --ac:  #6f8bff;  --abg: rgba(91,124,255,.16);  --at: #b9c6ff;
+  --gn:  #1fb892;  --gbg: rgba(13,146,114,.18);   --gt: #6fe0c0;
+  --am:  #e2a33a;  --ambg:rgba(196,123,0,.18);    --amt:#f0c878;
+  --rd:  #ef5b5b;  --rbg: rgba(208,48,48,.18);    --rt: #ff9b9b;
+  --pu:  #9173f0;  --pbg: rgba(103,65,217,.20);    --pt: #c3b0f7;
+
+  --sh:  0 1px 3px rgba(0,0,0,.5);
+  --sh2: 0 6px 24px rgba(0,0,0,.55);
+  --sh-modal: 0 16px 60px rgba(0,0,0,.62);
+  --sh-brand: 0 4px 16px rgba(91,124,255,.4);
 }
 
 /* ─── SEMANTIC TYPE HELPERS ─────────────────────────────────────
