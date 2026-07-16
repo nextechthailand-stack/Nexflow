@@ -255,6 +255,13 @@ function StockIn({ toast, setPage }) {
   const [grn, setGrn] = React.useState(null);
   const inputRef = React.useRef(null);
   const seqRef = React.useRef(0);
+  /* ── โหลดสต็อกสินค้าล่าสุดจาก server ตอนเข้าหน้านี้ (เผื่อเครื่องอื่นเพิ่งรับ/
+     ปรับสต็อกไป) — bump เพื่อ re-render เพราะหน้านี้อ่าน D.products ตรงๆ ── */
+  const [, setProdVer] = React.useState(0);
+  React.useEffect(() => {
+    if (!window.SP_API) return;
+    window.SP_API.reloadProducts().then(() => setProdVer(v => v + 1)).catch(() => {});
+  }, []);
 
   const scan = (raw) => {
     const parsed = window.parseBarcode(raw);
@@ -398,7 +405,7 @@ function StockIn({ toast, setPage }) {
   const beDate = date ? (() => { const d = new Date(date); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${(d.getFullYear()+543)%100}`; })() : '—';
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:18, alignItems:'start' }}>
+    <div className="split-2col" style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:18, alignItems:'start' }}>
       {/* LEFT */}
       <div>
         {/* Scan + Meta merged card */}

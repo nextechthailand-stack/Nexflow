@@ -68,6 +68,15 @@ function Reports({ toast = ()=>{} }) {
     return () => window.removeEventListener('sp:data-updated', onUpdate);
   }, []);
 
+  /* ── โหลดข้อมูลใบกำกับ/GRN ล่าสุดจาก server ทุกครั้งที่เข้าหน้ารายงาน ──
+     กันรายงานค้างข้อมูลเก่าถ้าเครื่องอื่นขาย/รับสินค้าไปแล้วแต่เครื่องนี้ยังไม่เคย
+     เปิดหน้าที่เรียก reloadInvoices()/reloadGRN() มาก่อน */
+  React.useEffect(() => {
+    if (!window.SP_API) return;
+    window.SP_API.reloadInvoices().catch(() => {}); // จะยิง event 'sp:data-updated' เองเมื่อสำเร็จ
+    window.SP_API.reloadGRN().then(() => setDataVer(v => v + 1)).catch(() => {});
+  }, []);
+
   const D = window.SP_DATA;
   const [tab, setTab]           = React.useState('product');
   const [prodSub, setProdSub]   = React.useState('flat'); /* flat | byproduct */
@@ -83,9 +92,12 @@ function Reports({ toast = ()=>{} }) {
 
   React.useEffect(() => { setSearch(''); setDiscSearch(''); }, [tab]);
 
-  /* ── filter ── */
+  /* ── filter ──
+     D.reportRows คือประวัติบิลขายทั้งหมด (อาจมีหลายพันแถวเมื่อใช้งานไปนาน) — ห่อด้วย useMemo
+     กันไม่ให้กรอง/ค้นหาซ้ำโดยไม่จำเป็นตอน re-render จากสาเหตุอื่น (เช่น เปิด modal ดูใบกำกับ/GRN
+     ในหน้านี้) ซึ่งเดิมจะวนกรองอาเรย์ทั้งหมดใหม่ทุกครั้งแม้ dateFrom/dateTo/search จะไม่เปลี่ยนเลย */
   const allRows = D.reportRows;
-  const rows = allRows.filter(r => {
+  const rows = React.useMemo(() => allRows.filter(r => {
     if (dateFrom && r.dateISO < dateFrom) return false;
     if (dateTo   && r.dateISO > dateTo)   return false;
     if (search) {
@@ -94,7 +106,7 @@ function Reports({ toast = ()=>{} }) {
              r.inv?.includes(s) || D.customers.find(c=>c.id===r.custId)?.name.includes(s);
     }
     return true;
-  });
+  }), [allRows, dateFrom, dateTo, search, D.customers]);
 
   const $   = window.fmtMoney;
   const sum = (f) => rows.reduce((s,r) => s+(r[f]||0), 0);
@@ -687,7 +699,7 @@ function Reports({ toast = ()=>{} }) {
             onExport={()=>window.exportCSV('report_payment.csv',['ช่องทาง','จำนวนบิล','จำนวน','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,qtyMix(p.kgW,p.unitQ),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']))}
             onPdf={()=>window.exportPDF('รายงาน Payment',['ช่องทาง','จำนวนบิล','จำนวน','Net Sale','VAT','ยอดรวม','สัดส่วน %'],payRows.map(p=>[PAY_LABELS[p.pay]||p.pay,p.cnt,qtyMix(p.kgW,p.unitQ),$(p.net),$(p.vat),$(p.total),payTotal>0?((p.total/payTotal)*100).toFixed(2)+'%':'']),`รวม ${billCount} บิล | ยอดรวม ${$(totTotal)}`)}
           />
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
+          <div className="split-2col" style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
             <Card title="รายงานแยกตามประเภทชำระเงิน">
               <div className="tw"><table>
                 <thead><tr>

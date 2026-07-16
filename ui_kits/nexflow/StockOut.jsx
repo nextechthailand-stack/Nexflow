@@ -254,6 +254,15 @@ function StockOut({ toast }) {
   const [qty, setQty]                   = React.useState(1);
   const inputRef = React.useRef(null);
   const seqRef = React.useRef(0);
+  /* ── โหลดสินค้า/ลูกค้าล่าสุดจาก server ตอนเข้าหน้านี้ (เผื่อเครื่องอื่นเพิ่ง
+     เพิ่มสินค้า/ลูกค้าไป) — bump เพื่อ re-render เพราะหน้านี้อ่าน D.products/
+     D.customers ตรงๆ ── */
+  const [, setDataVer] = React.useState(0);
+  React.useEffect(() => {
+    if (!window.SP_API) return;
+    window.SP_API.reloadProducts().then(() => setDataVer(v => v + 1)).catch(() => {});
+    window.SP_API.reloadCustomers().then(() => setDataVer(v => v + 1)).catch(() => {});
+  }, []);
 
   const filteredCusts = D.customers.filter(c => c.is_active !== false && (custSearch === '' || c.name.toLowerCase().includes(custSearch.toLowerCase())));
   const selectedCust = D.customers.find(c => c.id === custId);
@@ -458,7 +467,7 @@ function StockOut({ toast }) {
   };
 
   return (
-    <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:18 }}>
+    <div className="split-2col" style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:18 }}>
       {/* LEFT */}
       <div>
         <div className="card" style={{ marginBottom:14 }}>

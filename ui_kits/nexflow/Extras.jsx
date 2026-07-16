@@ -333,12 +333,14 @@ function InvoiceList({ toast }) {
     }
   }, [tab]);
 
-  const filtered = invs.filter(iv =>
+  // invs อาจมีประวัติใบกำกับสะสมทั้งหมด (หลายพันรายการเมื่อใช้งานมานาน) — ห่อ useMemo
+  // กันกรองซ้ำโดยไม่จำเป็นตอน re-render จากสาเหตุอื่น (เช่น เปิด modal ดูใบกำกับ)
+  const filtered = React.useMemo(() => invs.filter(iv =>
     (!dateFrom || iv.date >= dateFrom) &&
     (!dateTo   || iv.date <= dateTo) &&
     (!search || iv.no.includes(search) || (iv.custName||'').includes(search))
-  );
-  const active = invs.filter(iv => !iv.voided);
+  ), [invs, dateFrom, dateTo, search]);
+  const active = React.useMemo(() => invs.filter(iv => !iv.voided), [invs]);
 
   const doVoid = async () => {
     const iv = voidModal; if (!iv) return;
@@ -934,7 +936,7 @@ function InvoiceList({ toast }) {
         const auditSlice    = filteredAudit.slice((auditSafePg-1)*INV_PAGE_SIZE, auditSafePg*INV_PAGE_SIZE);
         return (
           <div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:18 }}>
+            <div className="grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:18 }}>
               <StatCard icon="file-text" iconTone="ac" label="รายการ (ช่วงเวลา)" value={filteredAudit.length+' รายการ'} />
               <StatCard icon="check"    iconTone="gn" label="ออก INV"            value={filteredAudit.filter(l=>l.actionType==='ISSUE_INVOICE').length+' ครั้ง'} />
               <StatCard icon="x-circle" iconTone="rd" label="ยกเลิก"             value={filteredAudit.filter(l=>l.actionType==='CANCEL_INVOICE').length+' ครั้ง'} valueTone="rd"/>
@@ -1240,6 +1242,9 @@ function StockManage({ toast }) {
   const [grnViewDoc, setGrnViewDoc] = React.useState(null);
   /* Ledger version — increments when reloadLedger() is called */
   const [ledgerVer, setLedgerVer] = React.useState(() => window.SP_LEDGER_VERSION || 0);
+  /* Bump after reloadProducts() so the balance tab (which reads D.products
+     directly, not via local state) actually re-renders with fresh data */
+  const [, setBalVer] = React.useState(0);
 
   /* Reload GRN list from DB when switching to grn tab */
   React.useEffect(() => {
@@ -1259,6 +1264,27 @@ function StockManage({ toast }) {
       window.SP_API.reloadLedger()
         .then(() => setLedgerVer(v => v + 1))
         .catch(() => setLedgerVer(v => v + 1)); // trigger re-render even on error
+    }
+  }, [tab]);
+
+  /* Reload products from DB when switching to balance (stock summary) tab */
+  React.useEffect(() => {
+    if (tab === 'balance' && window.SP_API) {
+      window.SP_API.reloadProducts()
+        .then(() => setBalVer(v => v + 1))
+        .catch(() => {});
+    }
+  }, [tab]);
+
+  /* Reload stock adjustment logs from DB when switching to adjlog tab */
+  React.useEffect(() => {
+    if (tab !== 'adjlog') return;
+    if (window.SP_API) {
+      window.SP_API.reloadAdjLogs()
+        .then(data => setAdjLogsState([...data]))
+        .catch(() => setAdjLogsState([...(window.SP_STATE.adjLogs || [])]));
+    } else {
+      setAdjLogsState([...(window.SP_STATE.adjLogs || [])]);
     }
   }, [tab]);
 
@@ -1674,7 +1700,7 @@ function StockManage({ toast }) {
         const balSlice      = balFiltered.slice((balSafePage-1)*BAL_PAGE_SIZE, balSafePage*BAL_PAGE_SIZE);
         return (
         <div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:16 }}>
+          <div className="grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:16 }}>
             <StatCard icon="package"   iconTone="ac" label="สินค้าทั้งหมด"  value={D.products.length+' รายการ'} />
             <StatCard icon="check"     iconTone="gn" label="มีสต็อก"         value={D.products.filter(p=>p.stock>0).length+' รายการ'} />
             <StatCard icon="warehouse" iconTone="am" label="ใกล้หมด/หมด"    value={D.products.filter(p=>p.stock<p.min).length+' รายการ'} valueTone="am" />
@@ -2573,6 +2599,14 @@ function Users({ toast }) {
 
   const refreshUsers = () => setUsers(D.users.filter(u => u.status !== 'inactive'));
   const resetForm    = () => setForm({ name:'', user:'', email:'', role:'Staff', password:'', confirmPw:'' });
+  /* ── โหลดรายชื่อผู้ใช้ล่าสุดจาก server ทุกครั้งที่เข้าหน้านี้ ── */
+  React.useEffect(() => {
+    let cancelled = false;
+    window.SP_API.reloadUsers()
+      .then((fresh) => { if (!cancelled) setUsers(fresh.filter(u => u.status !== 'inactive')); })
+      .catch((err) => { if (toast) toast('err', 'โหลดรายชื่อผู้ใช้ล่าสุดไม่สำเร็จ: ' + (err?.message || err)); });
+    return () => { cancelled = true; };
+  }, []);
 
   const addUser = async () => {
     if (!form.name||!form.user) { toast('err','กรุณากรอกชื่อและ Username'); return; }
@@ -3187,7 +3221,12 @@ function Settings({ toast }) {
                 </Button>
               </div>
               {connStatus === 'ok'  && <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12.5, color:'var(--gn)', marginBottom:10 }}><Icon name="check" size={14}/>เชื่อมต่อสำเร็จ</div>}
-              {connStatus === 'err' && <div style={{ fontSize:12.5, color:'var(--rd)', marginBottom:10 }}>✕ เชื่อมต่อไม่ได้ — ตรวจสอบ IP / port และให้แน่ใจว่า API server รันอยู่</div>}
+              {connStatus === 'err' && <div style={{ fontSize:12.5, color:'var(--rd)', marginBottom:10, lineHeight:1.6 }}>
+                ✕ เชื่อมต่อไม่ได้ — ตรวจสอบตามลำดับนี้:<br/>
+                1) เครื่อง Server เปิด start-desktop.bat อยู่หรือไม่<br/>
+                2) IP/port ในช่องด้านบนตรงกับ IP ของเครื่อง Server จริงหรือไม่ (เปิด Presetup\4_show_server_ip.bat บนเครื่อง Server เพื่อดู IP)<br/>
+                3) เครื่อง Server รัน Presetup\3_open_firewall.bat แล้วหรือยัง (ต้องรันซ้ำถ้าย้ายไปติดตั้งเครื่องใหม่ หรือเปลี่ยนเครือข่าย)
+              </div>}
               <div style={{ display:'flex', gap:8 }}>
                 <Button variant="bp" size="sm" icon="check" onClick={saveApiBase}>บันทึก URL</Button>
                 <Button variant="bg2" size="sm" onClick={()=>{ window.location.href = '/ui_kits/nexflow/index.html'; }}>รีโหลดแอป</Button>
@@ -3204,7 +3243,19 @@ function Settings({ toast }) {
 function Products({ toast }) {
   const D = window.SP_DATA;
   const [products, setProducts]   = React.useState(D.products);
+  /* ── โหลดข้อมูลสินค้าล่าสุดจาก server ทุกครั้งที่เข้าหน้านี้ ──
+     กันปัญหาเครื่องอื่นเพิ่ม/แก้สินค้าไปแล้ว แต่เครื่องนี้ยังเห็นข้อมูลเก่าที่
+     cache ไว้ตอนเปิดแอป (SP_DATA.products โหลดครั้งเดียวตอน login เท่านั้น) */
+  React.useEffect(() => {
+    let cancelled = false;
+    window.SP_API.reloadProducts()
+      .then((fresh) => { if (!cancelled) setProducts(fresh); })
+      .catch((err) => { if (toast) toast('err', 'โหลดข้อมูลสินค้าล่าสุดไม่สำเร็จ: ' + (err?.message || err)); });
+    return () => { cancelled = true; };
+  }, []);
   const [importResult, setImportResult] = React.useState(null);
+  const [importPreview, setImportPreview] = React.useState(null);
+  const [importing, setImporting] = React.useState(false);
   const [showAdd, setShowAdd]     = React.useState(false);
   const [form, setForm]           = React.useState({ code:'', name:'', sell:'', cost:'', stock:'0', min:'10', tax:'vat7', unitType:'kg', unitLabel:'KG' });
   const [editProd, setEditProd]   = React.useState(null);
@@ -3213,9 +3264,9 @@ function Products({ toast }) {
   const [deactivateConfirm, setDeactivateConfirm] = React.useState(null);
   const [prodSearch, setProdSearch] = React.useState('');
   const csvRef = React.useRef(null);
-  const filteredProds = prodSearch.trim()
+  const filteredProds = React.useMemo(() => prodSearch.trim()
     ? products.filter(p => p.name.toLowerCase().includes(prodSearch.toLowerCase()) || p.code.includes(prodSearch))
-    : products;
+    : products, [products, prodSearch]);
   const { slice: prodSlice, page: prodPage, totalPages: prodTotalPages, setPage: setProdPage, total: prodTotal } = usePagination(filteredProds, 20);
 
   /* ── Download CSV template ── */
@@ -3227,7 +3278,7 @@ function Products({ toast }) {
     );
   };
 
-  /* ── Import CSV ── */
+  /* ── Import CSV: ขั้นที่ 1 — อ่านไฟล์ + ตรวจสอบข้อมูล (ยังไม่บันทึกลง DB) ── */
   const importCSV = (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
@@ -3239,35 +3290,80 @@ function Products({ toast }) {
         const missing = need.filter(k=>!headers.includes(k));
         if (missing.length) { if(toast)toast('err',`ขาดคอลัมน์: ${missing.join(', ')}`); return; }
 
-        let added=0, updated=0; const rows=[];
-        lines.slice(1).forEach(line => {
-          if (!line.trim()) return;
+        const seen = new Set();
+        const rows = lines.slice(1).filter(l=>l.trim()).map(line => {
           const vals = line.split(',').map(v=>v.trim().replace(/"/g,''));
           const row  = {};
           headers.forEach((h,i) => row[h] = vals[i]||'');
-          if (!row.code) return;
           const existing = D.products.find(p=>p.code===row.code);
-          const prod = {
-            id:    existing?.id || Date.now()+Math.random(),
-            code:  row.code,
-            name:  row.name,
-            sell:  parseFloat(row.sell)||0,
-            cost:  parseFloat(row.cost)||0,
-            stock: parseFloat(row.stock)||0,
-            min:   parseFloat(row.min)||0,
-            tax:   row.tax==='nonvat'?'nonvat':'vat7',
+
+          let status, note = '';
+          if (!row.code)                 { status='error'; note='ขาดรหัสสินค้า'; }
+          else if (!row.name)            { status='error'; note='ขาดชื่อสินค้า'; }
+          else if (seen.has(row.code))   { status='skip';  note='รหัสซ้ำในไฟล์ (ใช้แถวแรกที่พบ)'; }
+          else                           { status = existing ? 'update' : 'add'; }
+          if (row.code) seen.add(row.code);
+
+          return {
+            code: row.code, name: row.name,
+            sell: parseFloat(row.sell)||0, cost: parseFloat(row.cost)||0,
+            stock: parseFloat(row.stock)||0, min: parseFloat(row.min)||0,
+            tax: row.tax==='nonvat' ? 'nonvat' : 'vat7',
+            unitType: existing?.unitType || 'kg', unitLabel: existing?.unitLabel || 'KG',
+            _status: status, _note: note,
           };
-          if (existing) { Object.assign(existing, prod); updated++; rows.push({code:row.code,name:row.name,status:'updated'}); }
-          else          { D.products.push(prod); added++; rows.push({code:row.code,name:row.name,status:'added'}); }
         });
-        setProducts([...D.products]);
-        setImportResult({rows,added,updated,skipped:0,errors:0});
-        if (toast) toast('ok', `Import สำเร็จ: +${added} / อัพเดต ${updated}`);
+        if (!rows.length) { if (toast) toast('err','ไม่พบข้อมูลในไฟล์'); return; }
+        setImportPreview(rows);
       } catch(err) { if (toast) toast('err','อ่านไฟล์ไม่ได้: '+err.message); }
       e.target.value = '';
     };
     reader.readAsText(file, 'utf-8');
   };
+
+  /* ── Import CSV: ขั้นที่ 2 — ผู้ใช้ยืนยันแล้ว ค่อยบันทึกลง DB ทีละแถว ── */
+  const confirmProductImport = async () => {
+    if (!importPreview) return;
+    setImporting(true);
+    const hasApi = window.SP_API && typeof window.SP_API.createProduct === 'function';
+    let added=0, updated=0, skipped=0, errors=0;
+    const rows = [];
+
+    for (const r of importPreview) {
+      if (r._status === 'skip')  { skipped++; rows.push({code:r.code, name:r.name, status:'skipped', note:r._note}); continue; }
+      if (r._status === 'error') { errors++;  rows.push({code:r.code||'?', name:r.name||'?', status:'error', note:r._note}); continue; }
+
+      const payload = { code:r.code, name:r.name, sell:r.sell, cost:r.cost, stock:r.stock, min:r.min, tax:r.tax, unitType:r.unitType, unitLabel:r.unitLabel };
+      try {
+        if (r._status === 'update') {
+          const dbPayload = { name:payload.name, sell_price:payload.sell, cost_price:payload.cost, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:payload.unitLabel };
+          if (hasApi && typeof window.SP_API.updateProduct === 'function') await window.SP_API.updateProduct(r.code, dbPayload);
+          const existing = D.products.find(p=>p.code===r.code);
+          if (existing) Object.assign(existing, payload);
+          updated++; rows.push({code:r.code, name:r.name, status:'updated'});
+        } else {
+          const dbPayload = { code:payload.code, name:payload.name, sell_price:payload.sell, cost_price:payload.cost, stock_qty:payload.stock, min_qty:payload.min, tax_type:payload.tax, unit_type:payload.unitType, unit_label:payload.unitLabel };
+          let id = Date.now()+Math.random();
+          if (hasApi) { const result = await window.SP_API.createProduct(dbPayload); id = result.id || id; }
+          D.products.push({ id, ...payload });
+          added++; rows.push({code:r.code, name:r.name, status:'added'});
+        }
+      } catch (err) {
+        errors++; rows.push({code:r.code, name:r.name, status:'error', note: err.message});
+      }
+    }
+
+    if (hasApi && typeof window.SP_API.reloadProducts === 'function') {
+      try { await window.SP_API.reloadProducts(); } catch(e) { /* ใช้ค่าที่อัพเดตในเครื่องแทน */ }
+    }
+    setProducts([...window.SP_DATA.products]);
+    setImportPreview(null);
+    setImporting(false);
+    setImportResult({ rows, added, updated, skipped, errors });
+    if (toast) toast(errors>0 ? 'err' : 'ok', `Import สำเร็จ: +${added} / อัพเดต ${updated}${errors ? ` / ผิดพลาด ${errors}` : ''}`);
+  };
+
+  const cancelProductImport = () => setImportPreview(null);
 
   /* ── Open edit modal ── */
   const openEdit = (p) => {
@@ -3447,6 +3543,22 @@ function Products({ toast }) {
         <Paginator page={prodPage} totalPages={prodTotalPages} setPage={setProdPage} total={prodTotal} pageSize={20} noun="สินค้า" />
       </Card>
 
+      {importPreview && <ImportPreviewModal
+        rows={importPreview}
+        entityLabel="สินค้า"
+        saving={importing}
+        onCancel={cancelProductImport}
+        onConfirm={confirmProductImport}
+        columns={[
+          { key:'code', label:'รหัส', mono:true },
+          { key:'name', label:'ชื่อสินค้า' },
+          { key:'sell', label:'ราคาขาย', align:'right', format:r=>window.fmtMoney(r.sell) },
+          { key:'cost', label:'ราคาทุน', align:'right', format:r=>window.fmtMoney(r.cost) },
+          { key:'stock', label:'สต็อกเริ่มต้น', align:'right', format:r=> r._status==='update' ? '— (ไม่เปลี่ยนสต็อก)' : r.stock.toFixed(2) },
+          { key:'tax', label:'ภาษี', format:r=>r.tax==='nonvat'?'Non VAT':'Incl VAT' },
+        ]}
+      />}
+
       {importResult && <ImportResultModal result={importResult} entityLabel="สินค้า" onClose={()=>setImportResult(null)} />}
 
       {/* Deactivate product confirm */}
@@ -3580,6 +3692,79 @@ function Products({ toast }) {
   );
 }
 
+/* ═══ SHARED: Import Preview Modal — ตรวจสอบข้อมูลก่อนยืนยันบันทึกลง DB ═══ */
+function ImportPreviewModal({ rows, columns, entityLabel, onConfirm, onCancel, saving }) {
+  if (!rows) return null;
+  const addCount = rows.filter(r=>r._status==='add').length;
+  const updCount = rows.filter(r=>r._status==='update').length;
+  const skipCount = rows.filter(r=>r._status==='skip').length;
+  const errCount = rows.filter(r=>r._status==='error').length;
+  const okCount = addCount + updCount;
+  return (
+    <Overlay onClick={e=>{ if(!saving && e.target===e.currentTarget) onCancel(); }}>
+      <div className="md" style={{ width:700 }}>
+        <div className="md-h">
+          <span className="md-t">ตรวจสอบข้อมูลก่อนนำเข้า {entityLabel}</span>
+          {!saving && <button type="button" className="md-x" aria-label="ปิด" onClick={onCancel}>✕</button>}
+        </div>
+        <div className="md-b">
+          <div style={{ fontSize:12.5, color:'var(--t2)', marginBottom:12 }}>
+            ตรวจสอบรายการด้านล่างให้ถูกต้องก่อนกดยืนยัน — ระบบจะบันทึกเฉพาะแถวที่พร้อมนำเข้า ({okCount} รายการ) ลงฐานข้อมูลจริง
+          </div>
+          {/* Summary chips */}
+          <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap' }}>
+            {[['เพิ่มใหม่', addCount, 'var(--gn)', 'var(--gbg)'],['อัพเดต', updCount, 'var(--ac)', 'var(--abg)'],['ข้าม/ซ้ำ', skipCount, 'var(--t2)', 'var(--s2)'],['Error', errCount, 'var(--rd)', 'var(--rbg)']].map(([l,n,c,bg])=>(
+              <div key={l} style={{ padding:'8px 16px', borderRadius:'var(--rs)', background:bg, textAlign:'center' }}>
+                <div style={{ fontSize:20, fontWeight:800, color:c }}>{n}</div>
+                <div style={{ fontSize:11, color:c, fontWeight:600 }}>{l}</div>
+              </div>
+            ))}
+            <div style={{ marginLeft:'auto', padding:'8px 16px', background:'var(--s2)', borderRadius:'var(--rs)', textAlign:'center' }}>
+              <div style={{ fontSize:20, fontWeight:800, color:'var(--tx)' }}>{rows.length}</div>
+              <div style={{ fontSize:11, color:'var(--t2)', fontWeight:600 }}>รวม</div>
+            </div>
+          </div>
+          {/* Detail table */}
+          <div style={{ maxHeight:340, overflowY:'auto', border:'1px solid var(--bd)', borderRadius:'var(--rs)' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12.5 }}>
+              <thead><tr style={{ background:'var(--s2)', position:'sticky', top:0 }}>
+                <th style={{ padding:'7px 12px', textAlign:'center', fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)' }}>สถานะ</th>
+                {columns.map(c=>(
+                  <th key={c.key} style={{ padding:'7px 12px', textAlign:c.align||'left', fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)' }}>{c.label}</th>
+                ))}
+                <th style={{ padding:'7px 12px', textAlign:'left', fontWeight:700, color:'var(--t2)', borderBottom:'1px solid var(--bd)' }}>หมายเหตุ</th>
+              </tr></thead>
+              <tbody>
+                {rows.map((r,i)=>(
+                  <tr key={i} style={{ borderBottom:'1px solid var(--bd)', background:r._status==='error'?'var(--rbg)':r._status==='skip'?'var(--s2)':'' }}>
+                    <td style={{ padding:'7px 12px', textAlign:'center' }}>
+                      <span className={'bx '+(r._status==='add'?'xg':r._status==='update'?'xb':r._status==='error'?'xr':'xx')}>
+                        {{add:'เพิ่มใหม่',update:'อัพเดต',skip:'ข้าม',error:'Error'}[r._status]||r._status}
+                      </span>
+                    </td>
+                    {columns.map(c=>(
+                      <td key={c.key} style={{ padding:'7px 12px', textAlign:c.align||'left', fontFamily:c.mono?'var(--font-mono)':undefined }}>
+                        {c.format ? c.format(r) : r[c.key]}
+                      </td>
+                    ))}
+                    <td style={{ padding:'7px 12px', fontSize:11.5, color:r._status==='error'?'var(--rd)':'var(--t3)' }}>{r._note||''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="md-f">
+          <Button variant="bg2" onClick={onCancel} disabled={saving}>ยกเลิก</Button>
+          <Button variant="bp" icon="check" onClick={onConfirm} disabled={saving || okCount===0}>
+            {saving ? 'กำลังบันทึกลง DB...' : `ยืนยันนำเข้า ${okCount} รายการ`}
+          </Button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
 /* ═══ SHARED: Import Result Modal ═══ */
 function ImportResultModal({ result, entityLabel, onClose }) {
   if (!result) return null;
@@ -3645,6 +3830,8 @@ function Customers({ toast }) {
   const D = window.SP_DATA;
   const [customers,        setCustomers]        = React.useState(() => [...D.customers]);
   const [importResult,     setImportResult]     = React.useState(null);
+  const [importPreview,    setImportPreview]    = React.useState(null);
+  const [importing,        setImporting]        = React.useState(false);
   const [showAdd,          setShowAdd]          = React.useState(false);
   const [editModal,        setEditModal]        = React.useState(null);
   const [deleteConfirm,    setDeleteConfirm]    = React.useState(null);
@@ -3654,9 +3841,17 @@ function Customers({ toast }) {
   const [custSearch, setCustSearch] = React.useState('');
   const csvRef = React.useRef(null);
   const refreshCusts = () => setCustomers([...D.customers]);
-  const filteredCusts = custSearch.trim()
+  /* ── โหลดข้อมูลลูกค้าล่าสุดจาก server ทุกครั้งที่เข้าหน้านี้ ── */
+  React.useEffect(() => {
+    let cancelled = false;
+    window.SP_API.reloadCustomers()
+      .then((fresh) => { if (!cancelled) setCustomers([...fresh]); })
+      .catch((err) => { if (toast) toast('err', 'โหลดข้อมูลลูกค้าล่าสุดไม่สำเร็จ: ' + (err?.message || err)); });
+    return () => { cancelled = true; };
+  }, []);
+  const filteredCusts = React.useMemo(() => custSearch.trim()
     ? customers.filter(c => c.name.toLowerCase().includes(custSearch.toLowerCase()) || c.code.toLowerCase().includes(custSearch.toLowerCase()) || (c.tel||'').includes(custSearch))
-    : customers;
+    : customers, [customers, custSearch]);
   const { slice: custSlice, page: custPage, totalPages: custTotalPages, setPage: setCustPage, total: custTotal } = usePagination(filteredCusts, 20);
 
   const downloadTemplate = () => {
@@ -3667,7 +3862,8 @@ function Customers({ toast }) {
     );
   };
 
-  const importCSV = async (e) => {
+  /* ── Import CSV: ขั้นที่ 1 — อ่านไฟล์ + ตรวจสอบข้อมูล (ยังไม่บันทึกลง DB) ── */
+  const importCSV = (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -3677,26 +3873,76 @@ function Customers({ toast }) {
         const need    = ['code','name','type'];
         const missing = need.filter(k=>!headers.includes(k));
         if (missing.length) { if(toast)toast('err',`ขาดคอลัมน์: ${missing.join(', ')}`); return; }
-        let added=0,updated=0,skipped=0,errors=0;
-        const rows = [];
-        lines.slice(1).forEach(line => {
-          if (!line.trim()) return;
+
+        const seen = new Set();
+        const rows = lines.slice(1).filter(l=>l.trim()).map(line => {
           const vals = line.split(',').map(v=>v.trim().replace(/"/g,''));
           const row  = {}; headers.forEach((h,i)=>row[h]=vals[i]||'');
-          if (!row.code||!row.name) { rows.push({code:row.code||'?',name:row.name||'?',status:'error',note:'ขาดรหัสหรือชื่อ'}); errors++; return; }
           const existing = D.customers.find(c=>c.code===row.code);
-          const cust = { id:existing?.id||Date.now()+Math.random(), code:row.code, name:row.name, type:row.type||'wholesale', tax:row.tax||'', tel:row.tel||'', addr:row.addr||'', discount:parseFloat(row.discount)||0 };
-          if (existing) { Object.assign(existing,cust); updated++; rows.push({code:row.code,name:row.name,status:'updated'}); }
-          else { D.customers.push(cust); added++; rows.push({code:row.code,name:row.name,status:'added'}); }
+
+          let status, note = '';
+          if (!row.code)                 { status='error'; note='ขาดรหัสลูกค้า'; }
+          else if (!row.name)            { status='error'; note='ขาดชื่อลูกค้า'; }
+          else if (seen.has(row.code))   { status='skip';  note='รหัสซ้ำในไฟล์ (ใช้แถวแรกที่พบ)'; }
+          else                           { status = existing ? 'update' : 'add'; }
+          if (row.code) seen.add(row.code);
+
+          return {
+            code: row.code, name: row.name, type: row.type || 'wholesale',
+            tax: row.tax || '', tel: row.tel || '', addr: row.addr || '',
+            discount: parseFloat(row.discount)||0,
+            branch: existing?.branch || 'head',
+            _status: status, _note: note,
+          };
         });
-        setCustomers([...D.customers]);
-        setImportResult({rows,added,updated,skipped,errors});
-        if(toast)toast('ok',`Import สำเร็จ: +${added} / อัพเดต ${updated}`);
+        if (!rows.length) { if(toast) toast('err','ไม่พบข้อมูลในไฟล์'); return; }
+        setImportPreview(rows);
       } catch(err) { if(toast)toast('err','อ่านไฟล์ไม่ได้: '+err.message); }
       e.target.value='';
     };
     reader.readAsText(file,'utf-8');
   };
+
+  /* ── Import CSV: ขั้นที่ 2 — ผู้ใช้ยืนยันแล้ว ค่อยบันทึกลง DB ทีละแถว ── */
+  const confirmCustomerImport = async () => {
+    if (!importPreview) return;
+    setImporting(true);
+    const hasApi = window.SP_API && typeof window.SP_API.createCustomer === 'function';
+    let added=0, updated=0, skipped=0, errors=0;
+    const rows = [];
+
+    for (const r of importPreview) {
+      if (r._status === 'skip')  { skipped++; rows.push({code:r.code, name:r.name, status:'skipped', note:r._note}); continue; }
+      if (r._status === 'error') { errors++;  rows.push({code:r.code||'?', name:r.name||'?', status:'error', note:r._note}); continue; }
+
+      const payload = { code:r.code, name:r.name, type:r.type, tax:r.tax, tel:r.tel, addr:r.addr, discount:r.discount, branch:r.branch };
+      try {
+        if (r._status === 'update') {
+          const dbPayload = { name:payload.name, type:payload.type, tax_id:payload.tax, tel:payload.tel, address:payload.addr, discount:payload.discount, branch:payload.branch, is_active:true, updated_by:'Admin' };
+          if (hasApi && typeof window.SP_API.updateCustomer === 'function') await window.SP_API.updateCustomer(r.code, dbPayload);
+          const existing = D.customers.find(c=>c.code===r.code);
+          if (existing) Object.assign(existing, payload);
+          updated++; rows.push({code:r.code, name:r.name, status:'updated'});
+        } else {
+          const dbPayload = { code:payload.code, name:payload.name, type:payload.type, tax_id:payload.tax, tel:payload.tel, address:payload.addr, discount:payload.discount, branch:payload.branch };
+          let id = Date.now()+Math.random();
+          if (hasApi) { const result = await window.SP_API.createCustomer(dbPayload); id = result.id || id; }
+          D.customers.push({ id, ...payload, is_active:true });
+          added++; rows.push({code:r.code, name:r.name, status:'added'});
+        }
+      } catch (err) {
+        errors++; rows.push({code:r.code, name:r.name, status:'error', note: err.message});
+      }
+    }
+
+    refreshCusts();
+    setImportPreview(null);
+    setImporting(false);
+    setImportResult({ rows, added, updated, skipped, errors });
+    if (toast) toast(errors>0 ? 'err' : 'ok', `Import สำเร็จ: +${added} / อัพเดต ${updated}${errors ? ` / ผิดพลาด ${errors}` : ''}`);
+  };
+
+  const cancelCustomerImport = () => setImportPreview(null);
 
   const addCustomer = async () => {
     if (!form.code||!form.name) { if(toast)toast('err','กรุณากรอกรหัสและชื่อลูกค้า'); return; }
@@ -3827,6 +4073,21 @@ function Customers({ toast }) {
         </table></div>
         <Paginator page={custPage} totalPages={custTotalPages} setPage={setCustPage} total={custTotal} pageSize={20} noun="ลูกค้า" />
       </Card>
+
+      {importPreview && <ImportPreviewModal
+        rows={importPreview}
+        entityLabel="ลูกค้า"
+        saving={importing}
+        onCancel={cancelCustomerImport}
+        onConfirm={confirmCustomerImport}
+        columns={[
+          { key:'code', label:'รหัส', mono:true },
+          { key:'name', label:'ชื่อลูกค้า' },
+          { key:'type', label:'ประเภท', format:r=>r.type==='wholesale'?'ค้าส่ง':r.type==='online'?'ออนไลน์':r.type },
+          { key:'tel', label:'โทร' },
+          { key:'discount', label:'ส่วนลด', align:'right', format:r=>r.discount+'%' },
+        ]}
+      />}
 
       {importResult && <ImportResultModal result={importResult} entityLabel="ลูกค้า" onClose={()=>setImportResult(null)} />}
 

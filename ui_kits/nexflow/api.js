@@ -7,8 +7,13 @@
  */
 
 (function () {
-  const DEFAULT_BASE = 'http://localhost:3001';
-  /* Auto-configure from ?api= URL param — ช่วย client machine ตั้งค่าครั้งแรกโดยไม่ต้องเข้า Settings */
+  /* DEFAULT_BASE: ใช้ hostname เดียวกับหน้าเว็บที่เปิดอยู่ (ไม่ hardcode 'localhost')
+     เหตุผล: เครื่อง client เปิด http://192.168.x.x:3000 — ถ้า default เป็น 'localhost:3001'
+     เบราว์เซอร์ของ client จะไปหา API ที่ตัวเอง (client เอง) ไม่ใช่เครื่อง Server ทำให้ต่อ DB
+     จริงไม่ได้ (เห็นแต่ข้อมูล mock/demo) โดยที่ไม่มี error ชัดเจนให้เห็น — ใช้ location.hostname
+     แทนแล้วทุกเครื่องจะชี้ไปที่ API บนเครื่องเดียวกับที่เสิร์ฟหน้าเว็บให้อัตโนมัติ ไม่ต้องตั้งค่าเอง */
+  const DEFAULT_BASE = `http://${location.hostname || 'localhost'}:3001`;
+  /* Auto-configure from ?api= URL param — เผื่อกรณี API server อยู่คนละเครื่องกับ Web server */
   (function() {
     try {
       const p = new URLSearchParams(location.search).get('api');
@@ -160,22 +165,41 @@
     const yd        = new Date(); yd.setDate(yd.getDate()-1);
     const ydStr     = window.toLocalISODate(yd);
 
-    const todayRows = reportRows.filter(r => r.dateISO === today);
-    const monthRows = reportRows.filter(r => (r.dateISO||'').startsWith(thisMonth));
-    const ydRows    = reportRows.filter(r => r.dateISO === ydStr);
+    /* ── รวมข้อมูลด้วยการวนอาเรย์ครั้งเดียว (สำคัญต่อความเร็ว) ──
+       เดิมโค้ดส่วนนี้วน reportRows ซ้ำ ๆ ประมาณ 40 รอบ (filter หา today/month/เมื่อวาน
+       และวนทีละวันสำหรับกราฟ 7 วัน/30 วัน) — ฟังก์ชันนี้ถูกเรียกใหม่ทุกครั้งหลังขาย/รับสินค้า
+       ยิ่งมีบิลสะสมมากขึ้นเรื่อย ๆ (ใช้งานมาหลายเดือน) ก็ยิ่งช้าขึ้นทุกครั้งที่ทำรายการ
+       เปลี่ยนเป็นวนครั้งเดียว สร้าง map สรุปยอดต่อวัน/เดือน/ช่องทาง/สินค้าไว้ก่อน แล้วค้นจาก
+       map (O(1)) ทีหลัง — ผลลัพธ์ทุกค่าเหมือนเดิมทุกประการ เปลี่ยนแค่วิธีคำนวณให้เร็วขึ้น */
+    const dayTotal   = {};   // dateISO -> ยอดขายรวมวันนั้น
+    const dayBillSet = {};   // dateISO -> Set เลขบิล (ใช้นับจำนวนบิลวันนี้)
+    const chanMap = {};
+    const prodMap = {};
+    const monthMap = {};     // 'YYYY-MM' -> ยอดขายรวมเดือนนั้น (ใช้ทำกราฟ 6m/1y)
 
-    const todayTotal = todayRows.reduce((s,r)=>s+r.total,0);
-    const monthTotal = monthRows.reduce((s,r)=>s+r.total,0);
-    const ydTotal    = ydRows.reduce((s,r)=>s+r.total,0);
-    const todayBills = new Set(todayRows.map(r=>r.inv)).size;
+    reportRows.forEach(r => {
+      const dISO = r.dateISO || '';
+      if (dISO) {
+        dayTotal[dISO] = (dayTotal[dISO] || 0) + r.total;
+        (dayBillSet[dISO] || (dayBillSet[dISO] = new Set())).add(r.inv);
+        const mKey = dISO.slice(0,7);
+        monthMap[mKey] = (monthMap[mKey] || 0) + r.total;
+      }
+      chanMap[r.channel] = (chanMap[r.channel] || 0) + r.total;
+      if (r.code && r.code !== '—') {
+        if (!prodMap[r.code]) prodMap[r.code] = { name:r.prod, kg:0, revenue:0 };
+        prodMap[r.code].kg      += r.w;
+        prodMap[r.code].revenue += r.total;
+      }
+    });
+
+    const todayTotal = dayTotal[today] || 0;
+    const monthTotal = monthMap[thisMonth] || 0;
+    const ydTotal    = dayTotal[ydStr] || 0;
+    const todayBills = dayBillSet[today] ? dayBillSet[today].size : 0;
     const todayDelta = ydTotal>0 ? Math.round((todayTotal-ydTotal)/ydTotal*100) : 0;
 
     /* salesByChannel */
-    const chanMap = {};
-    reportRows.forEach(r => {
-      if (!chanMap[r.channel]) chanMap[r.channel] = 0;
-      chanMap[r.channel] += r.total;
-    });
     const CHAN_META = {
       wholesale: { label:'ค้าส่ง',  tone:'ac' },
       online:    { label:'ออนไลน์', tone:'pu' },
@@ -190,46 +214,27 @@
     })).sort((a,b)=>b.value-a.value);
 
     /* topSellers */
-    const prodMap = {};
-    reportRows.forEach(r => {
-      if (!r.code || r.code==='—') return;
-      if (!prodMap[r.code]) prodMap[r.code] = { name:r.prod, kg:0, revenue:0 };
-      prodMap[r.code].kg      += r.w;
-      prodMap[r.code].revenue += r.total;
-    });
     const topSellers = Object.values(prodMap)
       .sort((a,b)=>b.revenue-a.revenue).slice(0,5)
       .map(p=>({ name:p.name, kg:Math.round(p.kg*10)/10, revenue:Math.round(p.revenue) }));
 
-    /* revenue chart — 7d and 1m from real data */
+    /* revenue chart — 7d/1m: ค้นจาก dayTotal ที่รวมไว้แล้ว (O(1) ต่อวัน แทนการ filter ทั้งอาเรย์ทุกวัน) */
     const DAY_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];
     const days7v=[], days7l=[];
     for (let i=6; i>=0; i--) {
       const dd=new Date(); dd.setDate(dd.getDate()-i);
       const dStr=window.toLocalISODate(dd);
-      days7v.push(Math.round(reportRows.filter(r=>r.dateISO===dStr).reduce((s,r)=>s+r.total,0)));
+      days7v.push(Math.round(dayTotal[dStr] || 0));
       days7l.push(DAY_TH[dd.getDay()]);
     }
     const days30v=[], days30l=[];
     for (let i=29; i>=0; i--) {
       const dd=new Date(); dd.setDate(dd.getDate()-i);
       const dStr=window.toLocalISODate(dd);
-      days30v.push(Math.round(reportRows.filter(r=>r.dateISO===dStr).reduce((s,r)=>s+r.total,0)));
+      days30v.push(Math.round(dayTotal[dStr] || 0));
       days30l.push(String(30-i));
     }
-    /* 3m/6m/1y: group by week/month */
-    const weekMap={}, monthMap={};
-    reportRows.forEach(r=>{
-      if(!r.dateISO) return;
-      const d=new Date(r.dateISO+'T00:00:00');
-      const mKey=r.dateISO.slice(0,7);
-      if(!monthMap[mKey]) monthMap[mKey]=0; monthMap[mKey]+=r.total;
-      // week: year+weekNum
-      const jan1=new Date(d.getFullYear(),0,1);
-      const wn=Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7);
-      const wKey=`${d.getFullYear()}-W${String(wn).padStart(2,'0')}`;
-      if(!weekMap[wKey]) weekMap[wKey]=0; weekMap[wKey]+=r.total;
-    });
+    /* 6m/1y: group by month (monthMap สร้างไว้แล้วในลูปด้านบน) */
     const last12months = Array.from({length:12},(_,i)=>{
       const d=new Date(); d.setMonth(d.getMonth()-11+i);
       return window.toLocalISODate(d).slice(0,7);
@@ -296,8 +301,8 @@
 
     /* ── INIT — เรียกครั้งเดียวตอน app เริ่ม ─────────────── */
     async init() {
-      /* ลอง URL ที่บันทึกไว้ก่อน — ถ้าไม่ได้ให้ fallback เป็น localhost:3001 */
-      const tryUrls = [getBase(), 'http://localhost:3001', 'http://127.0.0.1:3001'];
+      /* ลอง URL ที่บันทึกไว้ก่อน (หรือ hostname เดียวกับหน้าเว็บ) — ถ้าไม่ได้ค่อย fallback เป็น localhost */
+      const tryUrls = [getBase(), `http://${location.hostname}:3001`, 'http://localhost:3001', 'http://127.0.0.1:3001'];
       let connected = false;
       for (const url of tryUrls) {
         try {
@@ -513,6 +518,30 @@
       }));
       window.SP_STATE.products = window.SP_DATA.products.map(p => ({ ...p }));
       return window.SP_DATA.products;
+    },
+
+    /* ── Reload customers (เครื่องอื่นเพิ่ม/แก้ลูกค้า) ───── */
+    async reloadCustomers() {
+      const customers = await get('/api/customers');
+      window.SP_DATA.customers = customers.map(c => ({
+        id: c.id, code: c.code, name: c.name, type: c.type,
+        tax: c.tax || '', tel: c.tel || '', addr: c.addr || '',
+        discount: Number(c.discount) || 0,
+        branch: c.branch || 'head',
+      }));
+      return window.SP_DATA.customers;
+    },
+
+    /* ── Reload users (เครื่องอื่นเพิ่ม/แก้ผู้ใช้) ───────── */
+    async reloadUsers() {
+      const users = await get('/api/users');
+      window.SP_DATA.users = users.map(u => ({
+        id: u.id, name: u.name, user: u.username, email: u.email || '',
+        role: u.role,
+        status: u.active ? 'active' : 'inactive',
+        last: u.last || '—',
+      }));
+      return window.SP_DATA.users;
     },
 
     /* ── Reload invoices + rebuild Dashboard/Reports ─────── */

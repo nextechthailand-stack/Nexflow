@@ -149,9 +149,15 @@ function Dashboard({ setPage }) {
   const [lang, t] = useLang();
   const [dataVer, setDataVer] = React.useState(window.SP_DASH_VERSION || 0);
   React.useEffect(() => {
-    /* build ครั้งแรกเมื่อ mount เท่านั้น */
-    if (window.SP_API && typeof window.SP_API.rebuildDashboard === 'function') {
-      window.SP_API.rebuildDashboard();
+    /* โหลดยอดขาย/สต็อกล่าสุดจาก server ทุกครั้งที่เข้าหน้า Dashboard
+       (แทนที่จะแค่คำนวณ KPI ใหม่จากข้อมูลที่ cache ไว้ในเครื่อง ซึ่งเก่าถ้าเครื่องอื่น
+       ขาย/รับสินค้าไปแล้วแต่เครื่องนี้ยังไม่เคยโหลดใหม่) */
+    if (window.SP_API) {
+      window.SP_API.reloadInvoices().catch(() => {
+        // ออฟไลน์/พลาด — คำนวณ KPI ใหม่จากข้อมูลที่มีอยู่ในเครื่องแทน
+        if (typeof window.SP_API.rebuildDashboard === 'function') window.SP_API.rebuildDashboard();
+      });
+      window.SP_API.reloadProducts().then(() => setDataVer(v => v + 1)).catch(() => {});
     }
     const onUpdate = () => setDataVer(v => v + 1);
     window.addEventListener('sp:data-updated', onUpdate);
@@ -226,7 +232,7 @@ function Dashboard({ setPage }) {
       </div>
 
       {/* ── Stock Management Stats Row ─────────────────────── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16, opacity:mounted?1:0, transition:'opacity .5s ease .22s' }}>
+      <div className="grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16, opacity:mounted?1:0, transition:'opacity .5s ease .22s' }}>
         <div className="dash-card" style={{ padding:'14px 18px' }}>
           <div style={{ fontSize:11, color:'var(--t2)', fontWeight:600, marginBottom:5, display:'flex', alignItems:'center', gap:5 }}>
             <Icon name="warehouse" size={13} style={{ color:'var(--ac)' }}/> {t('kpi_grn_month')}
@@ -298,7 +304,7 @@ function Dashboard({ setPage }) {
       )}
 
       {/* Revenue chart + Donut */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
+      <div className="split-2col" style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
 
         {/* Revenue chart with period tabs */}
         <div className="dash-card" style={{ opacity:mounted?1:0, transform:mounted?'scale(1)':'scale(.96)', transitionDelay:'.22s' }}>
@@ -435,7 +441,7 @@ function Dashboard({ setPage }) {
       </div>
 
       {/* Top sellers + Stock health */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
+      <div className="split-2col" style={{ display:'grid', gridTemplateColumns:'1fr 300px', gap:14, marginBottom:14 }}>
         <div className="dash-card" style={{ opacity:mounted?1:0, transform:mounted?'scale(1)':'scale(.96)', transitionDelay:'.36s' }}>
           <div className="dash-card-h"><div className="dash-card-t">{t('top_sellers_title')}</div><span style={{ fontSize:11, color:'var(--t3)' }}>{t('top_sellers_sub')}</span></div>
           <div style={{ padding:'14px 20px' }}>
