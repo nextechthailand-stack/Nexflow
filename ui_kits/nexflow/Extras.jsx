@@ -312,8 +312,8 @@ function InvoiceList({ toast }) {
   const [auditPage, setAuditPage] = React.useState(1);
   const [dailyFrom, setDailyFrom] = React.useState('');
   const [dailyTo,   setDailyTo]   = React.useState('');
-  const [auditFrom, setAuditFrom] = React.useState('');
-  const [auditTo,   setAuditTo]   = React.useState('');
+  const [auditFrom, setAuditFrom] = React.useState(() => window.toLocalISODate());
+  const [auditTo,   setAuditTo]   = React.useState(() => window.toLocalISODate());
   React.useEffect(() => { setTivPage(1); }, [search, dateFrom, dateTo]);
   React.useEffect(() => { setAuditPage(1); }, [tab, auditFrom, auditTo]);
 
@@ -482,7 +482,7 @@ function InvoiceList({ toast }) {
         <button type="button" className={'tab'+(tab==='daily'?' on':'')} onClick={()=>setTab('daily')}>สรุปการออกใบกำกับภาษี</button>
         <button type="button" className={'tab'+(tab==='audit'?' on':'')} onClick={()=>{setTab('audit');setAuditLog([...window.SP_STATE.auditLog]);}}
           style={{ color: tab==='audit'?'var(--pu)':undefined }}>
-          📋 Audit Trail
+          📋 บันทึกการทำงานระบบ
           {auditLog.length > 0 && <span style={{ marginLeft:5, background:'var(--pu)', color:'#fff', borderRadius:100, fontSize:10, fontWeight:800, padding:'1px 6px' }}>{auditLog.length}</span>}
         </button>
       </div>
@@ -936,13 +936,12 @@ function InvoiceList({ toast }) {
         const auditSlice    = filteredAudit.slice((auditSafePg-1)*INV_PAGE_SIZE, auditSafePg*INV_PAGE_SIZE);
         return (
           <div>
-            <div className="grid-4" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:18 }}>
+            <div className="grid-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:18 }}>
               <StatCard icon="file-text" iconTone="ac" label="รายการ (ช่วงเวลา)" value={filteredAudit.length+' รายการ'} />
               <StatCard icon="check"    iconTone="gn" label="ออก INV"            value={filteredAudit.filter(l=>l.actionType==='ISSUE_INVOICE').length+' ครั้ง'} />
               <StatCard icon="x-circle" iconTone="rd" label="ยกเลิก"             value={filteredAudit.filter(l=>l.actionType==='CANCEL_INVOICE').length+' ครั้ง'} valueTone="rd"/>
-              <StatCard icon="coin"     iconTone="am" label="CN/DN"               value={filteredAudit.filter(l=>l.actionType.includes('NOTE')).length+' ฉบับ'} valueTone="am"/>
             </div>
-            <Card title={`Audit Trail — บันทึกการดำเนินการ${auditFrom||auditTo ? ` (${filteredAudit.length} รายการ)` : 'ทั้งหมด'}`} actions={
+            <Card title={`บันทึกการทำงานระบบ${auditFrom||auditTo ? ` (${filteredAudit.length} รายการ)` : 'ทั้งหมด'}`} actions={
               <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
                 <DateField style={{ width:140 }} value={auditFrom} onChange={e=>setAuditFrom(e.target.value)} />
                 <span style={{ fontSize:12, color:'var(--t3)' }}>–</span>
@@ -950,11 +949,11 @@ function InvoiceList({ toast }) {
                 {(auditFrom||auditTo) && <button className="btn bg2 bsm" onClick={()=>{setAuditFrom('');setAuditTo('');}}>ล้าง</button>}
                 <Button variant="bg2" size="sm" icon="download" onClick={()=>window.exportCSV('audit_trail.csv',
                   ['วันเวลา','ประเภท','เลขที่เอกสาร','อ้างอิง','ผู้ดำเนินการ','สิทธิ์','เหตุผล'],
-                  filteredAudit.map(l=>[l.timestampDisplay,l.actionType,l.docNo,l.refDocNo||'',l.username,l.userRole,l.reason])
+                  filteredAudit.map(l=>[l.timestampDisplay||'',ACTION_LABELS[l.actionType]?.label||l.actionType||'ไม่ระบุ',l.docNo||'',l.refDocNo||'',l.username||'ไม่ระบุ',l.userRole||'',l.reason||'ไม่ระบุ'])
                 )}>CSV</Button>
-                <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('Audit Trail — บันทึกการดำเนินการ',
+                <Button variant="bg2" size="sm" icon="printer" onClick={()=>window.exportPDF('บันทึกการทำงานระบบ',
                   ['วันเวลา','ประเภท','เลขที่เอกสาร','อ้างอิง','ผู้ดำเนินการ','เหตุผล'],
-                  filteredAudit.map(l=>[l.timestampDisplay,ACTION_LABELS[l.actionType]?.label||l.actionType,l.docNo,l.refDocNo||'—',l.username,l.reason||'—']),
+                  filteredAudit.map(l=>[l.timestampDisplay||'',ACTION_LABELS[l.actionType]?.label||l.actionType||'ไม่ระบุ',l.docNo||'',l.refDocNo||'',l.username||'ไม่ระบุ',l.reason||'ไม่ระบุ']),
                   `รวม ${filteredAudit.length} รายการ`
                 )}>PDF</Button>
               </div>
@@ -978,17 +977,20 @@ function InvoiceList({ toast }) {
                     const meta = ACTION_LABELS[log.actionType] || { label:log.actionType, color:'var(--t2)', bg:'var(--s2)' };
                     return (
                       <tr key={log.id || i} style={{ borderBottom:'1px solid var(--bd)' }}>
-                        <td style={{ ...TD, fontSize:11.5, color:'var(--t2)', whiteSpace:'nowrap' }}>{log.timestampDisplay}</td>
+                        <td style={{ ...TD, fontSize:11.5, color:'var(--t2)', whiteSpace:'nowrap' }}>{log.timestampDisplay||''}</td>
                         <td style={TD}>
+                          {/* ประเภทดำเนินการ — ต้องแสดงทุกครั้ง */}
                           <span style={{ display:'inline-flex', alignItems:'center', padding:'2px 9px', borderRadius:100, fontSize:11.5, fontWeight:700, background:meta.bg, color:meta.color }}>
-                            {meta.label}
+                            {meta.label || 'ไม่ระบุ'}
                           </span>
                         </td>
-                        <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--ac)' }}>{log.docNo||'—'}</td>
-                        <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5, color:'var(--t3)' }}>{log.refDocNo||'—'}</td>
-                        <td style={{ ...TD, fontWeight:600 }}>{log.username}</td>
-                        <td style={TD}><span className={'bx '+(log.userRole==='admin'?'xb':log.userRole==='manager'?'xg':'xx')}>{log.userRole}</span></td>
-                        <td style={{ ...TD, fontSize:12, color:'var(--t2)', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.reason||'—'}</td>
+                        <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:12, fontWeight:700, color:'var(--ac)' }}>{log.docNo||''}</td>
+                        <td style={{ ...TD, fontFamily:'var(--font-mono)', fontSize:11.5, color:'var(--t3)' }}>{log.refDocNo||''}</td>
+                        {/* ผู้ดำเนินการ — ต้องแสดงทุกครั้ง */}
+                        <td style={{ ...TD, fontWeight:600 }}>{log.username || 'ไม่ระบุ'}</td>
+                        <td style={TD}>{log.userRole ? <span className={'bx '+(log.userRole==='admin'?'xb':log.userRole==='manager'?'xg':'xx')}>{log.userRole}</span> : ''}</td>
+                        {/* เหตุผล — ต้องแสดงทุกครั้ง */}
+                        <td style={{ ...TD, fontSize:12, color:'var(--t2)', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{log.reason || 'ไม่ระบุเหตุผล'}</td>
                       </tr>
                     );
                   })}
