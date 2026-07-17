@@ -517,6 +517,8 @@
         tax: p.tax, unitType: p.unitType || 'kg', unitLabel: p.unitLabel || 'KG',
       }));
       window.SP_STATE.products = window.SP_DATA.products.map(p => ({ ...p }));
+      /* แจ้งให้ UI ที่ฟังอยู่ (เช่น กระดิ่งแจ้งเตือนสต็อกใน Shell) รู้ว่าข้อมูลสินค้าเปลี่ยน */
+      window.dispatchEvent(new CustomEvent('sp:data-updated'));
       return window.SP_DATA.products;
     },
 
