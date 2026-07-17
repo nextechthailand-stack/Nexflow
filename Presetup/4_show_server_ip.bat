@@ -1,30 +1,41 @@
 @echo off
-chcp 65001 >nul
 title NEXflow - Server IP
 
-powershell -NoProfile -Command ^
-  "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.*' -and $_.PrefixOrigin -ne 'WellKnown'} | Select-Object -First 1).IPAddress" ^
-  > "%TEMP%\nfip.tmp" 2>nul
-set /p MY_IP=<"%TEMP%\nfip.tmp"
-del "%TEMP%\nfip.tmp" 2>nul
+for /f "usebackq delims=" %%I in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0get_lan_ip.ps1" 2^>nul`) do set "MY_IP=%%I"
 
 echo.
 echo ============================================================
-echo  NEXflow -- URL สำหรับเครื่องอื่นในร้าน
+echo  NEXflow -- URL for other PCs in the shop
 echo ============================================================
 echo.
 if defined MY_IP (
-    echo  IP เครื่อง Server นี้ : %MY_IP%
+    echo  This Server's computer name : %COMPUTERNAME%
+    echo  This Server's IP            : %MY_IP%
     echo.
-    echo  เครื่องอื่นเปิด Browser แล้วพิมพ์:
+    echo  On other PCs, open a browser and type EITHER of these:
     echo.
+    echo     http://%COMPUTERNAME%:3000     ^(recommended - keeps working even
+    echo                                      if the IP below changes later^)
     echo     http://%MY_IP%:3000
     echo.
-    echo  ^(เครื่อง Server ต้องเปิด start-desktop.bat ไว้ก่อน^)
+    echo  Tip: run Presetup\create_client_shortcut.bat on each client PC to
+    echo  make a Desktop icon for this automatically ^(it will ask for the
+    echo  computer name or IP shown above^).
+    echo.
+    echo  (Server PC must have start-desktop.bat running)
+    echo  (and must have run 3_open_firewall.bat at least once on this PC)
 ) else (
-    echo  [!] ไม่พบ IP address
-    echo      ตรวจสอบการเชื่อมต่อ LAN/WiFi
+    echo  [!] No IP address found
+    echo      Check the LAN/WiFi connection on this PC
 )
 echo ============================================================
+echo.
+echo  If this PC has multiple network adapters (e.g. both WiFi and
+echo  wired LAN) and the IP above does not work, check the full list
+echo  of adapters below and pick the one on the same network as the
+echo  client PCs:
+echo ------------------------------------------------------------
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0get_lan_ip.ps1" -All
+echo ------------------------------------------------------------
 echo.
 pause

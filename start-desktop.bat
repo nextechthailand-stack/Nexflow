@@ -35,42 +35,61 @@ if not exist "%ROOT%database\node_modules" (
     echo [1/3] API server packages OK
 )
 
-echo [2/3] Starting API Server on port 3001...
-start "NexFlow API" cmd /k "%ROOT%database\run-api.bat"
-timeout /t 2 /nobreak >nul
+:: ── ถ้าติดตั้งเป็น Windows Service ไว้แล้ว (Presetup\install-services.bat) ──
+:: ไม่ต้องเปิดหน้าต่าง cmd แยกสำหรับ API/Web อีกเลย - service วิ่งอยู่เบื้องหลัง
+:: อัตโนมัติตั้งแต่เครื่องบูตแล้ว (กันปัญหาคนเผลอปิด cmd แล้วระบบใช้งานไม่ได้)
+set "USING_SERVICES="
+set "API_SVC_UP="
+set "WEB_SVC_UP="
+sc query NEXflowAPI 2>nul | findstr /i "RUNNING" >nul 2>&1 && set "API_SVC_UP=1"
+sc query NEXflowWeb 2>nul | findstr /i "RUNNING" >nul 2>&1 && set "WEB_SVC_UP=1"
+if defined API_SVC_UP if defined WEB_SVC_UP set "USING_SERVICES=1"
 
-echo [2b] Starting Web UI Server on port 3000 (LAN access)...
-
-:: Find perl.exe - do NOT hardcode the path. Git for Windows can be installed
-:: to different locations (C:\Program Files\Git, C:\Program Files (x86)\Git,
-:: a custom drive/folder chosen during install, or not installed at all).
-:: A hardcoded path here causes cmd to print "The system cannot find the path
-:: specified" and the web server never actually starts, even though everything
-:: else (API server, firewall, etc.) looks fine.
-set "PERL_EXE="
-where perl >nul 2>&1
-if not errorlevel 1 (
-    for /f "usebackq delims=" %%P in (`where perl`) do if not defined PERL_EXE set "PERL_EXE=%%P"
-)
-if not defined PERL_EXE if exist "C:\Program Files\Git\usr\bin\perl.exe" set "PERL_EXE=C:\Program Files\Git\usr\bin\perl.exe"
-if not defined PERL_EXE if exist "C:\Program Files (x86)\Git\usr\bin\perl.exe" set "PERL_EXE=C:\Program Files (x86)\Git\usr\bin\perl.exe"
-if not defined PERL_EXE if exist "C:\Git\usr\bin\perl.exe" set "PERL_EXE=C:\Git\usr\bin\perl.exe"
-
-if not defined PERL_EXE (
-    echo.
-    echo ============================================
-    echo  ERROR: perl.exe not found on this PC.
-    echo  Web UI server ^(port 3000^) will NOT start.
-    echo  Fix: install Git for Windows ^(includes Perl^)
-    echo  from https://git-scm.com/download/win
-    echo  then close this window and run start-desktop.bat again.
-    echo ============================================
-    echo.
-    pause
+if defined USING_SERVICES (
+    echo [2/3] API + Web Server: running as Windows Service ^(background, no cmd window^)
 ) else (
-    start "NexFlow Web" cmd /k ""%PERL_EXE%" "%ROOT%serve.pl""
+    echo [2/3] Starting API Server on port 3001...
+    start "NexFlow API" cmd /k "%ROOT%database\run-api.bat"
+    timeout /t 2 /nobreak >nul
+
+    echo [2b] Starting Web UI Server on port 3000 (LAN access)...
+
+    :: Find perl.exe - do NOT hardcode the path. Git for Windows can be installed
+    :: to different locations (C:\Program Files\Git, C:\Program Files (x86)\Git,
+    :: a custom drive/folder chosen during install, or not installed at all).
+    :: A hardcoded path here causes cmd to print "The system cannot find the path
+    :: specified" and the web server never actually starts, even though everything
+    :: else (API server, firewall, etc.) looks fine.
+    set "PERL_EXE="
+    where perl >nul 2>&1
+    if not errorlevel 1 (
+        for /f "usebackq delims=" %%P in (`where perl`) do if not defined PERL_EXE set "PERL_EXE=%%P"
+    )
+    if not defined PERL_EXE if exist "C:\Program Files\Git\usr\bin\perl.exe" set "PERL_EXE=C:\Program Files\Git\usr\bin\perl.exe"
+    if not defined PERL_EXE if exist "C:\Program Files (x86)\Git\usr\bin\perl.exe" set "PERL_EXE=C:\Program Files (x86)\Git\usr\bin\perl.exe"
+    if not defined PERL_EXE if exist "C:\Git\usr\bin\perl.exe" set "PERL_EXE=C:\Git\usr\bin\perl.exe"
+
+    if not defined PERL_EXE (
+        echo.
+        echo ============================================
+        echo  ERROR: perl.exe not found on this PC.
+        echo  Web UI server ^(port 3000^) will NOT start.
+        echo  Fix: install Git for Windows ^(includes Perl^)
+        echo  from https://git-scm.com/download/win
+        echo  then close this window and run start-desktop.bat again.
+        echo ============================================
+        echo.
+        pause
+    ) else (
+        start "NexFlow Web" cmd /k ""%PERL_EXE%" "%ROOT%serve.pl""
+    )
+    timeout /t 1 /nobreak >nul
+
+    echo.
+    echo  TIP: run Presetup\install-services.bat once to turn API/Web into
+    echo  background Windows Services - no more cmd windows to accidentally
+    echo  close, and they auto-start if the server PC restarts or loses power.
 )
-timeout /t 1 /nobreak >nul
 
 :: Show URL for other PCs in the shop (get_lan_ip.ps1 = more reliable than "first IP found")
 set "LAN_IP="
