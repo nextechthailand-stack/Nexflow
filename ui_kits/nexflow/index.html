@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<base href="/ui_kits/nexflow/">
+<title>NexFlow</title>
+<link rel="icon" type="image/png" href="../../assets/nexflow-logo.png">
+<link rel="stylesheet" href="kit.css">
+<style>
+  html,body,#root{height:100%}
+  #root{position:relative;height:100vh;overflow:hidden}
+  #sp-root{height:100%;overflow:hidden;display:flex;flex-direction:column}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="data.js"></script>
+<script src="i18n.js"></script>
+<script src="api.js"></script>
+</head>
+<body>
+<div id="nf-debug" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#1a0000;color:#ff6b6b;padding:24px;font-family:monospace;font-size:13px;overflow:auto;z-index:99999;white-space:pre-wrap;word-break:break-all;"></div>
+<script>
+(function(){
+  var d = document.getElementById('nf-debug');
+  function show(msg){ d.style.display='block'; d.textContent += msg + '\n'; }
+  window.__nfLog = show;
+  window.onerror = function(msg,src,line,col,err){
+    show('❌ ERROR: ' + msg + '\n   at: ' + src + ':' + line + ':' + col + (err?'\n   stack: '+err.stack:''));
+    return false;
+  };
+  window.addEventListener('unhandledrejection',function(e){
+    show('⚠️ Unhandled promise: ' + (e.reason||e));
+  });
+})();
+</script>
+<div id="root"></div>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="Login.jsx"></script>
+<script type="text/babel" src="Shell.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="StockIn.jsx"></script>
+<script type="text/babel" src="StockOut.jsx"></script>
+<script type="text/babel" src="Invoice.jsx"></script>
+<script type="text/babel" src="Reports.jsx"></script>
+<script type="text/babel" src="Extras.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+/* ── Tweak definitions ── */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "warm",
+  "kpiStyle": "minimal",
+  "density": "relaxed"
+}/*EDITMODE-END*/;
+
+/* Theme → CSS custom property overrides (applied to #sp-root) */
+const THEME_VARS = {
+  warm: {},
+  cool: {
+    '--bg':'#edf1f7','--sur':'#ffffff','--s2':'#f2f5fb','--s3':'#e5eaf4',
+    '--tx':'#0e1929','--t2':'#4e6178','--t3':'#8aa0b8',
+  },
+  dark: {
+    '--bg':'#13111e','--sur':'#1d1b2e','--s2':'#252240','--s3':'#2e2b46',
+    '--bd':'rgba(255,255,255,.07)','--b2':'rgba(255,255,255,.13)',
+    '--tx':'#e6e4f0','--t2':'rgba(230,228,240,.6)','--t3':'rgba(230,228,240,.3)',
+    '--nav-bg':'#0c0a18','--nav-line':'rgba(255,255,255,.05)',
+    '--abg':'rgba(59,91,219,.18)','--gbg':'rgba(13,146,114,.18)',
+    '--ambg':'rgba(196,123,0,.18)','--rbg':'rgba(208,48,48,.18)',
+    '--pbg':'rgba(103,65,217,.18)',
+  },
+};
+
+/* Density → injected CSS overrides */
+const DENSITY_CSS = {
+  compact: `#sp-root .cb{padding:12px!important}#sp-root .ct{padding:14px!important}#sp-root .sg{gap:10px!important}#sp-root .dash-card-h{padding:10px 14px 9px!important}#sp-root .st{padding:12px 14px!important}#sp-root body{font-size:13.5px}`,
+  regular: ``,
+  relaxed: `#sp-root .cb{padding:28px!important}#sp-root .ct{padding:30px!important}#sp-root .sg{gap:20px!important}#sp-root .dash-card-h{padding:18px 24px 16px!important}#sp-root .st{padding:22px 24px!important}`,
+};
+
+const { useCallback } = React;
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { err: null }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{ padding:32, fontFamily:'monospace', background:'#fff0f0', color:'#c00', minHeight:'100vh', overflow:'auto' }}>
+          <h2 style={{ fontFamily:'sans-serif' }}>❌ เกิดข้อผิดพลาด (Render Error)</h2>
+          <pre style={{ whiteSpace:'pre-wrap', wordBreak:'break-all', fontSize:13, background:'#fff', padding:16, border:'1px solid #f99', borderRadius:8 }}>{String(this.state.err)}</pre>
+          <pre style={{ whiteSpace:'pre-wrap', fontSize:11, color:'#888', marginTop:12 }}>{this.state.err && this.state.err.stack}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [, tr] = useLang();
+  const [authed, setAuthed] = React.useState(false);
+  const [page, setPage] = React.useState('dashboard');
+  const [invoice, setInvoice] = React.useState(null);
+  const [toasts, setToasts] = React.useState([]);
+  const [dbReady, setDbReady] = React.useState(null); // null=loading, true=DB, false=mock
+  const [apiInput, setApiInput] = React.useState(() => localStorage.getItem('nexflow_api_base') || 'http://localhost:3001');
+
+  /* Sync URL path + tab title with current page */
+  const PAGE_PATHS = {
+    dashboard: 'dashboard', 'stock-in': 'grn', 'stock-out': 'sell',
+    invoices: 'invoices', reports: 'reports', 'stock-manage': 'stock',
+    products: 'products', customers: 'customers', users: 'users', settings: 'settings',
+  };
+  const PAGE_TITLES = {
+    dashboard: 'Dashboard', 'stock-in': 'รับสินค้า (GRN)', 'stock-out': 'ตัดสต็อก / ขาย',
+    invoices: 'ใบกำกับภาษี', reports: 'รายงาน', 'stock-manage': 'จัดการสต็อก',
+    products: 'สินค้า', customers: 'ลูกค้า', users: 'ผู้ใช้งาน', settings: 'ตั้งค่า',
+  };
+  React.useEffect(() => {
+    if (!authed) {
+      document.title = 'NexFlow';
+      history.replaceState(null, '', '/login');
+      return;
+    }
+    const path = PAGE_PATHS[page] || page;
+    const name = PAGE_TITLES[page] || page;
+    document.title = 'NexFlow | ' + name;
+    history.replaceState(null, '', '/' + path);
+  }, [authed, page]);
+
+  /* รอ API init */
+  React.useEffect(() => {
+    if (window.SP_API_READY) {
+      window.SP_API_READY.then(ok => setDbReady(ok));
+    } else {
+      setDbReady(false);
+    }
+  }, []);
+
+  /* Expose tweaks globally so Dashboard KpiCard can read kpiStyle */
+  window.SP_TWEAKS = t;
+
+  /* Inject density CSS */
+  React.useEffect(() => {
+    let el = document.getElementById('density-css');
+    if (!el) { el = document.createElement('style'); el.id = 'density-css'; document.head.appendChild(el); }
+    el.textContent = DENSITY_CSS[t.density] || '';
+  }, [t.density]);
+
+  const toast = useCallback((kind, msg) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, kind, msg }]);
+    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 3200);
+  }, []);
+
+  /* Route → body */
+  let body;
+  if (authed) {
+    switch (page) {
+      case 'dashboard':    body = <Dashboard setPage={setPage} />; break;
+      case 'stock-in':     body = <StockIn toast={toast} setPage={setPage} />; break;
+      case 'stock-out':    body = <StockOut toast={toast} onIssue={setInvoice} />; break;
+      case 'invoices':     body = <InvoiceList toast={toast} />; break;
+      case 'reports':      body = <Reports toast={toast} />; break;
+      case 'stock-manage': body = <StockManage toast={toast} />; break;
+      case 'products':     body = <Products toast={toast} />; break;
+      case 'customers':    body = <Customers toast={toast} />; break;
+      case 'users':        body = <Users toast={toast} />; break;
+      case 'settings':     body = <Settings toast={toast} />; break;
+      default:             body = <Placeholder title={page} />;
+    }
+  }
+
+  const glyphMap = { ok:'✓', err:'!', info:'i' };
+  const themeVars = THEME_VARS[t.theme] || {};
+
+  /* Loading screen */
+  if (dbReady === null) {
+    return (
+      <div style={{ height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'var(--bg)', gap:16, fontFamily:'var(--font-sans)' }}>
+        <div style={{ width:48, height:48, border:'4px solid var(--bd)', borderTopColor:'var(--ac)', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+        <div style={{ color:'var(--t2)', fontSize:15 }}>กำลังเชื่อมต่อฐานข้อมูล…</div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
+
+  /* Database connection failed — block app entirely (no mock-data fallback) */
+  if (dbReady === false) {
+    const saveAndReload = () => {
+      const url = apiInput.trim().replace(/\/+$/, '');
+      if (url) { localStorage.setItem('nexflow_api_base', url); }
+      location.reload();
+    };
+    return (
+      <div style={{ height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'var(--bg)', gap:16, fontFamily:'var(--font-sans)', padding:24, textAlign:'center' }}>
+        <div style={{ fontSize:40 }}>⚠️</div>
+        <div style={{ color:'var(--tx)', fontSize:17, fontWeight:700 }}>ไม่สามารถเชื่อมต่อฐานข้อมูลได้</div>
+        <div style={{ color:'var(--t2)', fontSize:13.5, maxWidth:420, lineHeight:1.7 }}>
+          ตรวจสอบว่า API server และ PostgreSQL กำลังทำงานอยู่<br/>
+          หรือเปลี่ยน Server URL ด้านล่างแล้วกด "บันทึกและลองใหม่"
+        </div>
+        <div style={{ display:'flex', gap:8, width:'100%', maxWidth:420 }}>
+          <input value={apiInput} onChange={e => setApiInput(e.target.value)}
+            placeholder="http://192.168.33.253:3001"
+            style={{ flex:1, padding:'9px 12px', borderRadius:8, border:'1px solid var(--bd,#ddd)', fontSize:13, fontFamily:'monospace', background:'var(--sur,#fff)', color:'var(--tx)', outline:'none' }} />
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={saveAndReload}
+            style={{ padding:'10px 24px', borderRadius:8, background:'var(--ac,#3b5bdb)', color:'#fff', fontSize:14, fontWeight:700, border:'none', cursor:'pointer', fontFamily:'inherit' }}>
+            บันทึกและลองใหม่
+          </button>
+          <button onClick={() => location.reload()}
+            style={{ padding:'10px 24px', borderRadius:8, background:'var(--s2,#f0f0f0)', color:'var(--t1,#111)', fontSize:14, fontWeight:600, border:'1px solid var(--bd,#ddd)', cursor:'pointer', fontFamily:'inherit' }}>
+            ลองใหม่
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div id="sp-root" style={{ ...themeVars, height:'100vh', overflow:'hidden', background:'var(--bg)' }}>
+      {!authed ? (
+        <Login onLogin={(user) => {
+          if (user) {
+            const initials = (user.name || '').trim().split(/\s+/).map(w => w[0]).join('').slice(0,2).toUpperCase();
+            Object.assign(window.SP_DATA.user, { name: user.name, role: user.role, username: user.username, initials });
+          }
+          setAuthed(true);
+          toast('ok', `✅ ${tr('login_success')} ${user?.name || ''}`);
+        }} />
+      ) : (
+        <React.Fragment>
+          <Shell page={page} setPage={setPage} onLogout={() => setAuthed(false)}>
+            {body}
+          </Shell>
+          {invoice && <Invoice invoice={invoice} onClose={() => setInvoice(null)} toast={toast} />}
+          <div className="toast-wrap">
+            {toasts.map(tt => (
+              <div className={'toast ' + tt.kind} key={tt.id}>
+                <span style={{ width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,.25)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0 }}>{glyphMap[tt.kind]}</span>
+                {tt.msg}
+              </div>
+            ))}
+          </div>
+        </React.Fragment>
+      )}
+
+      {/* Tweaks panel */}
+      <TweaksPanel>
+        <TweakSection label="ธีม" />
+        <TweakRadio
+          label="สีพื้นหลัง"
+          value={t.theme}
+          options={['warm','cool','dark']}
+          onChange={v => setTweak('theme', v)}
+        />
+        <TweakSection label="Dashboard" />
+        <TweakRadio
+          label="KPI Card style"
+          value={t.kpiStyle}
+          options={['gradient','minimal','glass']}
+          onChange={v => setTweak('kpiStyle', v)}
+        />
+        <TweakSection label="เลย์เอาท์" />
+        <TweakRadio
+          label="ความหนาแน่น"
+          value={t.density}
+          options={['compact','regular','relaxed']}
+          onChange={v => setTweak('density', v)}
+        />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<ErrorBoundary><App /></ErrorBoundary>);
+</script>
+</body>
+</html>

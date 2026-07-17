@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-22T00:00:00.000Z",
+  "title": "Design System: NEXflow",
+  "extensions": {
+    "colorMeta": {
+      "action-indigo":      { "role": "primary",   "displayName": "Action Indigo",      "canonical": "#3b5bdb", "tonalRamp": ["#1a2870","#243899","#2c44a8","#3b5bdb","#4a6eee","#7a94f2","#b2c0f8","#dde4fc"] },
+      "action-indigo-deep": { "role": "primary",   "displayName": "Action Indigo Deep", "canonical": "#2c44a8", "tonalRamp": ["#1a2870","#243899","#2c44a8","#3b5bdb","#4a6eee","#7a94f2","#b2c0f8","#dde4fc"] },
+      "success-teal":       { "role": "success",   "displayName": "Success Teal",       "canonical": "#0d9272", "tonalRamp": ["#063d30","#085244","#0d6e5a","#0d9272","#10b88f","#30d4ac","#7ae8cc","#d0f5ed"] },
+      "success-teal-bg":    { "role": "success",   "displayName": "Success Teal Bg",    "canonical": "#e6f6f2", "tonalRamp": ["#063d30","#085244","#0d6e5a","#0d9272","#10b88f","#30d4ac","#7ae8cc","#e6f6f2"] },
+      "warning-amber":      { "role": "warning",   "displayName": "Warning Amber",      "canonical": "#c47b00", "tonalRamp": ["#5a3700","#7a4d00","#9e6200","#c47b00","#e09700","#f0b030","#f8d070","#fef3c7"] },
+      "warning-amber-bg":   { "role": "warning",   "displayName": "Warning Amber Bg",   "canonical": "#fff4e0", "tonalRamp": ["#5a3700","#7a4d00","#9e6200","#c47b00","#e09700","#f0b030","#f8d070","#fff4e0"] },
+      "danger-red":         { "role": "danger",    "displayName": "Danger Red",         "canonical": "#d03030", "tonalRamp": ["#5c0e0e","#7e1515","#a01e1e","#c02828","#d03030","#e55555","#f08888","#ffd0d0"] },
+      "danger-red-bg":      { "role": "danger",    "displayName": "Danger Red Bg",      "canonical": "#fff0f0", "tonalRamp": ["#5c0e0e","#7e1515","#a01e1e","#c02828","#d03030","#e55555","#f08888","#fff0f0"] },
+      "online-violet":      { "role": "secondary", "displayName": "Online Violet",      "canonical": "#6741d9", "tonalRamp": ["#2a1570","#3a1f96","#4f2cbd","#6741d9","#835aee","#a080f4","#c4b0f8","#ede8fd"] },
+      "canvas":             { "role": "neutral",   "displayName": "Canvas",             "canonical": "#f0efe9", "tonalRamp": ["#b8b5a8","#cbc8bc","#d8d5ce","#e4e2da","#eeecea","#f0efe9","#f7f6f2","#ffffff"] },
+      "surface":            { "role": "neutral",   "displayName": "Surface",            "canonical": "#ffffff", "tonalRamp": ["#b8b5a8","#cbc8bc","#d8d5ce","#e4e2da","#eeecea","#f0efe9","#f7f6f2","#ffffff"] },
+      "surface-raised":     { "role": "neutral",   "displayName": "Surface Raised",     "canonical": "#f7f6f2", "tonalRamp": ["#b8b5a8","#cbc8bc","#d8d5ce","#e4e2da","#eeecea","#f0efe9","#f7f6f2","#ffffff"] },
+      "ink":                { "role": "neutral",   "displayName": "Ink",                "canonical": "#141318", "tonalRamp": ["#141318","#2a2830","#4d4b56","#6b6978","#7c7a87","#9b99a6","#c8c6d4","#f0efe9"] },
+      "ink-secondary":      { "role": "neutral",   "displayName": "Ink Secondary",      "canonical": "#4d4b56", "tonalRamp": ["#141318","#2a2830","#4d4b56","#6b6978","#7c7a87","#9b99a6","#c8c6d4","#f0efe9"] },
+      "table-header":       { "role": "neutral",   "displayName": "Table Header",       "canonical": "#241d3d", "tonalRamp": ["#0e0d16","#141024","#1c1730","#241d3d","#362d58","#5046a0","#9080d4","#e8e4f8"] },
+      "brand-blue":         { "role": "brand",     "displayName": "Brand Blue",         "canonical": "#5b7cff", "tonalRamp": ["#1e2a80","#2e40b0","#4060d8","#5b7cff","#7898ff","#9ab0ff","#c0ceff","#e8ecff"] },
+      "brand-violet":       { "role": "brand",     "displayName": "Brand Violet",       "canonical": "#8b5cf6", "tonalRamp": ["#3a1e70","#4e2898","#6838c8","#8b5cf6","#a07af8","#bc9cfa","#d8c4fc","#f2eeff"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display",  "purpose": "KPI numbers, stat values on dashboard. Never for prose." },
+      "headline": { "displayName": "Headline", "purpose": "Page-level hero text, report company name. Rarely used." },
+      "title":    { "displayName": "Title",    "purpose": "Toolbar header, modal title, card-group label." },
+      "body":     { "displayName": "Body",     "purpose": "Default interface text. 1.6 line-height required for Thai diacritics." },
+      "label":    { "displayName": "Label",    "purpose": "Form field labels. Bold weight for scanning." },
+      "caption":  { "displayName": "Caption",  "purpose": "Input labels, column header text." },
+      "meta":     { "displayName": "Meta",     "purpose": "Sub-text, version string, invoice item meta." },
+      "mono":     { "displayName": "Mono",     "purpose": "Barcodes, product codes, document numbers, weight values in table columns." }
+    },
+    "shadows": [
+      { "name": "resting-card",   "value": "0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04)", "purpose": "Legacy resting card shadow. Grandfathered; new cards use border only per Flat-First Rule." },
+      { "name": "float",          "value": "0 4px 20px rgba(0,0,0,.10)",                            "purpose": "Floating layers: toasts, date pickers, dropdowns. Communicates Z-axis." },
+      { "name": "modal",          "value": "0 12px 60px rgba(0,0,0,.18)",                           "purpose": "Full blocking dialog overlays only." },
+      { "name": "brand-glow",     "value": "0 4px 16px rgba(59,91,219,.35)",                        "purpose": "Login screen CTA button only. Never on interior screens." }
+    ],
+    "motion": [
+      { "name": "fast",     "value": "130ms ease",     "purpose": "Control feedback: button press, input focus, hover fill." },
+      { "name": "standard", "value": "180ms ease",     "purpose": "State changes: panel show/hide, toast appear." },
+      { "name": "slow",     "value": "250ms ease-out", "purpose": "Overlay open/close: modal entrance, drawer slide." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one button color for committing an action. Appears once per form/flow.",
+      "html": "<button class=\"ds-btn-primary\"><svg class=\"ds-btn-icon\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"/></svg>ยืนยัน</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; background: #3b5bdb; color: #fff; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 13.5px; font-weight: 500; border: none; cursor: pointer; transition: background 130ms ease, transform 130ms ease, box-shadow 130ms ease; white-space: nowrap; } .ds-btn-primary:hover { background: #2c44a8; box-shadow: 0 4px 12px rgba(0,0,0,.18); } .ds-btn-primary:active { transform: scale(.96); box-shadow: none; } .ds-btn-icon { width: 15px; height: 15px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action alongside a primary. White with border.",
+      "html": "<button class=\"ds-btn-ghost\">ยกเลิก</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; background: #ffffff; color: #141318; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 13.5px; font-weight: 500; border: 1px solid rgba(0,0,0,.14); cursor: pointer; transition: background 130ms ease; white-space: nowrap; } .ds-btn-ghost:hover { background: #f7f6f2; } .ds-btn-ghost:active { transform: scale(.96); }"
+    },
+    {
+      "name": "Success Button",
+      "kind": "button",
+      "refersTo": "button-success",
+      "description": "Stock-in confirm, GRN save, positive commit actions.",
+      "html": "<button class=\"ds-btn-success\">รับสินค้า</button>",
+      "css": ".ds-btn-success { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; background: #0d9272; color: #fff; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 13.5px; font-weight: 500; border: none; cursor: pointer; transition: filter 130ms ease; white-space: nowrap; } .ds-btn-success:hover { filter: brightness(.92); } .ds-btn-success:active { transform: scale(.96); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Standard form field. Focus ring in Action Indigo.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\">ชื่อสินค้า <span class=\"ds-req\">*</span></label><input class=\"ds-input\" type=\"text\" placeholder=\"ระบุชื่อสินค้า...\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; } .ds-label { font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 13px; font-weight: 700; color: #4d4b56; } .ds-req { color: #d03030; } .ds-input { width: 100%; padding: 9px 12px; border: 1px solid rgba(0,0,0,.14); border-radius: 8px; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 14px; color: #141318; background: #ffffff; outline: none; transition: border-color 130ms ease, box-shadow 130ms ease; } .ds-input:focus { border-color: #3b5bdb; box-shadow: 0 0 0 3px rgba(59,91,219,.12); } .ds-input::placeholder { color: #7c7a87; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Semantic status pill. Five color pairs — use by role, never by visual preference.",
+      "html": "<div class=\"ds-badge-row\"><span class=\"ds-badge ds-badge-success\">ชำระแล้ว</span><span class=\"ds-badge ds-badge-warning\">รอชำระ</span><span class=\"ds-badge ds-badge-danger\">ยกเลิก</span><span class=\"ds-badge ds-badge-action\">Wholesale</span><span class=\"ds-badge ds-badge-violet\">Online</span></div>",
+      "css": ".ds-badge-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; } .ds-badge { display: inline-flex; padding: 2px 9px; border-radius: 100px; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 12px; font-weight: 600; white-space: nowrap; } .ds-badge-success { background: #e6f6f2; color: #075c48; } .ds-badge-warning { background: #fff4e0; color: #7a4d00; } .ds-badge-danger { background: #fff0f0; color: #8c1a1a; } .ds-badge-action { background: #edf2ff; color: #2c44a8; } .ds-badge-violet { background: #f3effe; color: #4a2fa8; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Primary content container. White on Canvas. Border + subtle shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><span class=\"ds-card-title\">รายการสินค้า</span></div><div class=\"ds-card-body\"><p style=\"color:#7c7a87;font-size:14px;\">เนื้อหาบัตร</p></div></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04); overflow: hidden; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; } .ds-card-header { padding: 12px 18px; border-bottom: 1px solid rgba(0,0,0,.08); display: flex; align-items: center; justify-content: space-between; } .ds-card-title { font-size: 14.5px; font-weight: 800; color: #141318; } .ds-card-body { padding: 18px; }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "KPI tile on dashboard. Colored icon tile + label + display-scale value.",
+      "html": "<div class=\"ds-stat\"><div class=\"ds-stat-label\"><span class=\"ds-stat-icon\" style=\"background:#e6f6f2;color:#0d9272;\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"18\" y1=\"20\" x2=\"18\" y2=\"10\"/><line x1=\"12\" y1=\"20\" x2=\"12\" y2=\"4\"/><line x1=\"6\" y1=\"20\" x2=\"6\" y2=\"14\"/></svg></span>ยอดขายวันนี้</div><div class=\"ds-stat-value\" style=\"color:#0d9272;\">฿142,500</div><div class=\"ds-stat-sub\">เทียบเมื่อวาน +12%</div></div>",
+      "css": ".ds-stat { background: #ffffff; border: 1px solid rgba(0,0,0,.08); border-radius: 12px; padding: 15px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.07); font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; } .ds-stat-label { font-size: 12.5px; color: #4d4b56; font-weight: 600; display: flex; align-items: center; gap: 6px; margin-bottom: 7px; } .ds-stat-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; } .ds-stat-value { font-size: 24px; font-weight: 800; line-height: 1.1; letter-spacing: -0.5px; color: #141318; } .ds-stat-sub { font-size: 11.5px; color: #7c7a87; margin-top: 5px; }"
+    },
+    {
+      "name": "Table Row",
+      "kind": "custom",
+      "refersTo": "card",
+      "description": "Data table with dark header. The authoritative data surface.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>สต็อก</th><th>สถานะ</th></tr></thead><tbody><tr><td class=\"ds-mono\">000001</td><td>ปลาแซลมอนนอร์เวย์</td><td class=\"ds-mono\">23.500 KG</td><td><span class=\"ds-badge ds-badge-success\">ปกติ</span></td></tr><tr><td class=\"ds-mono\">000002</td><td>กุ้งแวนนาไม</td><td class=\"ds-mono\">4.200 KG</td><td><span class=\"ds-badge ds-badge-warning\">ต่ำ</span></td></tr></tbody></table>",
+      "css": ".ds-table { width: 100%; border-collapse: collapse; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 14px; color: #141318; } .ds-table th { text-align: left; padding: 9px 14px; font-size: 13px; font-weight: 700; color: #ffffff; background: #241d3d; white-space: nowrap; } .ds-table td { padding: 9px 14px; border-bottom: 1px solid rgba(0,0,0,.08); vertical-align: middle; } .ds-table tbody tr:hover td { background: #f7f6f2; } .ds-mono { font-family: 'Courier New', ui-monospace, monospace; font-size: 12px; color: #4d4b56; letter-spacing: 0.07em; } .ds-badge { display: inline-flex; padding: 2px 9px; border-radius: 100px; font-size: 12px; font-weight: 600; white-space: nowrap; } .ds-badge-success { background: #e6f6f2; color: #075c48; } .ds-badge-warning { background: #fff4e0; color: #7a4d00; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Sidebar navigation row. Default, hover, and active (brand gradient icon).",
+      "html": "<nav class=\"ds-nav\"><div class=\"ds-nav-item ds-nav-active\"><span class=\"ds-nav-icon\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/></svg></span>แดชบอร์ด</div><div class=\"ds-nav-item\"><span class=\"ds-nav-icon ds-nav-icon-rest\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z\"/></svg></span>รับสินค้า</div></nav>",
+      "css": ".ds-nav { background: #ffffff; padding: 8px 10px; border-radius: 8px; } .ds-nav-item { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 8px; font-family: 'Sarabun', 'Leelawadee UI', Tahoma, system-ui, sans-serif; font-size: 13.5px; font-weight: 600; color: #56546a; cursor: pointer; margin-bottom: 2px; transition: background 130ms, color 130ms; } .ds-nav-item:hover { background: #f1f0f6; color: #141318; } .ds-nav-active { background: #edf2ff; color: #2c44a8; font-weight: 700; } .ds-nav-icon { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, #5b7cff, #8b5cf6); color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 3px 10px rgba(91,124,255,.4); } .ds-nav-icon-rest { background: #f0eff5; color: #56546a; box-shadow: none; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Trusted Ledger",
+    "overview": "NEXflow is a professional tool, not a product experience. The people using it are weighing fish, printing invoices, and reconciling stock at 5 AM. Every design decision is governed by one question: does this make the work faster and more accurate, or does it slow the worker down? Decoration that cannot answer yes is prohibited.\n\nThe visual system is Thai-first and task-first. Sarabun handles Thai and Latin with equal precision; the scale stays compact because the UI is dense with data, not sparse with breathing room. The palette is functional — each color carries a status role (action, success, warning, danger, online) and is never used decoratively. The warm paper canvas grounds the interface without pulling attention away from the content. Surfaces separate from each other by tone, not shadow.\n\nThe system explicitly rejects: legacy ERP clutter, generic SaaS blue, budget POS aesthetics, and consumer app energy.",
+    "keyCharacteristics": [
+      "Single Thai-optimized typeface at fixed scale — no display/body pairing, no fluid sizes",
+      "Five semantic colors, each with a tinted background pair — used for status, never decoration",
+      "Flat + tonal surface separation — depth conveyed by background tone, not shadow",
+      "Dark violet-black (#241d3d) table headers for authoritative data presentation",
+      "Brand gradient (blue→violet) reserved for identity moments only",
+      "Compact density: 4px base grid, 15px body, Thai line-height 1.6"
+    ],
+    "rules": [
+      { "name": "The One Voice Rule",        "body": "Action Indigo (#3b5bdb) appears only on interactive controls and current selection indicators. It is never used as a decorative accent. Its scarcity makes it trustworthy.", "section": "colors" },
+      { "name": "The Role Discipline Rule",  "body": "Success Teal signals stock-in and positive financial events. Warning Amber signals low stock and caution. Danger Red signals void, cancellation, and out-of-stock. Swapping these roles for visual variety is prohibited.", "section": "colors" },
+      { "name": "The Thai Line-Height Rule", "body": "Body line-height is 1.6, always. Thai diacritics stack above and below base characters; anything below 1.5 clips them.", "section": "typography" },
+      { "name": "The Fixed Scale Rule",      "body": "Do not use clamp() or viewport-relative font sizes. Fixed rem/px only. A heading that changes size as the window resizes creates instability in a data-heavy layout where column widths matter.", "section": "typography" },
+      { "name": "The Flat-First Rule",       "body": "Surfaces are separated by tone, not by shadow. Add a shadow only when the element floats above the document flow. Ambient or decorative box-shadow on cards or table rows is prohibited.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use the five semantic colors strictly by their role — role integrity is the system's trust signal.",
+      "Do separate surfaces tonally: #ffffff cards on #f0efe9 canvas. Depth through tone, not shadow.",
+      "Do use #241d3d for all <thead> rows — the dark header makes data tables authoritative and scannable.",
+      "Do use Sarabun at 1.6 line-height for all body text. Thai diacritics require it.",
+      "Do restrict the brand gradient to the login screen, active nav icon tile, and avatar.",
+      "Do use monospace (Courier New) for barcodes, product codes, document numbers, and weight values.",
+      "Do use the pill shape (100px radius) for status badges.",
+      "Do keep button shapes consistent at 8px radius across every screen."
+    ],
+    "donts": [
+      "Don't use Action Indigo as a decorative accent. It signals 'press me' or 'you are here.'",
+      "Don't add ambient or decorative box-shadow to cards, stat tiles, or table rows. Shadow appears only on floating layers.",
+      "Don't introduce a new typeface. Sarabun handles every role.",
+      "Don't use clamp() or viewport-relative font sizes. Fixed scale only.",
+      "Don't put the brand gradient on interior buttons — login CTA and active nav icon tile only.",
+      "Don't make it look like a legacy ERP system, generic SaaS blue dashboard, budget POS app, or consumer social app.",
+      "Don't use motion choreography or page-load sequences. State-change transitions only, 130–250ms.",
+      "Don't use border-left > 1px as a colored stripe. Use background tints or full borders instead.",
+      "Don't use gradient text (background-clip: text). Emphasis is weight or size."
+    ]
+  }
+}

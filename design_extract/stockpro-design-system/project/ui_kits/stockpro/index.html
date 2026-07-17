@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StockPro — UI Kit</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+  html,body,#root{height:100%}
+  #root{position:relative;height:100vh;overflow:hidden}
+  #sp-root{height:100%;overflow:hidden;display:flex;flex-direction:column}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="primitives.jsx"></script>
+<script type="text/babel" src="Login.jsx"></script>
+<script type="text/babel" src="Shell.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="StockIn.jsx"></script>
+<script type="text/babel" src="StockOut.jsx"></script>
+<script type="text/babel" src="Invoice.jsx"></script>
+<script type="text/babel" src="Reports.jsx"></script>
+<script type="text/babel" src="Extras.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+/* ── Tweak definitions ── */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "theme": "warm",
+  "kpiStyle": "gradient",
+  "density": "relaxed"
+}/*EDITMODE-END*/;
+
+/* Theme → CSS custom property overrides (applied to #sp-root) */
+const THEME_VARS = {
+  warm: {},
+  cool: {
+    '--bg':'#edf1f7','--sur':'#ffffff','--s2':'#f2f5fb','--s3':'#e5eaf4',
+    '--tx':'#0e1929','--t2':'#4e6178','--t3':'#8aa0b8',
+  },
+  dark: {
+    '--bg':'#13111e','--sur':'#1d1b2e','--s2':'#252240','--s3':'#2e2b46',
+    '--bd':'rgba(255,255,255,.07)','--b2':'rgba(255,255,255,.13)',
+    '--tx':'#e6e4f0','--t2':'rgba(230,228,240,.6)','--t3':'rgba(230,228,240,.3)',
+    '--nav-bg':'#0c0a18','--nav-line':'rgba(255,255,255,.05)',
+    '--abg':'rgba(59,91,219,.18)','--gbg':'rgba(13,146,114,.18)',
+    '--ambg':'rgba(196,123,0,.18)','--rbg':'rgba(208,48,48,.18)',
+    '--pbg':'rgba(103,65,217,.18)',
+  },
+};
+
+/* Density → injected CSS overrides */
+const DENSITY_CSS = {
+  compact: `#sp-root .cb{padding:12px!important}#sp-root .ct{padding:14px!important}#sp-root .sg{gap:10px!important}#sp-root .dash-card-h{padding:10px 14px 9px!important}#sp-root .st{padding:12px 14px!important}#sp-root body{font-size:13.5px}`,
+  regular: ``,
+  relaxed: `#sp-root .cb{padding:28px!important}#sp-root .ct{padding:30px!important}#sp-root .sg{gap:20px!important}#sp-root .dash-card-h{padding:18px 24px 16px!important}#sp-root .st{padding:22px 24px!important}`,
+};
+
+const { useCallback } = React;
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [authed, setAuthed] = React.useState(false);
+  const [page, setPage] = React.useState('dashboard');
+  const [invoice, setInvoice] = React.useState(null);
+  const [toasts, setToasts] = React.useState([]);
+
+  /* Expose tweaks globally so Dashboard KpiCard can read kpiStyle */
+  window.SP_TWEAKS = t;
+
+  /* Inject density CSS */
+  React.useEffect(() => {
+    let el = document.getElementById('density-css');
+    if (!el) { el = document.createElement('style'); el.id = 'density-css'; document.head.appendChild(el); }
+    el.textContent = DENSITY_CSS[t.density] || '';
+  }, [t.density]);
+
+  const toast = useCallback((kind, msg) => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, kind, msg }]);
+    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 3200);
+  }, []);
+
+  /* Route → body */
+  let body;
+  if (authed) {
+    switch (page) {
+      case 'dashboard':    body = <Dashboard setPage={setPage} />; break;
+      case 'stock-in':     body = <StockIn toast={toast} setPage={setPage} />; break;
+      case 'stock-out':    body = <StockOut toast={toast} onIssue={setInvoice} />; break;
+      case 'invoices':     body = <InvoiceList toast={toast} />; break;
+      case 'reports':      body = <Reports />; break;
+      case 'stock-manage': body = <StockManage toast={toast} />; break;
+      case 'products':     body = <Products />; break;
+      case 'customers':    body = <Customers />; break;
+      case 'users':        body = <Users toast={toast} />; break;
+      case 'settings':     body = <Settings toast={toast} />; break;
+      default:             body = <Placeholder title={page} />;
+    }
+  }
+
+  const glyphMap = { ok:'✓', err:'!', info:'i' };
+  const themeVars = THEME_VARS[t.theme] || {};
+
+  return (
+    <div id="sp-root" style={{ ...themeVars, height:'100vh', overflow:'hidden', background:'var(--bg)' }}>
+      {!authed ? (
+        <Login onLogin={() => { setAuthed(true); toast('ok', 'ยินดีต้อนรับ Admin Kanya'); }} />
+      ) : (
+        <React.Fragment>
+          <Shell page={page} setPage={setPage} onLogout={() => setAuthed(false)}>
+            {body}
+          </Shell>
+          {invoice && <Invoice invoice={invoice} onClose={() => setInvoice(null)} toast={toast} />}
+          <div className="toast-wrap">
+            {toasts.map(tt => (
+              <div className={'toast ' + tt.kind} key={tt.id}>
+                <span style={{ width:20,height:20,borderRadius:'50%',background:'rgba(255,255,255,.25)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0 }}>{glyphMap[tt.kind]}</span>
+                {tt.msg}
+              </div>
+            ))}
+          </div>
+        </React.Fragment>
+      )}
+
+      {/* Tweaks panel */}
+      <TweaksPanel>
+        <TweakSection label="ธีม" />
+        <TweakRadio
+          label="สีพื้นหลัง"
+          value={t.theme}
+          options={['warm','cool','dark']}
+          onChange={v => setTweak('theme', v)}
+        />
+        <TweakSection label="Dashboard" />
+        <TweakRadio
+          label="KPI Card style"
+          value={t.kpiStyle}
+          options={['gradient','minimal','glass']}
+          onChange={v => setTweak('kpiStyle', v)}
+        />
+        <TweakSection label="เลย์เอาท์" />
+        <TweakRadio
+          label="ความหนาแน่น"
+          value={t.density}
+          options={['compact','regular','relaxed']}
+          onChange={v => setTweak('density', v)}
+        />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
